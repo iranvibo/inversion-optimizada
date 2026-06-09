@@ -493,3 +493,9 @@ Solo:
 Nada más.
 
 Y luego ya crecer.
+
+⸻
+
+Origen de las Señales del Bot
+
+* El bot que ejecuta las señales de trading en Binance obtiene la información y los datos correspondientes desde una API externa al proyecto.

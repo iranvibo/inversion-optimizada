@@ -2,6 +2,9 @@
 
 Este documento define las 5 User Stories principales para el MVP de **ViBo Invest**, estructuradas bajo el criterio **INVEST** y utilizando el formato de desarrollo guiado por comportamiento (**BDD**) para sus criterios de aceptación.
 
+> [!NOTE]
+> **Origen de las Señales del Bot**: El bot de trading obtiene la información y datos de las señales a ejecutar en Binance desde una API externa al proyecto.
+
 ---
 
 ## 1. User Stories del MVP

@@ -108,6 +108,7 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
     *   Validación estricta en tiempo de conexión de que la API Key **NO** tiene permisos de retiro (IP/Withdrawal restrictions checking).
     *   Consulta de balance de cuenta en tiempo real.
     *   Ejecución de órdenes de compra/venta y configuración de Stop Loss/Take Profit.
+*   **Integración con API Externa de Señales**: El bot obtiene la información y los datos de las señales que se van a ejecutar en Binance consumiendo una API externa al proyecto.
 *   **Motor de Simulación (Shadow Mode)**:
     *   Mapeo de datos históricos reales para proyectar curvas de ganancias y drawdowns ("caídas temporales").
     *   Cálculo en tiempo real del peor drawdown semanal/mensual simulado para ajustar los parámetros dinámicamente.

@@ -13,7 +13,7 @@ Key constraints   :
   - Extreme simplicity: Styled as the "Netflix of automated trading", avoiding complex terminal designs.
   - Minimalist UX/UI: No advanced technical indicators (RSI, MACD, candles, order books). Use clear, human-readable terms (e.g. "caídas temporales" instead of "volatilidad").
   - Security & Trust: Highlight risk management features (daily stop loss, protected capital limit, no withdrawal permissions).
-  - Integration: Binance exchange integration via API.
+  - Integration: Binance exchange integration via API. Las señales de trading a ejecutar en Binance se obtienen desde una API externa al proyecto.
 Notes             : Keep features limited for the MVP (login, simulation, connecting Binance, activating/pausing bot, and showing balance evolution).
 ```
 
