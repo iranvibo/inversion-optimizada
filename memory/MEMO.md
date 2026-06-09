@@ -1,0 +1,1 @@
+- [project-docs.md](project-docs.md) — Ubicación y descripción de la documentación clave del proyecto (PRD e Idea Inicial) | tags: docs, prd, idea-inicial, conceptual
