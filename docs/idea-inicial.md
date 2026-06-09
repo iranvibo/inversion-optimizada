@@ -499,3 +499,5 @@ Y luego ya crecer.
 Origen de las Señales del Bot
 
 * El bot que ejecuta las señales de trading en Binance obtiene la información y los datos correspondientes desde una API externa al proyecto.
+* **Seguridad y Aislamiento de Credenciales**: Las claves de API de Binance del usuario nunca se transmiten al proveedor externo de señales. El proveedor de señales se limita a emitir las señales a ViBo Invest.
+* **Rol de Gatekeeper**: El backend de ViBo Invest recibe las señales, verifica localmente si la cuenta del usuario cumple las reglas de riesgo (como el stop loss diario o el capital protegido) y, si es seguro operar, ejecuta la orden directamente en Binance mediante las credenciales que se custodian cifradas localmente.

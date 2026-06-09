@@ -13,7 +13,7 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
 
 ### Restricciones Conocidas
 *   **Integración única**: Conexión obligatoria con el exchange **Binance** a través de API Keys.
-*   **Seguridad estricta**: Las API Keys no deben tener permisos de retiro bajo ninguna circunstancia.
+*   **Seguridad estricta**: Las API Keys no deben tener permisos de retiro bajo ninguna circunstancia y deben estar estrictamente aisladas en el backend de ViBo Invest (nunca compartidas con el proveedor de señales externo).
 *   **Simplicidad radical**: Prohibido el uso de indicadores técnicos o interfaces sobrecargadas en el front-end. Toda la comunicación y métricas deben estar en lenguaje humano y comprensible.
 *   **Alcance MVP**: El alcance inicial debe limitarse exclusivamente a: login, onboarding con simulación, conexión con Binance, activación/pausado del bot y visualización del balance histórico.
 
@@ -108,13 +108,14 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
     *   Validación estricta en tiempo de conexión de que la API Key **NO** tiene permisos de retiro (IP/Withdrawal restrictions checking).
     *   Consulta de balance de cuenta en tiempo real.
     *   Ejecución de órdenes de compra/venta y configuración de Stop Loss/Take Profit.
-*   **Integración con API Externa de Señales**: El bot obtiene la información y los datos de las señales que se van a ejecutar en Binance consumiendo una API externa al proyecto.
+*   **Integración con API Externa de Señales e Aislamiento de Credenciales**: El bot obtiene la información y los datos de las señales que se van a ejecutar en Binance consumiendo una API externa al proyecto. Las API Keys de Binance **bajo ninguna circunstancia** se transmiten, comparten o procesan a través de dicha API externa. El backend de ViBo Invest actúa como el único ejecutor y gatekeeper: recibe las señales del proveedor externo y procesa localmente la ejecución de órdenes en Binance usando las credenciales cifradas (AES-256) de los usuarios, garantizando que se apliquen siempre las validaciones de riesgo (como el Stop Loss diario) antes de enviar la orden al exchange.
 *   **Motor de Simulación (Shadow Mode)**:
     *   Mapeo de datos históricos reales para proyectar curvas de ganancias y drawdowns ("caídas temporales").
     *   Cálculo en tiempo real del peor drawdown semanal/mensual simulado para ajustar los parámetros dinámicamente.
 
 ### Seguridad y Almacenamiento
 *   **Cifrado de API Keys**: Las claves de API de los usuarios deben almacenarse cifradas en reposo usando algoritmos robustos (ej. AES-256) con llaves de cifrado gestionadas de forma segura.
+*   **Aislamiento Estricto de API Keys**: Se prohíbe el envío o delegación de las claves de API del usuario a servicios o proveedores externos. Toda comunicación con la API externa de señales es receptiva (hacia ViBo Invest), manteniendo las credenciales del usuario aisladas y protegidas dentro de los límites del backend del proyecto.
 *   **Auditoría de Permisos**: Sistema automático que verifique periódicamente (ej. una vez al día) que las API vinculadas siguen sin permisos de retiro. Si se detecta un cambio de permisos, el bot debe pausarse de inmediato y notificar al usuario.
 
 ---

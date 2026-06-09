@@ -3,18 +3,18 @@
 Este documento define las 5 User Stories principales para el MVP de **ViBo Invest**, estructuradas bajo el criterio **INVEST** y utilizando el formato de desarrollo guiado por comportamiento (**BDD**) para sus criterios de aceptación.
 
 > [!NOTE]
-> **Origen de las Señales del Bot**: El bot de trading obtiene la información y datos de las señales a ejecutar en Binance desde una API externa al proyecto.
+> **Origen de las Señales y Aislamiento de Credenciales**: El bot de trading obtiene las señales desde una API externa al proyecto. Las API Keys de Binance del usuario permanecen aisladas en el backend de ViBo Invest y **nunca** se envían al proveedor de señales. ViBo Invest actúa como *gatekeeper*, recibiendo las señales, validando los límites de riesgo locales (como el Stop Loss diario) y ejecutando las órdenes de manera directa y segura en Binance.
 
 ---
 
 ## 1. User Stories del MVP
 
-### US01: Vinculación Segura de Cuenta de Binance con Validación de Permisos de Retiro
-* **Título descriptivo:** Vinculación segura de cuenta de Binance sin permisos de retiro.
+### US01: Vinculación Segura de Cuenta de Binance con Validación de Permisos de Retiro y Aislamiento de Llaves
+* **Título descriptivo:** Vinculación segura de cuenta de Binance sin permisos de retiro y con aislamiento de llaves.
 * **Fórmula de Historia:**
   * **Como** usuario listo para operar en real,
-  * **quiero** que la plataforma valide que mi API Key de Binance no tenga activados los permisos de retiro,
-  * **para** tener la absoluta seguridad de que mi dinero nunca podrá ser retirado por la plataforma.
+  * **quiero** que la plataforma valide que mi API Key de Binance no tenga activados los permisos de retiro y que mis llaves se mantengan estrictamente aisladas dentro del backend de la plataforma,
+  * **para** tener la absoluta seguridad de que mi dinero nunca podrá ser retirado ni mis credenciales expuestas a proveedores externos de señales.
 * **Criterios de Aceptación (BDD):**
   * **Escenario 1: Detección de permisos de retiro activos durante la vinculación**
     * **Dado que** estoy en la pantalla de vinculación de Binance y he ingresado mi API Key y Secret Key,
