@@ -1,2 +1,3 @@
 - [project-docs.md](project-docs.md) — Ubicación y descripción de la documentación clave del proyecto (PRD e Idea Inicial) | tags: docs, prd, idea-inicial, conceptual
 - [bot-signals.md](bot-signals.md) — Origen de las señales de trading del bot desde una API externa | tags: bot, señales, api, integración, arquitectura
+- [project-architecture.md](project-architecture.md) — Decisiones de arquitectura, Docker Compose, Redis, y seguridad | tags: arquitectura, docker, redis, laravel, hmac
