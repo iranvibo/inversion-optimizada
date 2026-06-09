@@ -23,3 +23,17 @@ prd.md
 Después de generar las historias, sugiere un orden de priorización
 para el MVP y justifica tu decisión.
 guardalo en formato markdown en docs/user-story.md
+
+PROMT3:
+
+Rol: Arquitecto de Software especializado en web apps Objetivo: Eres la persona experta en arquitectura de proyecto. A partir del proyecto descrito en 
+idea-inicial.md
+prd.md
+  realiza Diagrama de arquitectura. Antes de empezar, preguntame que necesitas saber y que vas a considerar para diseñar este diagrama.
+quiero usar las siguientes tecnologias:
+Frontend & Vistas: Plantillas en Blade compiladas con Vite.
+Estilos: 
+Tailwind CSS 4
+ y CSS personalizado (Vanilla CSS).
+Base de datos: MySQL. El contenido dinámico es gestionado a través de Seeders de Laravel.
+tambien docker para empaquetar todo
