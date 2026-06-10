@@ -10,26 +10,26 @@ El siguiente diagrama ilustra cómo interactúan los componentes de ViBo Invest,
 
 ```mermaid
 graph TB
-    subgraph Proveedor Externo
-        SignalsAPI[API de Señales]
+    subgraph ProveedorExterno ["Proveedor Externo"]
+        SignalsAPI["API de Señales"]
     end
 
-    subgraph Client Side (Navegador)
-        UI[Blade Views + Alpine.js/JS]
-        WSClient[WebSocket Client - Echo/Reverb]
+    subgraph ClientSide ["Client Side (Navegador)"]
+        UI["Blade Views + Alpine.js/JS"]
+        WSClient["WebSocket Client - Echo/Reverb"]
     end
 
-    subgraph ViBo Invest Cloud (Docker Network)
-        Nginx[Nginx Web Server Container]
-        Laravel[Laravel 11 App Container]
-        Redis[Redis Container: Colas/Caché/PubSub]
-        MySQL[(MySQL Database)]
-        Reverb[Laravel Reverb WS Container]
-        Worker[Queue Worker Container]
+    subgraph ViBoInvestCloud ["ViBo Invest Cloud (Docker Network)"]
+        Nginx["Nginx Web Server Container"]
+        Laravel["Laravel 11 App Container"]
+        Redis["Redis Container: Colas/Caché/PubSub"]
+        MySQL[("MySQL Database")]
+        Reverb["Laravel Reverb WS Container"]
+        Worker["Queue Worker Container"]
     end
 
-    subgraph Exchange Externo
-        Binance[Binance API]
+    subgraph ExchangeExterno ["Exchange Externo"]
+        Binance["Binance API"]
     end
 
     %% Flujos de señales y ejecución
@@ -60,19 +60,19 @@ Para garantizar aislamiento, escalabilidad y facilidad de mantenimiento en produ
 
 ```mermaid
 graph TD
-    Client[Cliente / Navegador] -->|Puerto 80/443| Nginx[nginx:alpine]
-    Client -->|Puerto 8080| Reverb[php:8.3-fpm - Reverb Server]
+    Client["Cliente / Navegador"] -->|Puerto 80/443| Nginx["nginx:alpine"]
+    Client -->|Puerto 8080| Reverb["php:8.3-fpm - Reverb Server"]
 
-    subgraph Docker Bridge Network: vibo-network
-        Nginx -->|PHP-FPM socket/port| App[php:8.3-fpm - Laravel Backend]
-        App -->|Cache & Queue| Redis[redis:7-alpine]
-        App -->|Persistencia| DB[(mysql:8.0)]
+    subgraph DockerBridgeNetwork ["Docker Bridge Network: vibo-network"]
+        Nginx -->|PHP-FPM socket/port| App["php:8.3-fpm - Laravel Backend"]
+        App -->|Cache & Queue| Redis["redis:7-alpine"]
+        App -->|Persistencia| DB[("mysql:8.0")]
         
-        Worker[php:8.3-fpm - Queue Worker] -->|Listen Jobs| Redis
+        Worker["php:8.3-fpm - Queue Worker"] -->|Listen Jobs| Redis
         Worker -->|Leer/Escribir| DB
         Worker -->|Publicar Eventos| Redis
         
-        Scheduler[php:8.3-fpm - Laravel Scheduler] -->|Verificaciones Periódicas| DB
+        Scheduler["php:8.3-fpm - Laravel Scheduler"] -->|Verificaciones Periódicas| DB
         Scheduler -->|Despachar Tareas| Redis
         
         Reverb -->|Pub/Sub Driver| Redis
