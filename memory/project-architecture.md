@@ -48,7 +48,7 @@ El sistema se ejecuta en una red interna puente (`vibo-network`) donde los conte
 
 ## Despliegue y CI/CD (IONOS VPS)
 
-* **Pipeline**: Configurado en `.github/workflows/deploy.yml`. Se ejecuta automáticamente al hacer push a la rama `master`.
+* **Pipeline**: Configurado en `.github/workflows/deploy.yml`. Se ejecuta automáticamente al hacer push a la rama `master` o de manera manual desde la pestaña Actions de GitHub (`workflow_dispatch`).
 * **Proceso de Compilación**:
   * Ejecuta `npm install` y `npm run build` en el entorno de GitHub Actions (Node 20) para compilar los assets de frontend (Tailwind 4 + Vite).
   * Configura PHP 8.4 con las extensiones requeridas (`mbstring`, `xml`, `curl`, `pdo_mysql`, `bcmath`, `pcntl`, `zip`, `intl`).
