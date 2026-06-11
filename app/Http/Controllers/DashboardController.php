@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -13,11 +14,17 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login');
         }
 
-        return view('dashboard', compact('user'));
+        // Balance inicial renderizado en servidor (US03, Escenario 1);
+        // la serie del gráfico se carga después vía JSON según el filtro.
+        $latestSnapshot = $user->balanceSnapshots()
+            ->latest('captured_at')
+            ->first(['balance', 'captured_at']);
+
+        return view('dashboard', compact('user', 'latestSnapshot'));
     }
 
     /**
@@ -26,20 +33,21 @@ class DashboardController extends Controller
     public function toggleBot(Request $request)
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             return back()->with('error', 'Sesión no válida.');
         }
 
         // Si intenta encender el bot en modo Real sin Binance vinculado, lo bloquea (US07 Escenario 3)
-        if (!$user->bot_active && $user->bot_mode === 'real' && !$user->isBinanceLinked()) {
+        if (! $user->bot_active && $user->bot_mode === 'real' && ! $user->isBinanceLinked()) {
             return back()->with('error', 'Operación Bloqueada: Para activar el bot en modo REAL debes vincular una cuenta de Binance autorizada.');
         }
 
         $user->update([
-            'bot_active' => !$user->bot_active
+            'bot_active' => ! $user->bot_active,
         ]);
 
         $statusMessage = $user->bot_active ? 'Bot ACTIVADO con éxito.' : 'Bot PAUSADO de inmediato.';
+
         return back()->with('success', $statusMessage);
     }
 
@@ -49,23 +57,23 @@ class DashboardController extends Controller
     public function toggleMode(Request $request)
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             return back();
         }
 
         $newMode = $user->bot_mode === 'real' ? 'simulation' : 'real';
 
         // Si intenta cambiar a modo real y no está vinculado, mostrar error
-        if ($newMode === 'real' && !$user->isBinanceLinked()) {
+        if ($newMode === 'real' && ! $user->isBinanceLinked()) {
             return back()->with('error', 'Requisito de Seguridad: Para operar en modo REAL, primero debes vincular tu cuenta de Binance de manera segura sin permisos de retiro.');
         }
 
         // Si pasa a simulación, el bot se mantiene (o se cierra preventivamente, pero para US01 mantengámoslo simple)
         $user->update([
-            'bot_mode' => $newMode
+            'bot_mode' => $newMode,
         ]);
 
-        return back()->with('success', "Modo cambiado a: " . strtoupper($newMode));
+        return back()->with('success', 'Modo cambiado a: '.strtoupper($newMode));
     }
 
     /**
@@ -74,11 +82,11 @@ class DashboardController extends Controller
     public function triggerWithdrawalSimulation()
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             return back();
         }
 
-        if (!$user->isBinanceLinked()) {
+        if (! $user->isBinanceLinked()) {
             return back()->with('error', 'Debes conectar tu cuenta de Binance antes de poder simular este caso.');
         }
 
@@ -89,7 +97,7 @@ class DashboardController extends Controller
         ]);
 
         // Ejecutar inmediatamente la validación
-        \Illuminate\Support\Facades\Artisan::call('binance:verify-permissions');
+        Artisan::call('binance:verify-permissions');
 
         return back()->with('success', 'Simulación Activada: Se modificó la API Key a una con permisos de retiro y se ejecutó la auditoría de seguridad. El bot se ha pausado y se ha activado la alerta.');
     }

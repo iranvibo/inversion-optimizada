@@ -95,6 +95,48 @@
         </div>
     @endif
 
+    <!-- BALANCE TOTAL Y EVOLUCIÓN (US03) -->
+    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md relative overflow-hidden">
+        <div class="absolute -left-20 -top-20 w-60 h-60 bg-violet-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-6 relative">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Balance Total</span>
+                <!-- Balance grande y legible, sin jerga técnica (Escenario 1) -->
+                <div id="balance-amount"
+                     class="text-5xl md:text-6xl font-extrabold tracking-tight text-white my-2 transition-all duration-500"
+                     data-balance="{{ $latestSnapshot?->balance ?? '' }}">
+                    @if($latestSnapshot)
+                        {{ number_format($latestSnapshot->balance, 2, ',', '.') }}<span class="text-3xl text-slate-400 font-semibold">€</span>
+                    @else
+                        <span class="text-3xl text-slate-500 font-semibold">Sin datos todavía</span>
+                    @endif
+                </div>
+                <p id="balance-change" class="text-sm text-slate-400">
+                    @if(!$latestSnapshot)
+                        Cuando el sistema sincronice tu cuenta verás aquí la evolución de tu dinero.
+                    @endif
+                </p>
+            </div>
+
+            <!-- Filtros temporales: Día / Semana / Mes (Escenario 2) -->
+            <div id="range-filters" class="flex items-center gap-2 bg-[hsl(223,47%,10%)] rounded-xl p-1 border border-[rgba(255,255,255,0.06)] self-start">
+                <button type="button" data-range="day" class="range-btn text-xs font-bold py-2 px-4 rounded-lg transition duration-200 bg-violet-600 text-white">Día</button>
+                <button type="button" data-range="week" class="range-btn text-xs font-bold py-2 px-4 rounded-lg transition duration-200 text-slate-400 hover:text-white">Semana</button>
+                <button type="button" data-range="month" class="range-btn text-xs font-bold py-2 px-4 rounded-lg transition duration-200 text-slate-400 hover:text-white">Mes</button>
+            </div>
+        </div>
+
+        <!-- Gráfico lineal simple: sin velas, RSI, MACD ni libros de órdenes (Escenario 1) -->
+        <div class="mt-6 rounded-xl bg-[hsl(222,47%,10%)] border border-[rgba(255,255,255,0.06)] p-5">
+            <svg id="balance-chart" viewBox="0 0 600 200" class="w-full h-auto" preserveAspectRatio="none" aria-label="Gráfico de evolución del balance"></svg>
+            <p id="balance-chart-empty" class="hidden text-center text-xs text-slate-500 py-8">
+                Aún no hay historial suficiente en este rango. Prueba la herramienta de sincronización del simulador.
+            </p>
+        </div>
+        <p id="balance-error" class="hidden text-sm text-rose-400 mt-3"></p>
+    </div>
+
     <!-- SECCIÓN DE TARJETAS PRINCIPALES -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         
@@ -254,8 +296,143 @@
                 @endif
             </div>
 
+            <!-- US03: Simular sincronización de balance -->
+            <div class="bg-[hsl(223,47%,10%)] p-4 rounded-xl border border-slate-800 space-y-3 flex flex-col justify-between">
+                <div>
+                    <span class="text-xs font-bold text-sky-400 block uppercase">4. Sincronizar Balance (US03)</span>
+                    <p class="text-xs text-slate-300">
+                        Simula que el backend sincroniza tu saldo con Binance: genera historial demo si no existe, registra un nuevo snapshot y actualiza el balance en vivo vía WebSockets.
+                    </p>
+                </div>
+
+                @if($user->isBinanceLinked())
+                    <form action="{{ route('binance.simulate-balance-sync') }}" method="POST" class="m-0 p-0 mt-3">
+                        @csrf
+                        <button type="submit"
+                                class="w-full text-center text-[10px] font-bold py-1.5 px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition hover-lift">
+                            Simular Sincronización de Balance
+                        </button>
+                    </form>
+                @else
+                    <span class="text-[10px] text-slate-500 italic block mt-3">Requiere Binance conectado primero.</span>
+                @endif
+            </div>
+
         </div>
     </div>
 
 </div>
+
+<script>
+(function () {
+    const amountEl = document.getElementById('balance-amount');
+    const changeEl = document.getElementById('balance-change');
+    const chart = document.getElementById('balance-chart');
+    const emptyEl = document.getElementById('balance-chart-empty');
+    const errorEl = document.getElementById('balance-error');
+    const rangeButtons = document.querySelectorAll('.range-btn');
+
+    let currentRange = 'day';
+
+    const formatEuro = (value) =>
+        new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+
+    function renderBalance(value) {
+        amountEl.innerHTML = formatEuro(value) + '<span class="text-3xl text-slate-400 font-semibold">€</span>';
+    }
+
+    // Transición sutil para denotar "cuenta viva" (Escenario 3)
+    function pulseBalance() {
+        amountEl.classList.add('scale-105', 'text-violet-300');
+        setTimeout(() => amountEl.classList.remove('scale-105', 'text-violet-300'), 600);
+    }
+
+    function highlightRange() {
+        rangeButtons.forEach((btn) => {
+            const active = btn.dataset.range === currentRange;
+            btn.classList.toggle('bg-violet-600', active);
+            btn.classList.toggle('text-white', active);
+            btn.classList.toggle('text-slate-400', !active);
+        });
+    }
+
+    // Gráfico lineal simple en SVG: misma técnica que el onboarding (US02)
+    function drawChart(series) {
+        const hasData = series.length >= 2;
+        chart.classList.toggle('hidden', !hasData);
+        emptyEl.classList.toggle('hidden', hasData);
+        if (!hasData) { chart.innerHTML = ''; return; }
+
+        const W = 600, H = 200, PAD = 10;
+        const values = series.map((p) => p.value);
+        const min = Math.min(...values), max = Math.max(...values);
+        const range = max - min || 1;
+        const x = (i) => PAD + (i / (series.length - 1)) * (W - 2 * PAD);
+        const y = (v) => H - PAD - ((v - min) / range) * (H - 2 * PAD);
+
+        const linePoints = series.map((p, i) => `${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
+        const areaPoints = `${PAD},${H - PAD} ${linePoints} ${(W - PAD)},${H - PAD}`;
+
+        chart.innerHTML = `
+            <defs>
+                <linearGradient id="balance-area-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="rgba(139, 92, 246, 0.35)"/>
+                    <stop offset="100%" stop-color="rgba(139, 92, 246, 0)"/>
+                </linearGradient>
+            </defs>
+            <polygon points="${areaPoints}" fill="url(#balance-area-fill)"/>
+            <polyline points="${linePoints}" fill="none" stroke="hsl(263, 70%, 62%)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        `;
+    }
+
+    async function refreshHistory(pulse = false) {
+        errorEl.classList.add('hidden');
+
+        try {
+            const response = await fetch(`{{ route('dashboard.balance') }}?range=${currentRange}`, {
+                headers: { 'Accept': 'application/json' },
+            });
+
+            if (!response.ok) {
+                const body = await response.json().catch(() => ({}));
+                throw new Error(body.message || 'No se pudo cargar la evolución del balance.');
+            }
+
+            const data = await response.json();
+            drawChart(data.series);
+            changeEl.textContent = data.change_message;
+
+            if (data.current_balance !== null) {
+                renderBalance(data.current_balance);
+                if (pulse) pulseBalance();
+            }
+        } catch (err) {
+            errorEl.textContent = err.message;
+            errorEl.classList.remove('hidden');
+        }
+    }
+
+    rangeButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            currentRange = btn.dataset.range;
+            highlightRange();
+            refreshHistory();
+        });
+    });
+
+    // Actualización reactiva vía WebSockets (Escenario 3): el backend emite
+    // 'balance.updated' en el canal privado del usuario al sincronizar.
+    if (window.Echo) {
+        window.Echo.private('App.Models.User.{{ $user->id }}')
+            .listen('.balance.updated', (event) => {
+                renderBalance(event.balance);
+                pulseBalance();
+                refreshHistory();
+            });
+    }
+
+    // Primera carga del gráfico con el filtro por defecto (Día)
+    refreshHistory();
+})();
+</script>
 @endsection

@@ -2,6 +2,9 @@
 
 namespace App\Core\Contracts;
 
+use App\Core\Exceptions\BinanceException;
+use App\Core\Exceptions\BinanceInvalidCredentialsException;
+
 interface BinanceBrokerInterface
 {
     /**
@@ -9,12 +12,19 @@ interface BinanceBrokerInterface
      *
      * Retorna una estructura con banderas de permisos (por ejemplo, 'enableWithdrawals' => bool).
      *
-     * @param string $apiKey
-     * @param string $secretKey
-     * @return array
      *
-     * @throws \App\Core\Exceptions\BinanceInvalidCredentialsException
-     * @throws \App\Core\Exceptions\BinanceException
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
      */
     public function checkApiRestrictions(string $apiKey, string $secretKey): array;
+
+    /**
+     * Obtiene el balance total consolidado de la cuenta de Binance,
+     * expresado en la divisa fiat de referencia (EUR).
+     *
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    public function getTotalBalance(string $apiKey, string $secretKey): float;
 }

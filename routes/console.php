@@ -11,3 +11,5 @@ Artisan::command('inspire', function () {
 // Programar la auditoría de seguridad de Binance cada hora
 Schedule::command('binance:verify-permissions')->hourly();
 
+// Sincronizar el balance consolidado de los usuarios vinculados (US03)
+Schedule::command('binance:sync-balances')->everyFifteenMinutes();

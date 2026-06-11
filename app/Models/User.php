@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -64,6 +65,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Serie temporal de snapshots del balance consolidado (US03).
+     */
+    public function balanceSnapshots(): HasMany
+    {
+        return $this->hasMany(BalanceSnapshot::class);
+    }
+
+    /**
      * Determina si el usuario ya completó el onboarding inicial.
      */
     public function hasCompletedOnboarding(): bool
@@ -76,7 +85,7 @@ class User extends Authenticatable
      */
     public function isBinanceLinked(): bool
     {
-        return $this->binance_verified && !empty($this->binance_api_key) && !empty($this->binance_secret_key);
+        return $this->binance_verified && ! empty($this->binance_api_key) && ! empty($this->binance_secret_key);
     }
 
     /**

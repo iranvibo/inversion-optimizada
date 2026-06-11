@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BalanceController;
 use App\Http\Controllers\BinanceConnectionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OnboardingController;
@@ -25,9 +26,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Evolución del balance (US03)
+    Route::get('/dashboard/balance', [BalanceController::class, 'history'])->name('dashboard.balance');
+    Route::post('/binance/simulate-balance-sync', [BalanceController::class, 'simulateSync'])->name('binance.simulate-balance-sync');
+
     Route::post('/bot/toggle', [DashboardController::class, 'toggleBot'])->name('bot.toggle');
     Route::post('/bot/toggle-mode', [DashboardController::class, 'toggleMode'])->name('bot.toggle-mode');
-    
+
     // Vinculación de Binance
     Route::get('/binance/link', [BinanceConnectionController::class, 'showLink'])->name('binance.link');
     Route::post('/binance/link', [BinanceConnectionController::class, 'storeLink'])->name('binance.store');
@@ -36,4 +42,3 @@ Route::middleware('auth')->group(function () {
     // Simulación de Alertas de Seguridad
     Route::post('/binance/simulate-alert', [DashboardController::class, 'triggerWithdrawalSimulation'])->name('binance.simulate-alert');
 });
-
