@@ -22,6 +22,13 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'binance_api_key',
+        'binance_secret_key',
+        'binance_verified',
+        'bot_active',
+        'bot_mode',
+        'risk_level',
+        'binance_withdrawal_alert',
     ];
 
     /**
@@ -44,6 +51,27 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'binance_api_key' => 'encrypted',
+            'binance_secret_key' => 'encrypted',
+            'binance_verified' => 'boolean',
+            'bot_active' => 'boolean',
+            'binance_withdrawal_alert' => 'boolean',
         ];
+    }
+
+    /**
+     * Determina si el usuario tiene una cuenta de Binance vinculada y verificada.
+     */
+    public function isBinanceLinked(): bool
+    {
+        return $this->binance_verified && !empty($this->binance_api_key) && !empty($this->binance_secret_key);
+    }
+
+    /**
+     * Determina si el bot está activo.
+     */
+    public function hasActiveBot(): bool
+    {
+        return $this->bot_active;
     }
 }

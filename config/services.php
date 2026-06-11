@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'binance' => [
+        'mock' => env('BINANCE_MOCK', true),
+        'api_url' => env('BINANCE_API_URL', 'https://api.binance.com'),
+    ],
+
 ];
