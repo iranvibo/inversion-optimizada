@@ -32,6 +32,12 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
+
+            // Usuario recién registrado: primero pasa por el onboarding (US02)
+            if (!Auth::user()->hasCompletedOnboarding()) {
+                return redirect()->route('onboarding.show');
+            }
+
             return redirect()->intended('dashboard');
         }
 
@@ -55,6 +61,11 @@ class AuthController extends Controller
         );
 
         Auth::login($user);
+
+        // Usuario recién registrado: primero pasa por el onboarding (US02)
+        if (!$user->hasCompletedOnboarding()) {
+            return redirect()->route('onboarding.show')->with('success', 'Bienvenido a ViBo Invest: configura tu perfil de riesgo para empezar.');
+        }
 
         return redirect()->route('dashboard')->with('success', 'Sesión iniciada con éxito (Modo Demo).');
     }

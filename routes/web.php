@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BinanceConnectionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\OnboardingController;
 use Illuminate\Support\Facades\Route;
 
 // Redirección inicial
@@ -18,6 +19,11 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Rutas protegidas
 Route::middleware('auth')->group(function () {
+    // Onboarding interactivo (US02)
+    Route::get('/onboarding', [OnboardingController::class, 'show'])->name('onboarding.show');
+    Route::post('/onboarding/simulate', [OnboardingController::class, 'simulate'])->name('onboarding.simulate');
+    Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
+
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/bot/toggle', [DashboardController::class, 'toggleBot'])->name('bot.toggle');
     Route::post('/bot/toggle-mode', [DashboardController::class, 'toggleMode'])->name('bot.toggle-mode');

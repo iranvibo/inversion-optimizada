@@ -29,6 +29,8 @@ class User extends Authenticatable
         'bot_mode',
         'risk_level',
         'binance_withdrawal_alert',
+        'estimated_capital',
+        'onboarding_completed_at',
     ];
 
     /**
@@ -56,7 +58,17 @@ class User extends Authenticatable
             'binance_verified' => 'boolean',
             'bot_active' => 'boolean',
             'binance_withdrawal_alert' => 'boolean',
+            'estimated_capital' => 'decimal:2',
+            'onboarding_completed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Determina si el usuario ya completó el onboarding inicial.
+     */
+    public function hasCompletedOnboarding(): bool
+    {
+        return $this->onboarding_completed_at !== null;
     }
 
     /**
