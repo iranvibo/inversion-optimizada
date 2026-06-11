@@ -24,7 +24,7 @@ graph TB
 
     subgraph ViBoInvestCloud ["ViBo Invest Cloud (Docker Network)"]
         Nginx["Nginx Web Server Container"]
-        Laravel["Laravel 11 App Container"]
+        Laravel["Laravel 12 App Container"]
         Redis["Redis Container: Colas/Caché/PubSub"]
         MySQL[("MySQL Database")]
         Reverb["Laravel Reverb WS Container"]
@@ -67,18 +67,18 @@ Para garantizar aislamiento, escalabilidad y facilidad de mantenimiento en produ
 ```mermaid
 graph TD
     Client["Cliente / Navegador"] -->|Puerto 80/443| Nginx["nginx:alpine"]
-    Client -->|Puerto 8080| Reverb["php:8.3-fpm - Reverb Server"]
+    Client -->|Puerto 8080| Reverb["php:8.4-fpm - Reverb Server"]
 
     subgraph DockerBridgeNetwork ["Docker Bridge Network: vibo-network"]
-        Nginx -->|PHP-FPM socket/port| App["php:8.3-fpm - Laravel Backend"]
+        Nginx -->|PHP-FPM socket/port| App["php:8.4-fpm - Laravel Backend"]
         App -->|Cache & Queue| Redis["redis:7-alpine"]
         App -->|Persistencia| DB[("mysql:8.0")]
         
-        Worker["php:8.3-fpm - Queue Worker"] -->|Listen Jobs| Redis
+        Worker["php:8.4-fpm - Queue Worker"] -->|Listen Jobs| Redis
         Worker -->|Leer/Escribir| DB
         Worker -->|Publicar Eventos| Redis
         
-        Scheduler["php:8.3-fpm - Laravel Scheduler"] -->|Verificaciones Periódicas| DB
+        Scheduler["php:8.4-fpm - Laravel Scheduler"] -->|Verificaciones Periódicas| DB
         Scheduler -->|Despachar Tareas| Redis
         
         Reverb -->|Pub/Sub Driver| Redis
@@ -88,12 +88,12 @@ graph TD
 ### Detalle de los Servicios de Contenedores
 
 1.  **`web` (Nginx)**: Actúa como proxy inverso y servidor web para archivos estáticos. Redirige peticiones PHP al contenedor `app` y expone los puertos públicos HTTP (80) y HTTPS (443).
-2.  **`app` (PHP-FPM 8.3/8.4)**: Aloja el código de Laravel 11. Ejecuta la lógica del backend, el cifrado/descifrado de credenciales y la API interna.
-3.  **`websocket` (Laravel Reverb)**: Servidor nativo de WebSockets para Laravel 11 que maneja conexiones bidireccionales en vivo con el cliente para actualizar saldos y estados sin saturar el servidor HTTP.
+2.  **`app` (PHP-FPM 8.4)**: Aloja el código de Laravel 12. Ejecuta la lógica del backend, el cifrado/descifrado de credenciales y la API interna.
+3.  **`websocket` (Laravel Reverb)**: Servidor nativo de WebSockets para Laravel 12 que maneja conexiones bidireccionales en vivo con el cliente para actualizar saldos y estados sin saturar el servidor HTTP.
 4.  **`redis` (Redis Cache & Queue)**: Broker de mensajería rápido en memoria. Gestiona las colas de ejecución de órdenes (que deben procesarse de inmediato de forma asíncrona) y actúa como backend Pub/Sub para Reverb.
 5.  **`db` (MySQL 8.0)**: Almacena los datos de usuarios, configuraciones de riesgo, bots y el historial de actividad traducido. El contenido inicial dinámico se inicializa usando `Laravel Seeders`.
 6.  **`queue-worker`**: Proceso PHP dedicado en segundo plano que corre indefinidamente (`php artisan queue:work`) para consumir trabajos pendientes en Redis (como las peticiones de compra/venta a Binance).
-7.  **`scheduler-worker`**: Proceso PHP encargado de disparar el planificador de Laravel (`php artisan schedule:work`), gestionando las auditorías de seguridad periódicas de las llaves API de Binance y el **sondeo de señales en tiempo casi real** (Laravel 11 soporta frecuencias sub-minuto, ej. `everyFiveSeconds()`), que consulta la API de señales con cada nivel de riesgo activo.
+7.  **`scheduler-worker`**: Proceso PHP encargado de disparar el planificador de Laravel (`php artisan schedule:work`), gestionando las auditorías de seguridad periódicas de las llaves API de Binance y el **sondeo de señales en tiempo casi real** (Laravel 12 soporta frecuencias sub-minuto, ej. `everyFiveSeconds()`), que consulta la API de señales con cada nivel de riesgo activo.
 
 ---
 
@@ -250,13 +250,13 @@ El resultado se cachea en Redis (TTL corto) para evitar recalcular la curva en c
 
 | Componente | Tecnología Seleccionada | Justificación y Detalles Técnicos |
 | :--- | :--- | :--- |
-| **Framework Base** | **Laravel 11** *(PHP 8.3)* | La versión recomendada más reciente. Ofrece una estructura de archivos minimalista, soporte nativo de colas mejorado, y la integración directa con Laravel Reverb sin costes externos. |
+| **Framework Base** | **Laravel 12** *(PHP 8.4)* | La versión actual con soporte y parches de seguridad (Laravel 11 alcanzó su EOL de seguridad en marzo de 2026 y composer bloquea su instalación por avisos sin parche; decisión 2026-06-11). Ofrece una estructura de archivos minimalista, soporte nativo de colas mejorado, y la integración directa con Laravel Reverb sin costes externos. |
 | **Vistas e Interfaz** | **Blade Templates + Vite** | Las plantillas compiladas en el servidor proporcionan una carga inicial rapidísima. Vite compila los assets CSS/JS instantáneamente permitiendo una experiencia reactiva fluida. |
 | **Framework CSS** | **Tailwind CSS 4** | La última versión de Tailwind CSS, que se compila de manera mucho más rápida y nativa a través de CSS puro, combinada con **Vanilla CSS** para animaciones y micro-interacciones premium HSL. |
 | **Motor de Base de Datos** | **MySQL 8.0** | Motor de base de datos relacional estándar del sector, ideal para mantener la integridad referencial de usuarios, configuraciones de protección y registros históricos. |
 | **Gestión Dinámica** | **Laravel Seeders** | Utilizado para inyectar datos de configuración del sistema, niveles de riesgo estándar, y para cargar el set de datos históricos con el cual se ejecutan las simulaciones locales (Shadow Mode). |
 | **Mensajería y Colas** | **Redis 7 (Alpine)** | Proporciona la latencia ultrabaja requerida para gestionar las colas de trabajos y sirve como puente Pub/Sub para propagar eventos a los sockets de forma eficiente. |
-| **Servidor WebSockets** | **Laravel Reverb** | Servidor WebSocket de alto rendimiento integrado de forma nativa en Laravel 11. Elimina la necesidad de usar servicios de pago de terceros (como Pusher) para notificar saldos y cambios de estado en tiempo real. |
+| **Servidor WebSockets** | **Laravel Reverb** | Servidor WebSocket de alto rendimiento integrado de forma nativa en Laravel 12. Elimina la necesidad de usar servicios de pago de terceros (como Pusher) para notificar saldos y cambios de estado en tiempo real. |
 | **Integración de Señales** | **Polling saliente + Bearer Token** | El scheduler consulta la API externa de señales en tiempo casi real (sub-minuto, ~5s) pasando el nivel de riesgo. Contrato basado en estado objetivo (`LONG`/`SHORT`/`CLOSE`): resiliente a fallos, sin endpoints públicos entrantes que proteger. Autenticación saliente con token Bearer sobre HTTPS. |
 | **Abstracción del Proveedor** | **Contract/Driver de Laravel (`SignalProvider`)** | Interfaz única con dos drivers seleccionables vía `SIGNALS_PROVIDER=mock\|http`. El driver `mock` (por defecto) replica el contrato completo de la API real y es la base de los tests automatizados y del entorno de desarrollo; el driver `http` consume la API externa real. |
 | **Cifrado de Credenciales** | **AES-256-GCM** | Cifrado simétrico estándar de nivel militar para almacenar de manera segura las claves de Binance API de los usuarios en reposo en la base de datos MySQL. |

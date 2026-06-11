@@ -1,3 +1,3 @@
 - [project-docs.md](project-docs.md) — Ubicación y descripción de la documentación clave del proyecto (PRD e Idea Inicial) | tags: docs, prd, idea-inicial, conceptual
 - [bot-signals.md](bot-signals.md) — Señales por polling de API externa con nivel de riesgo (LONG/SHORT/CLOSE), mock por defecto, capital simulado híbrido | tags: bot, señales, api, polling, mock, integración, arquitectura
-- [project-architecture.md](project-architecture.md) — Decisiones de arquitectura, Docker Compose, Redis, polling de señales y seguridad | tags: arquitectura, docker, redis, laravel, polling, mock
+- [project-architecture.md](project-architecture.md) — Decisiones de arquitectura (Laravel 12/PHP 8.4), infra Docker implementada y verificada, Redis, polling | tags: arquitectura, docker, redis, laravel, polling, mock, infraestructura

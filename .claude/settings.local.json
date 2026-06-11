@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker --version)",
+      "Bash(php --version)",
+      "Bash(composer --version)",
+      "Bash(composer create-project *)",
+      "Bash(composer require *)",
+      "Bash(php artisan *)",
+      "Bash(npm install *)",
+      "Bash(sed -i '' -e 's|^APP_KEY=.*|APP_KEY=|' -e 's|^DB_PASSWORD=.*|DB_PASSWORD=|' -e 's|^REVERB_APP_ID=.*|REVERB_APP_ID=|' -e 's|^REVERB_APP_KEY=.*|REVERB_APP_KEY=|' -e 's|^REVERB_APP_SECRET=.*|REVERB_APP_SECRET=|' .env.example)",
+      "Bash(grep -cE \"^\\(APP_KEY|DB_PASSWORD|REVERB_APP_\\(ID|KEY|SECRET\\)\\)=$\" .env.example)",
+      "Bash(npm run *)",
+      "Bash(docker compose *)",
+      "Bash(lsof -nP -iTCP:3306 -sTCP:LISTEN)",
+      "Bash(curl -s -o /dev/null -w \"GET / -> %{http_code} \\(%{time_total}s\\)\\\\n\" http://localhost/)",
+      "Bash(curl -s -o /dev/null -w \"GET /app/KEY -> %{http_code}\\\\n\" \"http://localhost:8080/app/02dc66c5e8c0ea3391c5?protocol=7&client=js&version=8.0\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(curl -s -o /dev/null -w \"GET / -> %{http_code}\\\\n\" http://localhost/)",
+      "Bash(curl -s -i -N --max-time 3 -H \"Connection: Upgrade\" -H \"Upgrade: websocket\" -H \"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\" -H \"Sec-WebSocket-Version: 13\" \"http://localhost:8080/app/02dc66c5e8c0ea3391c5?protocol=7&client=js&version=8.0\")",
+      "Bash(sed -i '' -e 's/Laravel 11/Laravel 12/g' -e 's/php:8\\\\.3-fpm/php:8.4-fpm/g' -e 's/PHP-FPM 8\\\\.3\\\\/8\\\\.4/PHP-FPM 8.4/g' docs/architecture.md)",
+      "Bash(sed -i '' -e 's/Laravel 11/Laravel 12/g' -e 's/PHP 8\\\\.3+/PHP 8.4+/g' README.md)",
+      "Bash(curl -s -o /dev/null -w \"HTTP / -> %{http_code}\\\\n\" http://localhost/)"
+    ]
+  }
+}

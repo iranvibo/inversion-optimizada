@@ -9,9 +9,9 @@ Este archivo detalla las decisiones fundamentales de arquitectura tomadas para *
 
 ## Stack Tecnológico Elegido y Justificación
 
-1. **Laravel 11**:
-   * *Decisión*: Usar Laravel 11 como el framework backend.
-   * *Justificación*: Ofrece una estructura ligera, soporte de colas robusto y optimizaciones de rendimiento nativas. Incluye soporte nativo para servidores de WebSockets mediante Laravel Reverb, lo que evita depender de servicios externos de terceros (como Pusher) que incrementan costes y complejidad.
+1. **Laravel 12 (PHP 8.4) — reemplaza a Laravel 11 (2026-06-11)**:
+   * *Decisión*: Usar Laravel 12 como el framework backend, con contenedores `php:8.4-fpm-alpine`.
+   * *Justificación*: Laravel 11 alcanzó su EOL de seguridad en marzo de 2026: composer **bloquea** la instalación de todo `laravel/framework` 11.x por avisos de seguridad sin parche. Laravel 12 mantiene la misma estructura minimalista, Reverb nativo y scheduling sub-minuto. PHP 8.4 es obligatorio: el `composer.lock` (resuelto con PHP 8.5 del host) exige `>= 8.4.1`, por lo que `php:8.3-fpm` rompe con `platform_check.php`.
 2. **Laravel Reverb + Redis**:
    * *Decisión*: Servidor de WebSockets autohospedado con Redis como broker Pub/Sub.
    * *Justificación*: Permite transmitir actualizaciones en vivo del saldo de Binance y estado del bot (Activo, Pausado, Simulación) directamente al navegador de forma reactiva y escalable. Redis gestiona la mensajería rápida entre los workers de cola y el servidor WebSocket.
@@ -34,3 +34,14 @@ Este archivo detalla las decisiones fundamentales de arquitectura tomadas para *
 El sistema se ejecuta en una red interna puente (`vibo-network`) donde los contenedores se comunican de forma aislada:
 * El contenedor `web` (Nginx) y `websocket` (Reverb) son los únicos expuestos al tráfico de red pública.
 * La base de datos `db` (MySQL) y el broker de colas `redis` permanecen ocultos y protegidos dentro de la red Docker, accesibles solo por los contenedores PHP.
+
+## Infraestructura Implementada (2026-06-11) — detalles no obvios
+
+* **Archivos**: `docker/php/Dockerfile` (targets: `base`, `assets`, `vendor`, `production`, `web`, `dev`), `docker/nginx/default.conf`, `docker-compose.yml` (dev, código bind-mounted), `docker-compose.prod.yml` (imágenes inmutables), `config/signals.php` (wiring de `SIGNALS_PROVIDER`).
+* **Cliente Redis = `predis`** (no phpredis/pecl): evita compilar extensiones en las imágenes; configurado vía `REDIS_CLIENT=predis`.
+* **Reverb hosts duales**: el backend publica eventos hacia `REVERB_HOST=websocket` (DNS interno de Docker); el navegador usa `VITE_REVERB_HOST=localhost:8080`. No unificar — son rutas de red distintas.
+* **MySQL dev expuesto en `127.0.0.1:33060`** (no 3306): el 3306 del host lo ocupa otro contenedor de otro proyecto.
+* **Nginx cachea la IP del upstream `app`**: tras `docker compose build && up` que recrea `app`, el `web` devuelve 502 hasta hacer `docker compose restart web`.
+* **`php artisan install:broadcasting` falla sin TTY** (en shells no interactivas): completar a mano con `vendor:publish --tag=reverb-config`, variables `REVERB_*` en `.env` y `npm i -D laravel-echo pusher-js`.
+* **Assets en dev**: Vite corre en el host (`npm run dev` / `npm run build`), no en contenedor, para evitar conflictos de binarios nativos (esbuild/rollup) en `node_modules` bind-mounted entre macOS y Alpine.
+* Verificado el 2026-06-11: HTTP 200 vía Nginx, handshake WS 101 en Reverb (`pusher:connection_established`), cache y colas Redis funcionando (worker consumió job de prueba), migraciones aplicadas en MySQL 8.0.44.

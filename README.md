@@ -63,14 +63,14 @@ El propósito de **ViBo Invest** es eliminar la fricción técnica y la barrera 
 
 La plataforma utiliza una arquitectura moderna desacoplada en contenedores y optimizada para procesar datos en tiempo real de manera asíncrona.
 
-*   **Backend / Framework principal**: [Laravel 11](https://laravel.com/) (PHP 8.3+)
+*   **Backend / Framework principal**: [Laravel 12](https://laravel.com/) (PHP 8.4+)
     *   Gestión de colas robusta y estructura minimalista.
     *   Cifrado simétrico robusto **AES-256-GCM** para el almacenamiento seguro de las API Keys de los usuarios en la base de datos MySQL.
 *   **Frontend**: Plantillas Blade compiladas con [Vite](https://vitejs.dev/)
     *   Reactividad del lado del cliente mediante JavaScript Vanilla y Alpine.js.
     *   Estilos integrados con **Tailwind CSS 4** y **Vanilla CSS** para el diseño premium personalizado.
 *   **WebSockets & Tiempo Real**: [Laravel Reverb](https://laravel.com/docs/11.x/reverb)
-    *   Servidor de WebSockets de alto rendimiento integrado nativamente en Laravel 11.
+    *   Servidor de WebSockets de alto rendimiento integrado nativamente en Laravel 12.
     *   Permite empujar actualizaciones en vivo del saldo, estado del bot y alertas de seguridad directamente al navegador del usuario sin necesidad de recurrir a servicios de pago externos (ej. Pusher).
 *   **Mensajería, Colas y Caché**: [Redis 7](https://redis.io/)
     *   Gestiona los workers de tareas en segundo plano (auditoría de llaves, procesamiento inmediato de órdenes) y actúa como el broker Pub/Sub de Laravel Reverb.
