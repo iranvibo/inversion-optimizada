@@ -1,9 +1,9 @@
 # User Stories: ViBo Invest MVP
 
-Este documento define las 5 User Stories principales para el MVP de **ViBo Invest**, estructuradas bajo el criterio **INVEST** y utilizando el formato de desarrollo guiado por comportamiento (**BDD**) para sus criterios de aceptación.
+Este documento define las 7 User Stories principales para el MVP de **ViBo Invest**, estructuradas bajo el criterio **INVEST** y utilizando el formato de desarrollo guiado por comportamiento (**BDD**) para sus criterios de aceptación.
 
 > [!NOTE]
-> **Origen de las Señales y Aislamiento de Credenciales**: El bot de trading obtiene las señales desde una API externa al proyecto. Las API Keys de Binance del usuario permanecen aisladas en el backend de ViBo Invest y **nunca** se envían al proveedor de señales. ViBo Invest actúa como *gatekeeper*, recibiendo las señales, validando los límites de riesgo locales (como el Stop Loss diario) y ejecutando las órdenes de manera directa y segura en Binance.
+> **Origen de las Señales y Aislamiento de Credenciales**: El bot de trading obtiene las señales consultando (polling) una API externa al proyecto, pasándole como parámetro el nivel de riesgo configurado por el usuario. La API responde con la posición objetivo actual (`LONG`, `SHORT` o `CLOSE`). Las API Keys de Binance del usuario permanecen aisladas en el backend de ViBo Invest y **nunca** se envían al proveedor de señales. ViBo Invest actúa como *gatekeeper*: compara la señal recibida con la última posición conocida, valida los límites de riesgo locales (como el Stop Loss diario) y ejecuta los ajustes de posición de manera directa y segura en Binance. Por defecto, el sistema utiliza un **proveedor de señales mock interno** (mismo contrato que la API real) para desarrollo y tests.
 
 ---
 
@@ -159,6 +159,74 @@ Este documento define las 5 User Stories principales para el MVP de **ViBo Inves
 
 ---
 
+### US06: Sincronización de Señales en Tiempo Real desde la API Externa según Nivel de Riesgo (con Proveedor Mock)
+* **Título descriptivo:** Gestión de la información de trading desde la API externa de señales: sondeo en tiempo real con nivel de riesgo, ajuste de posiciones y datos del capital simulado.
+* **Fórmula de Historia:**
+  * **Como** usuario con el bot activo,
+  * **quiero** que la plataforma consulte en tiempo real la API externa de señales con mi nivel de riesgo configurado y ajuste automáticamente mi posición en Binance solo cuando la señal cambie,
+  * **para** que mis operaciones sigan la estrategia del proveedor sin intervención manual y siempre respetando mis límites de protección.
+* **Criterios de Aceptación (BDD):**
+  * **Escenario 1: Detección de cambio de señal y ajuste de posición en Binance**
+    * **Dado que** mi bot está "Activo" en modo real con nivel de riesgo "Balanceado" y la última posición conocida es `LONG`,
+    * **cuando** el ciclo de sondeo (polling) consulta la API externa con `risk_level=balanceado` y esta responde `CLOSE`,
+    * **entonces** el sistema debe validar mis reglas de riesgo locales (Stop Loss diario, Capital Protegido), encolar el trabajo de ajuste, cerrar la posición en Binance, registrar el evento en lenguaje humano en el historial y notificar el cambio al dashboard vía WebSocket.
+  * **Escenario 2: Señal sin cambios (idempotencia del sondeo)**
+    * **Dado que** la última posición conocida para mi nivel de riesgo es `LONG`,
+    * **cuando** el ciclo de sondeo recibe nuevamente `LONG` de la API externa,
+    * **entonces** el sistema no debe generar órdenes, eventos ni registros duplicados.
+  * **Escenario 3: Obtención del histórico de señales para el gráfico de capital simulado**
+    * **Dado que** estoy visualizando el gráfico de progreso del capital simulado en el dashboard,
+    * **cuando** el backend consulta a la API externa el histórico de señales (fecha, hora, posición y profit) para mi nivel de riesgo,
+    * **entonces** el sistema debe calcular localmente la evolución del capital simulado a partir de esa lista y renderizar el gráfico de progreso correspondiente.
+  * **Escenario 4: Proveedor mock como valor por defecto**
+    * **Dado que** el entorno de desarrollo o de tests no tiene configurada la URL de la API externa real,
+    * **cuando** el sistema arranca y se ejecuta el ciclo de sondeo o la consulta de histórico,
+    * **entonces** debe responder el proveedor mock interno con el mismo contrato que la API real (`LONG`/`SHORT`/`CLOSE` e histórico de señales), permitiendo probar el sistema completo y ejecutar los tests automatizados sin dependencia externa.
+  * **Escenario 5: Indisponibilidad de la API externa**
+    * **Dado que** el bot está "Activo" y la API externa de señales no responde o devuelve un error,
+    * **cuando** el ciclo de sondeo falla los reintentos configurados,
+    * **entonces** el sistema debe mantener la última posición conocida sin generar órdenes nuevas, registrar la incidencia y mostrar un aviso amigable en el dashboard (ej. "Conexión temporalmente inestable con el proveedor de señales, tus fondos están seguros").
+* **Estimación de complejidad:** M (Medium)
+* **Evaluación contra INVEST:**
+  * **I (Independiente):** El cliente de señales se encapsula tras un contrato propio (`SignalProvider`), de manera independiente de la UI y de la vinculación de Binance; solo el ejecutor de órdenes consume su salida.
+  * **N (Negociable):** El intervalo de sondeo (por defecto 5 segundos), la política de reintentos y el contrato exacto de la API real son ajustables y están pendientes de confirmación con el proveedor.
+  * **V (Valioso):** Es el corazón operativo del producto: sin la sincronización de señales el bot no opera; el modelo de polling con estado objetivo garantiza que nunca se "pierda" una señal.
+  * **E (Estimable):** El contrato es pequeño y conocido (señal actual + histórico), y el patrón driver/contract de Laravel hace predecible el esfuerzo de las dos implementaciones (mock y HTTP).
+  * **S (Pequeño):** Se acota al ciclo de sondeo, la comparación de estado, el despacho del trabajo de ajuste y la consulta de histórico; la ejecución en Binance reutiliza el motor ya definido.
+  * **T (Testeable):** El proveedor mock es parte de la historia: todos los escenarios se prueban inyectando secuencias de señales controladas (cambio, repetición, error) sin tocar la API real.
+
+---
+
+### US07: Control de Nivel de Riesgo y Modo Simulación/Real desde el Dashboard
+* **Título descriptivo:** Cambio de nivel de riesgo y alternancia entre modo simulación y modo real con controles simples.
+* **Fórmula de Historia:**
+  * **Como** usuario en control de su inversión,
+  * **quiero** poder cambiar mi nivel de riesgo (Conservador, Balanceado, Agresivo) y alternar entre modo simulación y modo real desde el dashboard con controles simples,
+  * **para** ajustar la estrategia del bot a mi situación personal sin configuraciones técnicas.
+* **Criterios de Aceptación (BDD):**
+  * **Escenario 1: Cambio de nivel de riesgo aplicado al sondeo de señales**
+    * **Dado que** mi bot opera con nivel de riesgo "Conservador",
+    * **cuando** selecciono "Agresivo" en el control de riesgo del dashboard y confirmo el cambio,
+    * **entonces** el sistema debe persistir el nuevo nivel, utilizarlo como parámetro en el siguiente ciclo de consulta a la API externa de señales y mostrar una confirmación visual clara del nivel activo.
+  * **Escenario 2: Paso de modo real a modo simulación**
+    * **Dado que** mi bot está operando en modo real con posiciones abiertas,
+    * **cuando** activo el modo simulación,
+    * **entonces** el sistema debe gestionar o cerrar preventivamente las posiciones reales en Binance de forma segura (según la regla de mitigación definida en US04) antes de continuar la operativa únicamente en modo simulado.
+  * **Escenario 3: Paso de modo simulación a modo real con requisitos de seguridad**
+    * **Dado que** mi bot opera en modo simulación,
+    * **cuando** intento activar el modo real,
+    * **entonces** el sistema debe verificar que tengo una cuenta de Binance vinculada y validada (US01); si no la tengo, debe bloquear el cambio y guiarme al flujo de vinculación con un mensaje claro.
+* **Estimación de complejidad:** S (Small)
+* **Evaluación contra INVEST:**
+  * **I (Independiente):** Gestiona únicamente la configuración del usuario (nivel de riesgo y modo); el sondeo (US06) y el motor de ejecución la consumen sin acoplarse a la UI.
+  * **N (Negociable):** El diseño de los controles (selector, toggle) y la regla de gestión de posiciones al cambiar de modo son ajustables tras pruebas de UX.
+  * **V (Valioso):** Junto con Activar/Pausar (US04), completa el conjunto mínimo de controles que el usuario tiene sobre el bot: estado, riesgo y modo de operación.
+  * **E (Estimable):** Son dos campos de configuración persistidos con sus validaciones y su propagación reactiva al ciclo de sondeo; esfuerzo claramente acotado.
+  * **S (Pequeño):** Se limita a los dos controles del dashboard, su persistencia y las validaciones de transición de modo.
+  * **T (Testeable):** Se verifica comprobando que el siguiente ciclo de sondeo usa el nuevo `risk_level` (con el proveedor mock) y que las transiciones de modo respetan las validaciones de vinculación y cierre preventivo.
+
+---
+
 ## 2. Priorización del MVP y Justificación
 
 Como Product Owner, recomiendo estructurar el desarrollo del MVP de **ViBo Invest** bajo un enfoque de embudo de conversión y seguridad progresiva, priorizando las historias en el siguiente orden:
@@ -167,8 +235,10 @@ Como Product Owner, recomiendo estructurar el desarrollo del MVP de **ViBo Inves
 graph TD
     US02[1. US02: Simulación interactiva en Onboarding] --> US01[2. US01: Vinculación segura de Binance]
     US01 --> US03[3. US03: Dashboard de balance simple]
-    US03 --> US04[4. US04: Control manual Activar/Pausar]
-    US04 --> US05[5. US05: Historial en lenguaje humano]
+    US03 --> US06[4. US06: Sincronización de señales desde API externa + Mock]
+    US06 --> US04[5. US04: Control manual Activar/Pausar]
+    US04 --> US07[6. US07: Nivel de riesgo y modo Simulación/Real]
+    US07 --> US05[7. US05: Historial en lenguaje humano]
 ```
 
 ### Tabla de Priorización
@@ -178,8 +248,10 @@ graph TD
 | **1** | **US02**: Simulación Interactiva en Onboarding | **M** | **Muy Alto** (Gancho Inicial) | **Conversión y Educación:** Permite al usuario experimentar inmediatamente la propuesta de valor sin fricción, reduciendo el miedo inicial antes de pedirle que vincule sus activos reales o configure exchanges. |
 | **2** | **US01**: Vinculación Segura de Binance (No-Retiro) | **M** | **Extremo** (Seguridad) | **Crucial de Seguridad:** Es la puerta de entrada a la operativa real. Si el usuario no confía en este paso o si no se validan los permisos de retiro de forma infalible, el producto entero falla. |
 | **3** | **US03**: Dashboard de Balance y Evolución Simple | **M** | **Alto** (Visualización) | **Visibilidad Financiera:** Una vez conectada la API, el usuario necesita ver su balance consolidado actual. Es la pantalla principal de monitoreo diario que fomenta la retención de los usuarios. |
-| **4** | **US04**: Control Manual de Activación y Pausa | **S** | **Muy Alto** (Control) | **Paz Mental Activa:** Es el botón de control operativo que permite al usuario decidir cuándo trabaja el bot o apagarlo instantáneamente ante la intranquilidad del mercado. |
-| **5** | **US05**: Historial de Actividad en Lenguaje Humano | **S** | **Medio-Alto** (Transparencia) | **Comprensión Operativa:** Proporciona un registro claro de qué está haciendo la automatización. Se sitúa al final del MVP porque requiere que la plataforma ya sea capaz de simular u operar para generar logs de eventos. |
+| **4** | **US06**: Sincronización de Señales desde API Externa (+ Mock) | **M** | **Extremo** (Operativa) | **Corazón Operativo:** Sin el sondeo de señales con nivel de riesgo no hay automatización que controlar. El proveedor mock incluido permite construir y probar todo el sistema (y las historias posteriores) sin depender de la API externa real. |
+| **5** | **US04**: Control Manual de Activación y Pausa | **S** | **Muy Alto** (Control) | **Paz Mental Activa:** Es el botón de control operativo que permite al usuario decidir cuándo trabaja el bot o apagarlo instantáneamente ante la intranquilidad del mercado. |
+| **6** | **US07**: Nivel de Riesgo y Modo Simulación/Real | **S** | **Alto** (Personalización) | **Control de Estrategia:** Completa los controles del usuario sobre el bot (riesgo y modo de operación), aprovechando que el sondeo de señales (US06) ya parametriza el nivel de riesgo. |
+| **7** | **US05**: Historial de Actividad en Lenguaje Humano | **S** | **Medio-Alto** (Transparencia) | **Comprensión Operativa:** Proporciona un registro claro de qué está haciendo la automatización. Se sitúa al final del MVP porque requiere que la plataforma ya sea capaz de simular u operar para generar logs de eventos. |
 
 ---
 
@@ -187,5 +259,6 @@ graph TD
 
 1. **La Simulación como Primer Paso (US02)**: En productos de inversión para usuarios no técnicos, el mayor obstáculo es el miedo a perder dinero. Si exigimos la conexión de Binance (US01) al inicio del flujo, la tasa de abandono se disparará. Mostrando una simulación interactiva, transparente y honesta (que muestre tanto ganancias como caídas históricas reales), ganamos la confianza inicial del usuario en menos de 10 minutos.
 2. **Seguridad y Validación Fuerte (US01)**: Una vez convencido con la simulación, el usuario da el paso de vincular su capital real. Aquí, el sistema debe ser implacable en la verificación técnica: impedir la vinculación si hay permisos de retiro es nuestra promesa de seguridad fundamental y no es negociable en el MVP.
-3. **El Corazón del Dashboard (US03 e US04)**: Con la cuenta conectada de forma segura, se construye el centro de control del usuario. La visualización simple de su saldo y rendimiento (US03) le permite comprobar que todo está en orden, mientras que el botón de Activar/Pausar (US04) le otorga una "válvula de escape" manual que le da total soberanía y tranquilidad mental.
-4. **Feed de Actividad Comprensible (US05)**: Por último, el historial en lenguaje humano sirve para responder a la pregunta de *"¿qué está haciendo el bot ahora mismo?"*. Al evitar la jerga técnica y explicar los movimientos como lo haría una persona, cerramos el círculo de simplicidad, transparencia y control sin saturar al usuario en el día a día.
+3. **El Motor de Señales (US06)**: Con la cuenta visible y conectada, se construye el corazón operativo: el sondeo en tiempo real de la API externa con el nivel de riesgo, el ajuste de posiciones en Binance y la obtención del histórico para el capital simulado. Se desarrolla primero contra el **proveedor mock interno**, lo que desbloquea las historias de control y transparencia sin depender del proveedor real.
+4. **Los Controles del Usuario (US03, US04 y US07)**: La visualización simple de su saldo y rendimiento (US03) le permite comprobar que todo está en orden, el botón de Activar/Pausar (US04) le otorga una "válvula de escape" manual, y el control de nivel de riesgo y modo simulación/real (US07) completa el conjunto mínimo y suficiente de acciones disponibles desde la app.
+5. **Feed de Actividad Comprensible (US05)**: Por último, el historial en lenguaje humano sirve para responder a la pregunta de *"¿qué está haciendo el bot ahora mismo?"*. Al evitar la jerga técnica y explicar los movimientos como lo haría una persona, cerramos el círculo de simplicidad, transparencia y control sin saturar al usuario en el día a día.

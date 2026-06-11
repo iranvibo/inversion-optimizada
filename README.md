@@ -42,10 +42,14 @@ El propósito de **ViBo Invest** es eliminar la fricción técnica y la barrera 
     *   **Validación de Permisos de Retiro**: El sistema deniega la vinculación si detecta que la API Key tiene activados los permisos de retiro (*withdrawals*).
     *   **Auditoría de Seguridad Periódica**: Tarea cron automatizada que verifica cada día que las llaves sigan sin permisos de retiro. Si detecta cambios, detiene el bot instantáneamente.
 *   **Dashboard y Panel de Control Simplificado**:
-    *   Visualización clara del balance total en euros/dólares.
-    *   Gráfico lineal limpio de la evolución histórica de la cuenta (filtrable por Día, Semana y Mes).
+    *   Visualización clara del balance total en euros/dólares (sincronizado en tiempo real desde Binance).
+    *   Gráfico lineal limpio de la evolución histórica de la cuenta (filtrable por Día, Semana y Mes) y gráfico de progreso del capital simulado.
     *   Interruptor único (On/Off) de encendido y pausa instantánea del bot.
+    *   Selector simple de nivel de riesgo (Conservador, Balanceado, Agresivo) y alternancia entre modo Simulación y Real.
     *   Indicadores en vivo del estado del bot (Activo, Pausado, Simulación).
+*   **Sincronización de Señales desde API Externa (con Mock por defecto)**:
+    *   Sondeo en tiempo casi real de la API externa de señales, parametrizado por el nivel de riesgo del usuario; la API responde con la posición objetivo (`LONG`, `SHORT`, `CLOSE`) y el bot ajusta la posición en Binance solo cuando la señal cambia.
+    *   Proveedor de señales **mock interno** (mismo contrato que la API real) usado por defecto en desarrollo y tests.
 *   **Historial de Actividad en Lenguaje Humano**:
     *   Muestra el registro de eventos y operaciones en lenguaje natural (ej. *"Se realizó una compra para aprovechar una caída temporal de precio"* o *"Protección diaria activada: El bot se pausó automáticamente para proteger tu capital"*).
 
@@ -81,13 +85,17 @@ La plataforma utiliza una arquitectura moderna desacoplada en contenedores y opt
 ### 3.1. Aislamiento Estricto de API Keys
 Las credenciales de Binance (API Key y Secret Key) de los usuarios están almacenadas en MySQL de forma cifrada simétricamente. **Bajo ninguna circunstancia** estas llaves son compartidas, procesadas o enviadas al proveedor de señales de trading externo.
 
-### 3.2. Integración de Señales vía Webhook con Firma HMAC-SHA256
-*   El bot de trading obtiene las señales que debe ejecutar en Binance desde una **API externa al proyecto**.
+### 3.2. Integración de Señales vía Polling en Tiempo Real (parametrizado por Nivel de Riesgo)
+*   El bot de trading obtiene la información que debe ejecutar en Binance **consultando (polling)** una **API externa al proyecto** en tiempo casi real (intervalo configurable, ~5 segundos), pasándole como parámetro el **nivel de riesgo** del usuario (Conservador, Balanceado, Agresivo).
+*   La API responde con la **posición objetivo actual** (`LONG`, `SHORT` o `CLOSE`); el sistema solo actúa cuando difiere de la última posición conocida (contrato basado en estado: resiliente a fallos y sin endpoints públicos entrantes que proteger).
+*   El acceso al proveedor se encapsula tras el contrato **`SignalProvider`** con dos drivers intercambiables por configuración (`SIGNALS_PROVIDER=mock|http`):
+    *   **`mock` (por defecto)**: implementación interna en Laravel que replica el contrato completo de la API real (señal actual + histórico de señales). Permite probar todo el sistema y ejecutar los tests sin dependencia externa.
+    *   **`http`**: cliente de la API externa real, autenticado con token Bearer sobre HTTPS.
 *   El backend de ViBo Invest actúa como el único **Gatekeeper**:
-    1.  Recibe las señales mediante una petición webhook HTTP POST.
-    2.  Verifica la procedencia de la señal validando la cabecera `X-Sign` con una firma **HMAC-SHA256** calculada con el cuerpo de la petición y una clave secreta compartida.
-    3.  Si la firma coincide, acepta la señal y encola un trabajo asíncrono en Redis.
-    4.  El worker extrae la tarea, descifra las llaves API locales del usuario, realiza las validaciones de riesgo locales (Stop Loss diario, Capital Protegido, Bot activo) y ejecuta la orden directamente en Binance.
+    1.  El scheduler sondea la API de señales una vez por nivel de riesgo activo y detecta cambios de posición.
+    2.  Ante un cambio, encola un trabajo asíncrono de ajuste de posición en Redis.
+    3.  El worker extrae la tarea, realiza las validaciones de riesgo locales (Stop Loss diario, Capital Protegido, Bot activo) y, en modo real, descifra las llaves API del usuario y ajusta la posición directamente en Binance; en modo simulación registra la operación simulada.
+    4.  La API externa también suministra el **histórico de señales** (fecha, hora, posición y profit), con el que el backend calcula localmente la evolución del capital simulado para el gráfico de progreso del dashboard.
 
 ---
 
@@ -101,7 +109,7 @@ El proyecto se ejecuta y distribuye en contenedores aislados que se comunican me
 4.  **`redis`**: Broker de mensajería rápido en memoria para la caché, colas de ejecución y broker de mensajería de Reverb.
 5.  **`db` (MySQL)**: Contenedor de base de datos de persistencia relacional.
 6.  **`queue-worker`**: Proceso PHP dedicado en segundo plano que corre indefinidamente (`php artisan queue:work`) para consumir trabajos pendientes en Redis.
-7.  **`scheduler-worker`**: Cron de Laravel encargado de programar tareas periódicas en segundo plano como la auditoría diaria de API Keys.
+7.  **`scheduler-worker`**: Cron de Laravel encargado de programar tareas periódicas en segundo plano, como el sondeo de señales en tiempo casi real (frecuencia sub-minuto) y la auditoría diaria de API Keys.
 
 ---
 
@@ -120,7 +128,7 @@ El proyecto se ejecuta y distribuye en contenedores aislados que se comunican me
     ```
 
 2.  **Configurar variables de entorno**:
-    Copia el archivo de configuración `.env.example` como `.env` y define las variables de entorno principales (especialmente las claves secretas de encriptación de la app, Redis, MySQL y la firma del Webhook):
+    Copia el archivo de configuración `.env.example` como `.env` y define las variables de entorno principales (especialmente las claves secretas de encriptación de la app, Redis, MySQL y el proveedor de señales: `SIGNALS_PROVIDER=mock` por defecto; para producción `SIGNALS_PROVIDER=http` junto con `SIGNALS_API_URL` y `SIGNALS_API_TOKEN`):
     ```bash
     cp .env.example .env
     ```
@@ -161,5 +169,5 @@ Para profundizar en el diseño conceptual, las historias de usuario y los detall
 
 *   [docs/idea-inicial.md](file:///Users/bdado/VSCode/inversion-optimizada/docs/idea-inicial.md): Visión de negocio original y lineamientos de diseño minimalista de ViBo Invest.
 *   [docs/prd.md](file:///Users/bdado/VSCode/inversion-optimizada/docs/prd.md): Documento de Requerimientos de Producto (PRD) detallando el alcance del MVP, métricas de éxito y seguridad.
-*   [docs/architecture.md](file:///Users/bdado/VSCode/inversion-optimizada/docs/architecture.md): Documento detallado de la arquitectura de software, diagramas Mermaid (topología de red, secuencia de autenticación, firma HMAC) y decisiones técnicas.
+*   [docs/architecture.md](file:///Users/bdado/VSCode/inversion-optimizada/docs/architecture.md): Documento detallado de la arquitectura de software, diagramas Mermaid (topología de red, sondeo de señales por nivel de riesgo, cálculo del capital simulado) y decisiones técnicas.
 *   [docs/user-story.md](file:///Users/bdado/VSCode/inversion-optimizada/docs/user-story.md): User Stories priorizadas y redactadas con criterios INVEST y pruebas en formato BDD.

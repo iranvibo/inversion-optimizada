@@ -6,12 +6,15 @@ Este documento detalla la arquitectura de software, el diseño de red, la estruc
 
 ## 1. Diagrama General del Sistema
 
-El siguiente diagrama ilustra cómo interactúan los componentes de ViBo Invest, el proveedor externo de señales y el exchange Binance. Muestra el flujo de entrada de señales a través de un webhook seguro y la ejecución directa en Binance, operando como un **Gatekeeper** de seguridad.
+El siguiente diagrama ilustra cómo interactúan los componentes de ViBo Invest, el proveedor externo de señales y el exchange Binance. Muestra el flujo de **sondeo (polling) en tiempo casi real** de la API de señales parametrizado por nivel de riesgo y la ejecución directa en Binance, operando como un **Gatekeeper** de seguridad.
+
+> [!NOTE]
+> El acceso a la API de señales se encapsula tras el contrato `SignalProvider` con dos drivers intercambiables por configuración: `mock` (interno, **por defecto**, usado en desarrollo y tests) y `http` (API externa real). El resto del sistema es agnóstico al driver activo.
 
 ```mermaid
 graph TB
     subgraph ProveedorExterno ["Proveedor Externo"]
-        SignalsAPI["API de Señales"]
+        SignalsAPI["API de Señales (driver http)"]
     end
 
     subgraph ClientSide ["Client Side (Navegador)"]
@@ -26,26 +29,29 @@ graph TB
         MySQL[("MySQL Database")]
         Reverb["Laravel Reverb WS Container"]
         Worker["Queue Worker Container"]
+        Scheduler["Scheduler Container: Polling de Señales"]
+        MockProvider["SignalProvider Mock (driver por defecto)"]
     end
 
     subgraph ExchangeExterno ["Exchange Externo"]
         Binance["Binance API"]
     end
 
-    %% Flujos de señales y ejecución
-    SignalsAPI -->|1. Webhook POST + HMAC| Nginx
-    Nginx -->|Proxy Pass| Laravel
-    Laravel -->|2. Validar HMAC y Firma| Laravel
-    Laravel -->|3. Validar Reglas de Riesgo y SL| MySQL
-    Laravel -->|4. Despachar Trabajo de Compra/Venta| Redis
+    %% Flujos de sondeo de señales y ejecución
+    Scheduler -->|"1. GET señal cada ~5s (risk_level)"| SignalsAPI
+    Scheduler -.->|"1b. Mismo contrato en dev/tests"| MockProvider
+    SignalsAPI -->|"2. Posición objetivo: LONG/SHORT/CLOSE"| Scheduler
+    Scheduler -->|3. Comparar con última posición conocida| MySQL
+    Scheduler -->|4. Si hay cambio: despachar ajuste| Redis
     Redis -->|5. Procesar Job| Worker
-    Worker -->|6. Leer API Keys Cifradas| MySQL
+    Worker -->|6. Validar Riesgo y leer API Keys Cifradas| MySQL
     Worker -->|7. Ejecutar Orden Firmada| Binance
 
     %% Flujos de la interfaz de usuario
     UI -->|HTTP Requests| Nginx
     Nginx -->|Route| Laravel
     Laravel -->|Guardar datos / Config| MySQL
+    Laravel -.->|"Histórico de señales (capital simulado)"| SignalsAPI
     Worker -->|8. Publicar evento completado| Redis
     Redis -->|9. Pub/Sub Evento WS| Reverb
     Reverb -->|10. Notificación en tiempo real| WSClient
@@ -87,52 +93,72 @@ graph TD
 4.  **`redis` (Redis Cache & Queue)**: Broker de mensajería rápido en memoria. Gestiona las colas de ejecución de órdenes (que deben procesarse de inmediato de forma asíncrona) y actúa como backend Pub/Sub para Reverb.
 5.  **`db` (MySQL 8.0)**: Almacena los datos de usuarios, configuraciones de riesgo, bots y el historial de actividad traducido. El contenido inicial dinámico se inicializa usando `Laravel Seeders`.
 6.  **`queue-worker`**: Proceso PHP dedicado en segundo plano que corre indefinidamente (`php artisan queue:work`) para consumir trabajos pendientes en Redis (como las peticiones de compra/venta a Binance).
-7.  **`scheduler-worker`**: Proceso PHP encargado de disparar el planificador de Laravel (`php artisan schedule:work`) cada minuto, gestionando las auditorías de seguridad periódicas de las llaves API de Binance.
+7.  **`scheduler-worker`**: Proceso PHP encargado de disparar el planificador de Laravel (`php artisan schedule:work`), gestionando las auditorías de seguridad periódicas de las llaves API de Binance y el **sondeo de señales en tiempo casi real** (Laravel 11 soporta frecuencias sub-minuto, ej. `everyFiveSeconds()`), que consulta la API de señales con cada nivel de riesgo activo.
 
 ---
 
 ## 3. Flujos Críticos de Datos y Seguridad
 
-### 3.1. Recepción y Validación de Señales Externas (Webhook + HMAC)
+### 3.1. Sondeo de Señales Externas en Tiempo Real (Polling parametrizado por Nivel de Riesgo)
 
-Para evitar que actores maliciosos envíen falsas señales de compra/venta y ejecuten operaciones no autorizadas, se valida una firma HMAC en las cabeceras de cada petición entrante del proveedor de señales.
+El sistema consulta la API externa de señales en un ciclo de sondeo de tiempo casi real (intervalo configurable, por defecto ~5 segundos), pasando como parámetro el **nivel de riesgo**. La API responde con la **posición objetivo actual** (`LONG`, `SHORT` o `CLOSE`); solo se actúa si difiere de la última posición conocida.
+
+**Decisión: polling en lugar de webhook entrante.** Justificación:
+*   La respuesta depende del parámetro `risk_level`, lo que encaja con un modelo request/response y no con un push genérico.
+*   El contrato basado en **estado objetivo** es resiliente: un ciclo de sondeo nunca "pierde" una señal (si un ciclo falla, el siguiente recupera el estado), mientras que un webhook perdido desincroniza el sistema.
+*   No se expone ningún endpoint público entrante, eliminando la superficie de ataque (suplantación de señales, replay) que obligaba a firmar con HMAC.
+*   Hace trivial el reemplazo por el **driver mock** en desarrollo y tests.
+
+La autenticación saliente hacia la API externa se realiza mediante token (cabecera `Authorization: Bearer`). El sondeo se ejecuta **una vez por nivel de riesgo activo** (máximo 3 consultas por ciclo), no por usuario, y el resultado se propaga a todos los usuarios suscritos a ese nivel.
+
+> El contrato exacto de la API externa real está pendiente de confirmación con el proveedor; el contrato descrito (señal actual + histórico) es el implementado por el driver mock.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Prov as Proveedor de Señales (Externo)
-    participant Nginx as Nginx / Laravel Middleware
-    participant Laravel as Laravel App
+    participant Scheduler as Laravel Scheduler (cada ~5s)
+    participant Provider as SignalProvider (mock | http)
+    participant API as API de Señales (Externa)
+    participant DB as MySQL Database
     participant Redis as Redis (Queue)
     participant Worker as Queue Worker
     participant Binance as Binance API (Externo)
 
-    Note over Prov, Laravel: El proveedor emite una señal de inversión
-    Prov->>Nginx: POST /api/webhooks/signals (Cuerpo JSON + Cabecera X-Sign)
-    Note over Nginx, Laravel: Middleware verifica la autenticidad
-    Laravel->>Laravel: Calcular HMAC_SHA256(Cuerpo, Clave Secreta Compartida)
-    alt Firmas no coinciden
-        Laravel-->>Prov: HTTP 401 Unauthorized (Abortar)
-    else Firmas coinciden
-        Laravel->>Laravel: Validar formato del JSON y estado del Bot de los usuarios
-        Laravel-->>Prov: HTTP 202 Accepted (Respuesta rápida)
-        Note over Laravel, Redis: Se crea un proceso de ejecución asíncrono
-        Laravel->>Redis: Encolar Trabajo: ExecuteSignalJob(signalData)
-        
-        loop Consumir Cola
-            Worker->>Redis: Extraer Trabajo
-            Worker->>Worker: Validar Reglas de Riesgo del Usuario (Stop Loss diario, Capital Protegido)
-            alt Validación de riesgo exitosa
-                Worker->>Worker: Descifrar API Keys del Usuario (AES-256)
-                Worker->>Binance: POST /api/v3/order (Firma HMAC de la orden)
-                Binance-->>Worker: Confirmación de orden ejecutada
-                Worker->>Worker: Registrar actividad en lenguaje humano ("Compra ejecutada...")
-            else Límite de riesgo superado / Bot Pausado
-                Worker->>Worker: Registrar descarte de señal por protección de riesgo o pausa
-            end
+    loop Por cada nivel de riesgo activo (conservador, balanceado, agresivo)
+        Scheduler->>Provider: getCurrentSignal(risk_level)
+        alt Driver http (producción)
+            Provider->>API: GET /api/v1/signal?risk_level=X (Bearer token)
+            API-->>Provider: { position: LONG|SHORT|CLOSE, issued_at, signal_id }
+        else Driver mock (desarrollo y tests, por defecto)
+            Provider-->>Provider: Genera respuesta con el mismo contrato
+        end
+        Provider-->>Scheduler: Posición objetivo
+        Scheduler->>DB: Leer última posición conocida del nivel de riesgo
+        alt Posición sin cambios
+            Scheduler->>Scheduler: No hacer nada (idempotencia)
+        else Cambio de posición detectado
+            Scheduler->>DB: Persistir nueva posición objetivo
+            Scheduler->>Redis: Encolar AdjustPositionJob(risk_level, nueva_posicion)
+        end
+    end
+
+    loop Consumir Cola (por cada usuario con bot Activo en ese nivel)
+        Worker->>Redis: Extraer Trabajo
+        Worker->>Worker: Validar Reglas de Riesgo del Usuario (Stop Loss diario, Capital Protegido)
+        alt Modo real y validación de riesgo exitosa
+            Worker->>Worker: Descifrar API Keys del Usuario (AES-256)
+            Worker->>Binance: POST /api/v3/order (ajustar posición a la señal)
+            Binance-->>Worker: Confirmación de orden ejecutada
+            Worker->>Worker: Registrar actividad en lenguaje humano ("Compra ejecutada...")
+        else Modo simulación
+            Worker->>DB: Registrar operación simulada (sin tocar Binance)
+        else Límite de riesgo superado / Bot Pausado
+            Worker->>Worker: Registrar descarte de señal por protección de riesgo o pausa
         end
     end
 ```
+
+Si la API externa no responde tras los reintentos configurados, el sistema **mantiene la última posición conocida** sin generar órdenes, registra la incidencia y muestra un aviso amigable en el dashboard.
 
 ### 3.2. Vinculación Segura de API Keys de Binance (Aislamiento Total)
 
@@ -191,6 +217,33 @@ sequenceDiagram
     end
 ```
 
+### 3.4. Generación del Gráfico de Progreso del Capital Simulado (Modelo Híbrido)
+
+La API externa de señales (o su mock) suministra el **histórico de señales** con fecha, hora, posición y profit para un nivel de riesgo. ViBo Invest calcula **localmente** la evolución del capital simulado aplicando el capital estimado del usuario sobre esa lista, y genera el gráfico de progreso del dashboard.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Usuario (Dashboard)
+    participant Laravel as Laravel Backend
+    participant Provider as SignalProvider (mock | http)
+    participant API as API de Señales (Externa)
+
+    User->>Laravel: Cargar gráfico de capital simulado (nivel de riesgo del usuario)
+    Laravel->>Provider: getSignalHistory(risk_level)
+    alt Driver http (producción)
+        Provider->>API: GET /api/v1/signals/history?risk_level=X (Bearer token)
+        API-->>Provider: [ { date, time, position, profit }, ... ]
+    else Driver mock (por defecto)
+        Provider-->>Provider: Devuelve histórico determinista de prueba
+    end
+    Provider-->>Laravel: Lista de señales históricas
+    Laravel->>Laravel: Calcular evolución del capital (capital estimado × profits acumulados)
+    Laravel-->>User: Serie temporal lista para el gráfico (con drawdowns en lenguaje humano)
+```
+
+El resultado se cachea en Redis (TTL corto) para evitar recalcular la curva en cada visita al dashboard.
+
 ---
 
 ## 4. Stack de Tecnologías y Decisiones de Arquitectura
@@ -204,7 +257,8 @@ sequenceDiagram
 | **Gestión Dinámica** | **Laravel Seeders** | Utilizado para inyectar datos de configuración del sistema, niveles de riesgo estándar, y para cargar el set de datos históricos con el cual se ejecutan las simulaciones locales (Shadow Mode). |
 | **Mensajería y Colas** | **Redis 7 (Alpine)** | Proporciona la latencia ultrabaja requerida para gestionar las colas de trabajos y sirve como puente Pub/Sub para propagar eventos a los sockets de forma eficiente. |
 | **Servidor WebSockets** | **Laravel Reverb** | Servidor WebSocket de alto rendimiento integrado de forma nativa en Laravel 11. Elimina la necesidad de usar servicios de pago de terceros (como Pusher) para notificar saldos y cambios de estado en tiempo real. |
-| **Seguridad de Webhook** | **HMAC-SHA256** | El proveedor externo de señales firma las solicitudes con un hash calculado a partir del cuerpo del JSON y una clave secreta compartida. Evita ataques de suplantación y ataques de repetición (Replay attacks). |
+| **Integración de Señales** | **Polling saliente + Bearer Token** | El scheduler consulta la API externa de señales en tiempo casi real (sub-minuto, ~5s) pasando el nivel de riesgo. Contrato basado en estado objetivo (`LONG`/`SHORT`/`CLOSE`): resiliente a fallos, sin endpoints públicos entrantes que proteger. Autenticación saliente con token Bearer sobre HTTPS. |
+| **Abstracción del Proveedor** | **Contract/Driver de Laravel (`SignalProvider`)** | Interfaz única con dos drivers seleccionables vía `SIGNALS_PROVIDER=mock\|http`. El driver `mock` (por defecto) replica el contrato completo de la API real y es la base de los tests automatizados y del entorno de desarrollo; el driver `http` consume la API externa real. |
 | **Cifrado de Credenciales** | **AES-256-GCM** | Cifrado simétrico estándar de nivel militar para almacenar de manera segura las claves de Binance API de los usuarios en reposo en la base de datos MySQL. |
 
 ---

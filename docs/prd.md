@@ -15,7 +15,8 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
 *   **Integración única**: Conexión obligatoria con el exchange **Binance** a través de API Keys.
 *   **Seguridad estricta**: Las API Keys no deben tener permisos de retiro bajo ninguna circunstancia y deben estar estrictamente aisladas en el backend de ViBo Invest (nunca compartidas con el proveedor de señales externo).
 *   **Simplicidad radical**: Prohibido el uso de indicadores técnicos o interfaces sobrecargadas en el front-end. Toda la comunicación y métricas deben estar en lenguaje humano y comprensible.
-*   **Alcance MVP**: El alcance inicial debe limitarse exclusivamente a: login, onboarding con simulación, conexión con Binance, activación/pausado del bot y visualización del balance histórico.
+*   **Alcance MVP**: El alcance inicial debe limitarse exclusivamente a: login, onboarding con simulación, conexión con Binance, activación/pausado del bot, cambio de nivel de riesgo, alternancia entre modo simulación y real, y visualización del estado de los datos y gráficas (balance y capital simulado). Desde la app **no** se realizan otras acciones de trading.
+*   **Proveedor de señales mock obligatorio**: El sistema debe incluir desde el inicio un proveedor de señales mock interno (mismo contrato que la API externa real) que se usa **por defecto** para probar el sistema y ejecutar los tests automatizados.
 
 ---
 
@@ -92,6 +93,17 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
     **quiero** ver un registro de actividad reciente redactado en lenguaje humano (ej. "Protección activada" o "Posición cerrada con +1.2%"),  
     **para** entender qué decisiones ha tomado el bot sin necesidad de descifrar logs técnicos o códigos de transacción.
 
+### F. Gestión de Señales desde la API Externa
+13. **Como** usuario con el bot activo,  
+    **quiero** que la plataforma consulte en tiempo real la API externa de señales con mi nivel de riesgo y ajuste mi posición en Binance solo cuando la señal cambie (`LONG`, `SHORT`, `CLOSE`),  
+    **para** que mis operaciones sigan la estrategia automáticamente y siempre dentro de mis límites de protección.
+14. **Como** usuario en modo simulación,  
+    **quiero** ver un gráfico de progreso del capital simulado calculado a partir del histórico de señales del proveedor (fecha, hora, posición y profit) según mi nivel de riesgo,  
+    **para** evaluar el rendimiento de la estrategia sin arriesgar dinero real.
+15. **Como** usuario en control de su estrategia,  
+    **quiero** cambiar mi nivel de riesgo y alternar entre modo simulación y real con controles simples del dashboard,  
+    **para** ajustar el comportamiento del bot sin configuraciones técnicas.
+
 ---
 
 ## 5. Requisitos Técnicos
@@ -108,10 +120,11 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
     *   Validación estricta en tiempo de conexión de que la API Key **NO** tiene permisos de retiro (IP/Withdrawal restrictions checking).
     *   Consulta de balance de cuenta en tiempo real.
     *   Ejecución de órdenes de compra/venta y configuración de Stop Loss/Take Profit.
-*   **Integración con API Externa de Señales e Aislamiento de Credenciales**: El bot obtiene la información y los datos de las señales que se van a ejecutar en Binance consumiendo una API externa al proyecto. Las API Keys de Binance **bajo ninguna circunstancia** se transmiten, comparten o procesan a través de dicha API externa. El backend de ViBo Invest actúa como el único ejecutor y gatekeeper: recibe las señales del proveedor externo y procesa localmente la ejecución de órdenes en Binance usando las credenciales cifradas (AES-256) de los usuarios, garantizando que se apliquen siempre las validaciones de riesgo (como el Stop Loss diario) antes de enviar la orden al exchange.
-*   **Motor de Simulación (Shadow Mode)**:
-    *   Mapeo de datos históricos reales para proyectar curvas de ganancias y drawdowns ("caídas temporales").
-    *   Cálculo en tiempo real del peor drawdown semanal/mensual simulado para ajustar los parámetros dinámicamente.
+*   **Integración con API Externa de Señales (Polling) y Aislamiento de Credenciales**: El bot obtiene la información de trading consultando periódicamente (polling en tiempo casi real, intervalo configurable de ~5 segundos) una API externa al proyecto, pasándole como parámetro el **nivel de riesgo** configurado. La API responde con la posición objetivo actual (`LONG`, `SHORT` o `CLOSE`); el backend la compara con la última posición conocida y solo actúa ante un cambio. Se eligió polling sobre webhook porque la respuesta depende del nivel de riesgo, el contrato basado en estado es resiliente (un sondeo nunca "pierde" una señal), no expone endpoints públicos entrantes y simplifica el mockeo. Las API Keys de Binance **bajo ninguna circunstancia** se transmiten, comparten o procesan a través de dicha API externa. El backend de ViBo Invest actúa como el único ejecutor y gatekeeper: procesa localmente la ejecución de órdenes en Binance usando las credenciales cifradas (AES-256) de los usuarios, garantizando que se apliquen siempre las validaciones de riesgo (como el Stop Loss diario) antes de enviar la orden al exchange.
+*   **Proveedor de Señales Mock (por defecto)**: Implementación interna en Laravel (patrón contract/driver) que replica el contrato de la API externa: señal actual por nivel de riesgo e histórico de señales. Se selecciona por configuración (`SIGNALS_PROVIDER=mock|http`, por defecto `mock`) y es la base de los tests automatizados y del entorno de desarrollo.
+*   **Motor de Simulación (Shadow Mode, modelo híbrido)**:
+    *   La API externa de señales (o su mock) suministra el histórico de señales con fecha, hora, posición y profit según el nivel de riesgo.
+    *   El backend de ViBo Invest calcula localmente la evolución del capital simulado a partir de esa lista (aplicando el capital estimado del usuario) para generar el gráfico de progreso, las curvas de ganancias y los drawdowns ("caídas temporales").
 
 ### Seguridad y Almacenamiento
 *   **Cifrado de API Keys**: Las claves de API de los usuarios deben almacenarse cifradas en reposo usando algoritmos robustos (ej. AES-256) con llaves de cifrado gestionadas de forma segura.
@@ -146,6 +159,10 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
 *   *Severidad*: Media | *Probabilidad*: Media
 *   *Mitigación*: Diseñar el backend con políticas de reintento (retry policies) y alertas automáticas. Si la API de Binance no responde, pausar temporalmente la ejecución local del bot y notificar al usuario mediante un banner amigable en el Dashboard (ej. "Conexión temporalmente inestable con Binance, tus fondos están seguros").
 
+### R4: Indisponibilidad o respuestas inválidas de la API externa de señales
+*   *Severidad*: Media | *Probabilidad*: Media
+*   *Mitigación*: Si el sondeo falla los reintentos configurados, mantener la última posición conocida sin generar órdenes nuevas (el contrato basado en estado lo permite de forma segura), registrar la incidencia y mostrar un aviso amigable en el Dashboard. El proveedor mock interno permite además reproducir y testear estos fallos de forma controlada.
+
 ---
 
 ## 8. Criterios de Aceptación (Criterios de Listoque)
@@ -174,3 +191,14 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
 *   **Dado que** el bot realiza transacciones en segundo plano,  
     **cuando** el usuario visita el historial de actividad,  
     **entonces** debe ver explicaciones claras de las operaciones en lenguaje humano en vez de códigos crudos de transacción de criptomonedas.
+
+### 5. Sincronización de Señales y Nivel de Riesgo
+*   **Dado que** el bot está activo con un nivel de riesgo configurado,  
+    **cuando** el ciclo de sondeo a la API de señales (real o mock) devuelve una posición distinta a la última conocida,  
+    **entonces** el sistema debe validar las reglas de riesgo locales y ajustar la posición en Binance (o registrarla en el simulador, según el modo), reflejando el cambio en el dashboard en tiempo real.
+*   **Dado que** el usuario cambia su nivel de riesgo desde el dashboard,  
+    **cuando** se ejecuta el siguiente ciclo de sondeo,  
+    **entonces** la consulta a la API de señales debe realizarse con el nuevo nivel de riesgo como parámetro.
+*   **Dado que** el entorno no tiene configurada la API externa real,  
+    **cuando** el sistema arranca,  
+    **entonces** debe operar contra el proveedor de señales mock interno sin cambios en el resto del sistema.

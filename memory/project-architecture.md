@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-06-10
+updated: 2026-06-11
 ---
 
 # Decisiones de Arquitectura de ViBo Invest
@@ -18,9 +18,10 @@ Este archivo detalla las decisiones fundamentales de arquitectura tomadas para *
 3. **Redis para Gestión de Colas (Queues)**:
    * *Decisión*: Utilizar Redis para ejecutar trabajos en segundo plano (auditoría de llaves API y órdenes de trading).
    * *Justificación*: El procesamiento de órdenes de criptomonedas debe ser inmediato y asíncrono para evitar bloquear el servidor web (HTTP request blocking) y garantizar que la plataforma sea altamente responsiva.
-4. **Seguridad Webhook (HMAC-SHA256)**:
-   * *Decisión*: Validación mediante firma HMAC en las cabeceras de las peticiones del proveedor de señales externo.
-   * *Justificación*: Asegura que el backend solo ejecute señales legítimas y firmadas digitalmente con una clave secreta compartida, previniendo ataques de repetición y suplanatación.
+4. **Integración de Señales por Polling (reemplaza al Webhook + HMAC, 2026-06-11)**:
+   * *Decisión*: El scheduler sondea la API externa de señales en tiempo casi real (~5s, sub-minuto de Laravel 11) pasando el nivel de riesgo; la API responde la posición objetivo (`LONG`/`SHORT`/`CLOSE`). Autenticación saliente con token Bearer.
+   * *Justificación*: La respuesta depende del nivel de riesgo (request/response natural), el contrato basado en estado nunca "pierde" señales, no se exponen endpoints públicos entrantes (elimina HMAC y su superficie de ataque) y simplifica el mockeo. Ver detalles en [bot-signals.md](bot-signals.md).
+   * *Mock*: Contrato `SignalProvider` con drivers `mock` (por defecto, para dev/tests) y `http` (API real), vía `SIGNALS_PROVIDER`.
 5. **Cifrado de API Keys de Binance (AES-256-GCM)**:
    * *Decisión*: Las API Keys y Secret Keys de los usuarios se almacenan en MySQL cifradas simétricamente a través del backend de Laravel.
    * *Justificación*: Cumple con el aislamiento estricto de credenciales; las claves nunca se transmiten al proveedor de señales externo ni a ninguna entidad fuera de los servidores de ViBo Invest.
