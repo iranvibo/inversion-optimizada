@@ -45,3 +45,18 @@ El sistema se ejecuta en una red interna puente (`vibo-network`) donde los conte
 * **`php artisan install:broadcasting` falla sin TTY** (en shells no interactivas): completar a mano con `vendor:publish --tag=reverb-config`, variables `REVERB_*` en `.env` y `npm i -D laravel-echo pusher-js`.
 * **Assets en dev**: Vite corre en el host (`npm run dev` / `npm run build`), no en contenedor, para evitar conflictos de binarios nativos (esbuild/rollup) en `node_modules` bind-mounted entre macOS y Alpine.
 * Verificado el 2026-06-11: HTTP 200 vía Nginx, handshake WS 101 en Reverb (`pusher:connection_established`), cache y colas Redis funcionando (worker consumió job de prueba), migraciones aplicadas en MySQL 8.0.44.
+
+## Despliegue y CI/CD (IONOS VPS)
+
+* **Pipeline**: Configurado en `.github/workflows/deploy.yml`. Se ejecuta automáticamente al hacer push a la rama `master`.
+* **Proceso de Compilación**:
+  * Ejecuta `npm install` y `npm run build` en el entorno de GitHub Actions (Node 20) para compilar los assets de frontend (Tailwind 4 + Vite).
+  * Configura PHP 8.4 con las extensiones requeridas (`mbstring`, `xml`, `curl`, `pdo_mysql`, `bcmath`, `pcntl`, `zip`, `intl`).
+  * Instala las dependencias de producción de Composer: `composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader`.
+* **Transferencia (rsync)**: Copia los archivos del proyecto al directorio destino `/var/www/vibo-invest/` del VPS mediante SSH. Se excluyen carpetas de desarrollo (`node_modules`, `.git`, `tests`, `docs`, `memory`, `docker`, `docker-compose*.yml`, etc.).
+* **Post-Despliegue**: Se conecta vía SSH para ejecutar en el servidor remoto:
+  * Migraciones de base de datos (`php artisan migrate --force`).
+  * Cacheado de configuración, rutas y vistas para rendimiento.
+  * Creación del enlace simbólico para storage.
+  * Ajuste de permisos en directorios de escritura (`storage`, `bootstrap/cache`, `database`).
+  * Recarga de PHP-FPM de producción (`php8.4-fpm`) para aplicar cambios sin caída de servicio.
