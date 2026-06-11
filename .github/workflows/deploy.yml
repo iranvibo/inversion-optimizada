@@ -2,7 +2,7 @@ name: Deploy to IONOS VPS
 
 on:
   push:
-    branches: [master]
+    branches: [master, feature-entrega2-IVB]
   workflow_dispatch:
 
 jobs:
@@ -28,24 +28,18 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: mbstring, xml, curl, pdo_mysql, bcmath, pcntl, zip, intl
           coverage: none
 
       - name: Install Composer dependencies
         run: |
           composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: unnecessary
-          if_key_exists: fail
-
-      - name: Add VPS to known hosts
+      - name: Configure SSH Key & Known Hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -p ${{ secrets.VPS_PORT || 22  }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p ${{ secrets.VPS_PORT || 22 }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Deploy via rsync
         run: |
@@ -59,6 +53,8 @@ jobs:
             --exclude='storage/framework/cache/data/*' \
             --exclude='storage/framework/sessions/*' \
             --exclude='storage/framework/views/*' \
+            --exclude='storage/app/*' \
+            --exclude='public/storage' \
             --exclude='tests' \
             --exclude='phpunit.xml' \
             --exclude='.editorconfig' \
@@ -71,13 +67,13 @@ jobs:
             --exclude='docs/' \
             --exclude='docker/' \
             --exclude='docker-compose*.yml' \
-            -e "ssh -p ${{ secrets.VPS_PORT || 22  }}" \
+            -e "ssh -p ${{ secrets.VPS_PORT || 22 }}" \
             ./ \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/vibo-invest/
 
       - name: Run post-deploy commands
         run: |
-          ssh -p ${{ secrets.VPS_PORT || 22  }} \
+          ssh -p ${{ secrets.VPS_PORT || 22 }} \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'ENDSSH'
             cd /var/www/vibo-invest
 
@@ -97,7 +93,7 @@ jobs:
             chmod -R 775 storage bootstrap/cache database
 
             # Restart PHP-FPM to pick up changes
-            systemctl reload php8.4-fpm 2>/dev/null || service php8.4-fpm reload 2>/dev/null || true
+            sudo systemctl reload php8.4-fpm 2>/dev/null || sudo service php8.4-fpm reload 2>/dev/null || true
 
             echo "Deploy complete!"
           ENDSSH

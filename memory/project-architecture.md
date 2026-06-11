@@ -48,15 +48,15 @@ El sistema se ejecuta en una red interna puente (`vibo-network`) donde los conte
 
 ## Despliegue y CI/CD (IONOS VPS)
 
-* **Pipeline**: Configurado en `.github/workflows/deploy.yml`. Se ejecuta automáticamente al hacer push a la rama `master` o de manera manual desde la pestaña Actions de GitHub (`workflow_dispatch`).
+* **Pipeline**: Configurado en `.github/workflows/deploy.yml`. Se ejecuta automáticamente al hacer push a las ramas `master` y `feature-entrega2-IVB`, o de manera manual desde la pestaña Actions de GitHub (`workflow_dispatch`).
 * **Proceso de Compilación**:
   * Ejecuta `npm install` y `npm run build` en el entorno de GitHub Actions (Node 20) para compilar los assets de frontend (Tailwind 4 + Vite).
-  * Configura PHP 8.4 con las extensiones requeridas (`mbstring`, `xml`, `curl`, `pdo_mysql`, `bcmath`, `pcntl`, `zip`, `intl`).
+  * Configura PHP 8.4 (instalando las extensiones por defecto que maneja la acción).
   * Instala las dependencias de producción de Composer: `composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader`.
-* **Transferencia (rsync)**: Copia los archivos del proyecto al directorio destino `/var/www/vibo-invest/` del VPS mediante SSH. Se excluyen carpetas de desarrollo (`node_modules`, `.git`, `tests`, `docs`, `memory`, `docker`, `docker-compose*.yml`, etc.).
+* **Transferencia (rsync)**: Copia los archivos del proyecto al directorio destino `/var/www/vibo-invest/` del VPS mediante SSH. Se excluyen carpetas de desarrollo (`node_modules`, `.git`, `tests`, `docs`, `memory`, `docker`, `docker-compose*.yml`, etc.) y de manera crítica, directorios dinámicos de persistencia en producción como `storage/app/*` y el enlace simbólico `public/storage` para evitar que la bandera `--delete` los borre en el VPS.
 * **Post-Despliegue**: Se conecta vía SSH para ejecutar en el servidor remoto:
   * Migraciones de base de datos (`php artisan migrate --force`).
   * Cacheado de configuración, rutas y vistas para rendimiento.
-  * Creación del enlace simbólico para storage.
+  * Creación del enlace simbólico para storage si falta.
   * Ajuste de permisos en directorios de escritura (`storage`, `bootstrap/cache`, `database`).
-  * Recarga de PHP-FPM de producción (`php8.4-fpm`) para aplicar cambios sin caída de servicio.
+  * Recarga de PHP-FPM de producción (`php8.4-fpm`) usando `sudo` para asegurar permisos de reinicio y refresco de OPcache.
