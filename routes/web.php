@@ -34,6 +34,7 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/bot/toggle', [DashboardController::class, 'toggleBot'])->name('bot.toggle');
     Route::post('/bot/toggle-mode', [DashboardController::class, 'toggleMode'])->name('bot.toggle-mode');
+    Route::post('/bot/update-risk', [DashboardController::class, 'updateRisk'])->name('bot.update-risk');
     Route::post('/bot/simulate-activity', [DashboardController::class, 'simulateActivity'])->name('bot.simulate-activity');
 
     // Vinculación de Binance

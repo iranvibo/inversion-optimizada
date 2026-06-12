@@ -147,4 +147,118 @@ class BotControlTest extends TestCase
 
         Event::assertNotDispatched(BotStatusUpdated::class);
     }
+
+    /**
+     * Test de la US07: Actualización de nivel de riesgo exitosa vía POST.
+     */
+    public function test_updates_risk_level_successfully(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->post(route('bot.update-risk'), ['risk_level' => 'agresivo']);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success', 'Nivel de riesgo actualizado a: Agresivo');
+
+        $this->user->refresh();
+        $this->assertSame('agresivo', $this->user->risk_level);
+    }
+
+    /**
+     * Test de la US07: Actualización de nivel de riesgo vía AJAX/JSON.
+     */
+    public function test_updates_risk_level_via_ajax(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->postJson(route('bot.update-risk'), ['risk_level' => 'balanceado']);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'risk_level' => 'balanceado',
+            'message' => 'Nivel de riesgo actualizado a: Balanceado',
+        ]);
+
+        $this->user->refresh();
+        $this->assertSame('balanceado', $this->user->risk_level);
+    }
+
+    /**
+     * Test de la US07: Validación de nivel de riesgo no válido.
+     */
+    public function test_prevents_invalid_risk_level(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->post(route('bot.update-risk'), ['risk_level' => 'super_agresivo']);
+
+        $response->assertSessionHasErrors(['risk_level']);
+    }
+
+    /**
+     * Test de la US07: Alternancia de modo real a simulación con bot activo y Binance conectado.
+     */
+    public function test_changes_mode_from_real_to_simulation_and_closes_positions(): void
+    {
+        // El usuario arranca en modo real con bot activo
+        $this->user->update([
+            'bot_mode' => 'real',
+            'bot_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->post(route('bot.toggle-mode'));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertStringContainsString('Modo cambiado a: SIMULATION', session('success'));
+
+        $this->user->refresh();
+        $this->assertSame('simulation', $this->user->bot_mode);
+        // El bot sigue activo localmente pero operará solo en simulación
+        $this->assertTrue($this->user->bot_active);
+    }
+
+    /**
+     * Test de la US07: Fail-Safe al cambiar a simulación cuando el broker de Binance falla.
+     */
+    public function test_changes_mode_from_real_to_simulation_even_if_broker_fails(): void
+    {
+        // Usamos una clave que cause fallo al cerrar
+        $this->user->update([
+            'bot_mode' => 'real',
+            'bot_active' => true,
+            'binance_api_key' => 'fail_close_key',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->post(route('bot.toggle-mode'));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('El modo cambió a simulación, pero hubo un problema al cerrar posiciones', session('error'));
+
+        $this->user->refresh();
+        $this->assertSame('simulation', $this->user->bot_mode);
+        $this->assertTrue($this->user->bot_active);
+    }
+
+    /**
+     * Test de la US07: Bloqueo de modo real si el usuario no tiene Binance vinculado.
+     */
+    public function test_prevents_mode_change_to_real_without_binance_linked(): void
+    {
+        $unlinkedUser = User::factory()->create([
+            'binance_verified' => false,
+            'bot_mode' => 'simulation',
+        ]);
+
+        $response = $this->actingAs($unlinkedUser)
+            ->post(route('bot.toggle-mode'));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('Para activar el modo REAL debes tener una cuenta de Binance vinculada', session('error'));
+
+        $unlinkedUser->refresh();
+        $this->assertSame('simulation', $unlinkedUser->bot_mode);
+    }
 }

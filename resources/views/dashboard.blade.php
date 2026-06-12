@@ -161,8 +161,8 @@
         <p id="balance-error" class="hidden text-sm text-rose-400 mt-3"></p>
     </div>
 
-    <!-- SECCIÓN DE TARJETAS PRINCIPALES -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- SECCIÓN DE TARJETAS PRINCIPALES (US07) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         <!-- Tarjeta 1: Estado del Bot -->
         <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[160px]">
@@ -201,10 +201,10 @@
             <div>
                 <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Modo de Operación</span>
                 <div class="my-4">
-                    <span class="text-3xl font-extrabold block text-white tracking-tight">
+                    <span id="bot-mode-text" class="text-3xl font-extrabold block text-white tracking-tight">
                         {{ $user->bot_mode === 'real' ? 'Dinero Real' : 'Simulación' }}
                     </span>
-                    <span class="text-xs text-slate-400 block mt-1">
+                    <span id="bot-mode-desc" class="text-xs text-slate-400 block mt-1">
                         @if($user->bot_mode === 'real')
                             Operando directamente en tu cartera de Binance.
                         @else
@@ -214,16 +214,52 @@
                 </div>
             </div>
 
-            <form action="{{ route('bot.toggle-mode') }}" method="POST" class="m-0 p-0">
+            <form id="bot-toggle-mode-form" action="{{ route('bot.toggle-mode') }}" method="POST" class="m-0 p-0">
                 @csrf
-                <button type="submit" 
+                <button type="submit" id="bot-toggle-mode-btn"
                         class="w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30">
                     Cambiar a Modo {{ $user->bot_mode === 'real' ? 'Simulación' : 'Real' }}
                 </button>
             </form>
         </div>
 
-        <!-- Tarjeta 3: Configuración de Binance -->
+        <!-- Tarjeta 3: Nivel de Riesgo (US07) -->
+        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[160px]">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Nivel de Riesgo</span>
+                <div class="my-4">
+                    <span id="risk-level-badge" class="text-3xl font-extrabold block text-white tracking-tight uppercase">
+                        {{ $user->risk_level }}
+                    </span>
+                    <span id="risk-level-desc" class="text-xs text-slate-400 block mt-1">
+                        @if(strtolower($user->risk_level) === 'conservador')
+                            Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas.
+                        @elseif(strtolower($user->risk_level) === 'balanceado')
+                            Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas.
+                        @else
+                            Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas.
+                        @endif
+                    </span>
+                </div>
+            </div>
+
+            <form id="risk-level-form" action="{{ route('bot.update-risk') }}" method="POST" class="m-0 p-0">
+                @csrf
+                <div class="flex gap-2">
+                    <select id="risk-level-select" name="risk_level" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-2 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-violet-500">
+                        <option value="conservador" {{ strtolower($user->risk_level) === 'conservador' ? 'selected' : '' }}>Conservador</option>
+                        <option value="balanceado" {{ strtolower($user->risk_level) === 'balanceado' ? 'selected' : '' }}>Balanceado</option>
+                        <option value="agresivo" {{ strtolower($user->risk_level) === 'agresivo' ? 'selected' : '' }}>Agresivo</option>
+                    </select>
+                    <button type="submit" id="risk-level-btn"
+                            class="text-xs font-bold py-2.5 px-3 rounded-xl transition duration-200 bg-violet-600 hover:bg-violet-500 text-white shadow-md shrink-0">
+                        Cambiar
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Tarjeta 4: Configuración de Binance -->
         <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[160px]">
             <div>
                 <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Conexión de Binance</span>
@@ -574,6 +610,14 @@
         }
     }
 
+    function showToast(message, isError = false) {
+        const alertContainer = document.createElement('div');
+        alertContainer.className = `fixed bottom-5 right-5 p-4 rounded-2xl shadow-lg border text-xs font-bold bg-slate-900 text-white animate-fade-in z-50 ${isError ? 'border-rose-500/25 text-rose-300' : 'border-violet-500/20 text-white'}`;
+        alertContainer.textContent = message;
+        document.body.appendChild(alertContainer);
+        setTimeout(() => alertContainer.remove(), 4000);
+    }
+
     if (botToggleForm) {
         botToggleForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -592,25 +636,120 @@
                     body: formData
                 });
 
+                const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    const data = await response.json().catch(() => ({}));
                     throw new Error(data.message || 'Error al cambiar el estado del bot.');
                 }
 
-                const data = await response.json();
                 updateBotUi(data.bot_active);
-
-                const alertContainer = document.createElement('div');
-                alertContainer.className = 'fixed bottom-5 right-5 p-4 rounded-2xl shadow-lg border border-violet-500/20 text-xs font-bold bg-slate-900 text-white animate-fade-in z-50';
-                alertContainer.textContent = data.message;
-                document.body.appendChild(alertContainer);
-                setTimeout(() => alertContainer.remove(), 4000);
+                showToast(data.message);
 
             } catch (err) {
-                alert('Error: ' + err.message);
+                showToast(err.message, true);
             } finally {
                 botToggleBtn.disabled = false;
                 botToggleBtn.classList.remove('opacity-50');
+            }
+        });
+    }
+
+    const botToggleModeForm = document.getElementById('bot-toggle-mode-form');
+    const botToggleModeBtn = document.getElementById('bot-toggle-mode-btn');
+    const botModeText = document.getElementById('bot-mode-text');
+    const botModeDesc = document.getElementById('bot-mode-desc');
+
+    if (botToggleModeForm) {
+        botToggleModeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            botToggleModeBtn.disabled = true;
+            botToggleModeBtn.classList.add('opacity-50');
+
+            try {
+                const formData = new FormData(botToggleModeForm);
+                const response = await fetch(botToggleModeForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': formData.get('_token')
+                    },
+                    body: formData
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.message || 'Error al cambiar el modo del bot.');
+                }
+
+                const isReal = data.bot_mode === 'real';
+                botModeText.textContent = isReal ? 'Dinero Real' : 'Simulación';
+                botModeDesc.textContent = isReal 
+                    ? 'Operando directamente en tu cartera de Binance.' 
+                    : 'Operaciones simuladas con capital de prueba.';
+                
+                botToggleModeBtn.textContent = `Cambiar a Modo ${isReal ? 'Simulación' : 'Real'}`;
+
+                showToast(data.message);
+                refreshHistory(true);
+
+            } catch (err) {
+                showToast(err.message, true);
+            } finally {
+                botToggleModeBtn.disabled = false;
+                botToggleModeBtn.classList.remove('opacity-50');
+            }
+        });
+    }
+
+    const riskLevelForm = document.getElementById('risk-level-form');
+    const riskLevelBtn = document.getElementById('risk-level-btn');
+    const riskLevelBadge = document.getElementById('risk-level-badge');
+    const riskLevelDesc = document.getElementById('risk-level-desc');
+
+    if (riskLevelForm) {
+        riskLevelForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            riskLevelBtn.disabled = true;
+            riskLevelBtn.classList.add('opacity-50');
+
+            try {
+                const formData = new FormData(riskLevelForm);
+                const response = await fetch(riskLevelForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': formData.get('_token')
+                    },
+                    body: formData
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.message || 'Error al actualizar el nivel de riesgo.');
+                }
+
+                const rLevel = data.risk_level;
+                riskLevelBadge.textContent = rLevel.toUpperCase();
+                
+                let desc = '';
+                if (rLevel === 'conservador') {
+                    desc = 'Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas.';
+                } else if (rLevel === 'balanceado') {
+                    desc = 'Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas.';
+                } else {
+                    desc = 'Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas.';
+                }
+                riskLevelDesc.textContent = desc;
+
+                showToast(data.message);
+                refreshHistory(true);
+
+            } catch (err) {
+                showToast(err.message, true);
+            } finally {
+                riskLevelBtn.disabled = false;
+                riskLevelBtn.classList.remove('opacity-50');
             }
         });
     }

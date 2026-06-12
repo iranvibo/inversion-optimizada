@@ -204,22 +204,96 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         if (! $user) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Sesión no válida.'], 401);
+            }
             return back();
         }
 
         $newMode = $user->bot_mode === 'real' ? 'simulation' : 'real';
 
-        // Si intenta cambiar a modo real y no está vinculado, mostrar error
+        // Si intenta cambiar a modo real y no está vinculado, mostrar error guiando al flujo de vinculación
         if ($newMode === 'real' && ! $user->isBinanceLinked()) {
-            return back()->with('error', 'Requisito de Seguridad: Para operar en modo REAL, primero debes vincular tu cuenta de Binance de manera segura sin permisos de retiro.');
+            $errorMessage = 'Requisito de Seguridad: Para activar el modo REAL debes tener una cuenta de Binance vinculada y validada. Por favor, conéctala en la sección "Conexión de Binance".';
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorMessage], 403);
+            }
+            return back()->with('error', $errorMessage);
         }
 
-        // Si pasa a simulación, el bot se mantiene (o se cierra preventivamente, pero para US01 mantengámoslo simple)
+        $closeError = null;
+        if ($newMode === 'simulation' && $user->bot_active && $user->isBinanceLinked()) {
+            try {
+                $this->binanceBroker->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
+                Log::info("Cierre preventivo de posiciones ejecutado al cambiar a modo simulación para el usuario ID: {$user->id}");
+            } catch (\Exception $e) {
+                $closeError = "Advertencia: El modo cambió a simulación, pero hubo un problema al cerrar posiciones en Binance: " . $e->getMessage();
+                Log::critical("Fallo al cerrar posiciones preventivamente al cambiar a simulación para el usuario ID: {$user->id}. Detalle: " . $e->getMessage());
+            }
+        }
+
         $user->update([
             'bot_mode' => $newMode,
         ]);
 
-        return back()->with('success', 'Modo cambiado a: '.strtoupper($newMode));
+        $statusMessage = 'Modo cambiado a: ' . strtoupper($newMode);
+        if ($closeError) {
+            $statusMessage .= ' ' . $closeError;
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'bot_mode' => $newMode,
+                    'message' => $statusMessage,
+                    'warning' => $closeError,
+                ]);
+            }
+            return back()->with('error', $statusMessage);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'bot_mode' => $newMode,
+                'message' => $statusMessage,
+            ]);
+        }
+
+        return back()->with('success', $statusMessage);
+    }
+
+    /**
+     * Actualiza el nivel de riesgo del bot del usuario.
+     */
+    public function updateRisk(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Sesión no válida.'], 401);
+            }
+            return back()->with('error', 'Sesión no válida.');
+        }
+
+        $request->validate([
+            'risk_level' => 'required|string|in:conservador,balanceado,agresivo',
+        ]);
+
+        $riskLevel = strtolower($request->input('risk_level'));
+        $user->update([
+            'risk_level' => $riskLevel,
+        ]);
+
+        $statusMessage = 'Nivel de riesgo actualizado a: ' . ucfirst($riskLevel);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'risk_level' => $riskLevel,
+                'message' => $statusMessage,
+            ]);
+        }
+
+        return back()->with('success', $statusMessage);
     }
 
     /**

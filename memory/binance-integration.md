@@ -33,3 +33,9 @@ Este documento detalla las decisiones técnicas y de diseño adoptadas para la i
    - *Decisión*: Al pausar el bot de forma manual o tras una alerta, el sistema solicita a Binance cancelar todas las órdenes abiertas (`DELETE /api/v3/openOrders`) para el par de referencia `BTCEUR` antes de guardar el estado `bot_active = false`.
    - *Justificación*: Evita operaciones no deseadas o huérfanas en el exchange si el bot deja de ser supervisado.
    - *Fail-Safe local*: Si la llamada a la API de Binance falla (ej: problemas de red, claves suspendidas), el error se registra de manera crítica (`Log::critical`) y se le muestra una advertencia al usuario, pero **se continúa con la desactivación local** del bot por seguridad para evitar que el motor de ejecución genere nuevas órdenes.
+
+6. **Cierre Preventivo al Cambiar de Modo Real a Simulación (US07)**:
+   - *Decisión*: Al pasar del modo de Dinero Real al modo de Simulación con el bot encendido (`bot_active = true`), el sistema ejecuta un cierre preventivo de posiciones y cancela órdenes abiertas en Binance antes de continuar operando únicamente en simulación.
+   - *Justificación*: Previene dejar posiciones reales abiertas y huérfanas en Binance que queden fuera del control del bot una vez que este empiece a operar únicamente en modo simulación.
+   - *Fail-Safe local*: Sigue la misma regla de US04; si el broker falla, el error se registra como crítico y se muestra una advertencia, pero se permite que el cambio a simulación prosiga localmente.
+
