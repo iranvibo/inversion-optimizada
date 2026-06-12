@@ -7,6 +7,7 @@ use App\Events\BotStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
@@ -38,7 +39,9 @@ class DashboardController extends Controller
         $activities = $user->botActivities()->latest()->get();
         $riskAlerts = $activities->where('risk_alert', true);
 
-        return view('dashboard', compact('user', 'latestSnapshot', 'activities', 'riskAlerts'));
+        $signalProviderUnstable = Cache::has("signal_provider_unstable:" . strtolower($user->risk_level));
+
+        return view('dashboard', compact('user', 'latestSnapshot', 'activities', 'riskAlerts', 'signalProviderUnstable'));
     }
 
     /**

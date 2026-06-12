@@ -270,4 +270,86 @@ class BinanceBroker implements BinanceBrokerInterface
             throw new BinanceException('Error al conectar con la API de Binance para cerrar posiciones: '.$e->getMessage());
         }
     }
+
+    /**
+     * Ajusta la posición en Binance según la señal (LONG, SHORT, CLOSE).
+     */
+    public function adjustPosition(string $apiKey, string $secretKey, string $position): bool
+    {
+        if (config('services.binance.mock')) {
+            return $this->handleMockAdjustPosition($apiKey, $secretKey, $position);
+        }
+
+        return $this->handleRealAdjustPosition($apiKey, $secretKey, $position);
+    }
+
+    /**
+     * Simulación de ajuste de posición en mock.
+     */
+    protected function handleMockAdjustPosition(string $apiKey, string $secretKey, string $position): bool
+    {
+        if (str_contains($apiKey, 'invalid') || str_contains($secretKey, 'invalid')) {
+            throw new BinanceInvalidCredentialsException;
+        }
+
+        if ($position === 'CLOSE') {
+            return $this->closeOpenPositions($apiKey, $secretKey);
+        }
+
+        return true;
+    }
+
+    /**
+     * Ajusta la posición real en Binance (cancelando primero y enviando orden de mercado).
+     */
+    protected function handleRealAdjustPosition(string $apiKey, string $secretKey, string $position): bool
+    {
+        // Cancelamos órdenes abiertas primero
+        $this->closeOpenPositions($apiKey, $secretKey);
+
+        if ($position === 'CLOSE') {
+            return true;
+        }
+
+        $timestamp = now()->timestamp * 1000;
+        $side = $position === 'LONG' ? 'BUY' : 'SELL';
+        $symbol = 'BTCEUR';
+
+        $queryString = http_build_query([
+            'symbol' => $symbol,
+            'side' => $side,
+            'type' => 'MARKET',
+            'quantity' => 0.001,
+            'timestamp' => $timestamp,
+        ]);
+
+        $signature = hash_hmac('sha256', $queryString, $secretKey);
+        $apiUrl = config('services.binance.api_url', 'https://api.binance.com');
+
+        try {
+            $response = Http::withHeaders([
+                'X-MBX-APIKEY' => $apiKey,
+            ])->post("{$apiUrl}/api/v3/order?{$queryString}&signature={$signature}");
+
+            if ($response->status() === 400 || $response->status() === 401) {
+                $data = $response->json();
+                if (isset($data['code']) && $data['code'] === -2015) {
+                    throw new BinanceInvalidCredentialsException;
+                }
+                throw new BinanceException($data['msg'] ?? 'Error de autenticación o permisos al colocar orden en Binance.');
+            }
+
+            if ($response->failed()) {
+                throw new BinanceException('No se pudo colocar la orden en Binance: HTTP '.$response->status());
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            if ($e instanceof BinanceInvalidCredentialsException || $e instanceof BinanceException) {
+                throw $e;
+            }
+            Log::error('Binance order placement failed: '.$e->getMessage());
+            throw new BinanceException('Error al conectar con la API de Binance para ajustar la posición: '.$e->getMessage());
+        }
+    }
 }

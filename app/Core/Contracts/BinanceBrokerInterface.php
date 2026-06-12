@@ -36,4 +36,13 @@ interface BinanceBrokerInterface
      * @throws BinanceException
      */
     public function closeOpenPositions(string $apiKey, string $secretKey): bool;
+
+    /**
+     * Ajusta la posición en Binance según la señal (LONG, SHORT, CLOSE).
+     * En el MVP, se simula o ejecuta cancelando órdenes previas y colocando la nueva.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    public function adjustPosition(string $apiKey, string $secretKey, string $position): bool;
 }

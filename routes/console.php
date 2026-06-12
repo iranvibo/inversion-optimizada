@@ -13,3 +13,6 @@ Schedule::command('binance:verify-permissions')->hourly();
 
 // Sincronizar el balance consolidado de los usuarios vinculados (US03)
 Schedule::command('binance:sync-balances')->everyFifteenMinutes();
+
+// Sondeo en tiempo real de la API de señales (US06)
+Schedule::command('signals:poll')->everyMinute();

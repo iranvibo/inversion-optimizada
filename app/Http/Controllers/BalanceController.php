@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Core\Contracts\SignalProviderInterface;
 use App\Core\Portfolio\PortfolioPerformanceService;
 use App\Events\BalanceUpdated;
 use App\Http\Requests\BalanceHistoryRequest;
@@ -17,6 +18,7 @@ class BalanceController extends Controller
 {
     public function __construct(
         private readonly PortfolioPerformanceService $performanceService,
+        private readonly SignalProviderInterface $signalProvider,
     ) {}
 
     /**
@@ -28,6 +30,43 @@ class BalanceController extends Controller
         $user = Auth::user();
         $range = $request->range();
         $now = now()->toImmutable();
+
+        if ($user->bot_mode === 'simulation') {
+            $capital = (float) ($user->estimated_capital ?? 1000.0);
+            $snapshots = [];
+
+            // Punto de partida inicial
+            $snapshots[] = [
+                'captured_at' => $now->modify('-1 month'),
+                'balance' => $capital,
+            ];
+
+            try {
+                $history = $this->signalProvider->getSignalHistory($user->risk_level);
+                // Ordenar cronológicamente
+                usort($history, fn ($a, $b) => strcmp($a['date'] . ' ' . $a['time'], $b['date'] . ' ' . $b['time']));
+
+                foreach ($history as $signal) {
+                    $dateTimeStr = $signal['date'] . ' ' . $signal['time'];
+                    $capturedAt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $dateTimeStr);
+                    if (!$capturedAt) {
+                        continue;
+                    }
+                    $capital *= (1 + (float) $signal['profit']);
+                    $snapshots[] = [
+                        'captured_at' => $capturedAt,
+                        'balance' => $capital,
+                    ];
+                }
+            } catch (\Exception $e) {
+                // Si falla el proveedor, mostramos el punto inicial o logeamos
+                \Illuminate\Support\Facades\Log::error("Error loading signal history for balance chart: " . $e->getMessage());
+            }
+
+            $report = $this->performanceService->report($snapshots, $range, $now);
+
+            return response()->json($report->toArray());
+        }
 
         // Filtrado y orden en SQL (índice user_id + captured_at): solo se
         // hidratan los puntos de la ventana solicitada, nunca todo el historial.
