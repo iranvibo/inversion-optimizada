@@ -2,12 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Core\Contracts\BinanceBrokerInterface;
+use App\Events\BotStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
+    protected BinanceBrokerInterface $binanceBroker;
+
+    public function __construct(BinanceBrokerInterface $binanceBroker)
+    {
+        $this->binanceBroker = $binanceBroker;
+    }
+
     /**
      * Muestra el Dashboard principal de ViBo Invest.
      */
@@ -34,19 +44,67 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         if (! $user) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Sesión no válida.'], 401);
+            }
             return back()->with('error', 'Sesión no válida.');
         }
 
         // Si intenta encender el bot en modo Real sin Binance vinculado, lo bloquea (US07 Escenario 3)
         if (! $user->bot_active && $user->bot_mode === 'real' && ! $user->isBinanceLinked()) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Operación Bloqueada: Para activar el bot en modo REAL debes vincular una cuenta de Binance autorizada.'], 403);
+            }
             return back()->with('error', 'Operación Bloqueada: Para activar el bot en modo REAL debes vincular una cuenta de Binance autorizada.');
         }
 
+        $closeError = null;
+        if ($user->bot_active) {
+            // Transición a PAUSADO (Escenario 3: Cierre preventivo al pausar)
+            if ($user->isBinanceLinked()) {
+                try {
+                    $this->binanceBroker->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
+                    Log::info("Cierre preventivo de posiciones ejecutado para el usuario ID: {$user->id}");
+                } catch (\Exception $e) {
+                    $closeError = "Advertencia: El bot se pausó localmente, pero hubo un problema al cerrar posiciones en Binance: " . $e->getMessage();
+                    Log::critical("Fallo al cerrar posiciones preventivamente para el usuario ID: {$user->id}. Detalle: " . $e->getMessage());
+                }
+            }
+        } else {
+            // Transición a ACTIVO: enviar señal al motor de ejecución de órdenes (Escenario 1)
+            Log::info("Señal enviada al motor de ejecución de órdenes para activar el bot del usuario ID: {$user->id}");
+        }
+
+        $newStatus = ! $user->bot_active;
         $user->update([
-            'bot_active' => ! $user->bot_active,
+            'bot_active' => $newStatus,
         ]);
 
-        $statusMessage = $user->bot_active ? 'Bot ACTIVADO con éxito.' : 'Bot PAUSADO de inmediato.';
+        // Disparar evento de WebSocket en tiempo real
+        event(new BotStatusUpdated($user, $newStatus));
+
+        $statusMessage = $newStatus ? 'Bot ACTIVADO con éxito.' : 'Bot PAUSADO de inmediato.';
+
+        if ($closeError) {
+            $statusMessage .= ' ' . $closeError;
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'bot_active' => $newStatus,
+                    'message' => $statusMessage,
+                    'warning' => $closeError,
+                ]);
+            }
+            return back()->with('error', $statusMessage);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'bot_active' => $newStatus,
+                'message' => $statusMessage,
+            ]);
+        }
 
         return back()->with('success', $statusMessage);
     }

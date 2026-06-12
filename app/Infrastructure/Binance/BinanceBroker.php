@@ -190,4 +190,84 @@ class BinanceBroker implements BinanceBrokerInterface
             throw new BinanceException('Error al conectar con la API de Binance: '.$e->getMessage());
         }
     }
+
+    /**
+     * Cancela todas las órdenes abiertas y gestiona el cierre preventivo
+     * de las posiciones en Binance para mitigar el riesgo al pausar el bot.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    public function closeOpenPositions(string $apiKey, string $secretKey): bool
+    {
+        if (config('services.binance.mock')) {
+            return $this->handleMockClose($apiKey, $secretKey);
+        }
+
+        return $this->handleRealClose($apiKey, $secretKey);
+    }
+
+    /**
+     * Simulación de cierre preventivo en desarrollo y pruebas.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function handleMockClose(string $apiKey, string $secretKey): bool
+    {
+        if (str_contains($apiKey, 'invalid') || str_contains($secretKey, 'invalid')) {
+            throw new BinanceInvalidCredentialsException;
+        }
+
+        if (str_contains($apiKey, 'fail_close') || str_contains($secretKey, 'fail_close')) {
+            throw new BinanceException('Simulated failure closing positions.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Realiza la llamada HTTP DELETE a Binance para cancelar todas las órdenes abiertas de BTCEUR.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function handleRealClose(string $apiKey, string $secretKey): bool
+    {
+        $timestamp = now()->timestamp * 1000;
+        $symbol = 'BTCEUR';
+        $queryString = http_build_query([
+            'symbol' => $symbol,
+            'timestamp' => $timestamp,
+        ]);
+        $signature = hash_hmac('sha256', $queryString, $secretKey);
+
+        $apiUrl = config('services.binance.api_url', 'https://api.binance.com');
+
+        try {
+            $response = Http::withHeaders([
+                'X-MBX-APIKEY' => $apiKey,
+            ])->delete("{$apiUrl}/api/v3/openOrders?{$queryString}&signature={$signature}");
+
+            if ($response->status() === 400 || $response->status() === 401) {
+                $data = $response->json();
+                if (isset($data['code']) && $data['code'] === -2015) {
+                    throw new BinanceInvalidCredentialsException;
+                }
+                throw new BinanceException($data['msg'] ?? 'Error de autenticación o permisos al cerrar posiciones.');
+            }
+
+            if ($response->failed()) {
+                throw new BinanceException('No se pudo cancelar las órdenes en Binance: HTTP '.$response->status());
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            if ($e instanceof BinanceInvalidCredentialsException || $e instanceof BinanceException) {
+                throw $e;
+            }
+            Log::error('Binance cancel orders failed: '.$e->getMessage());
+            throw new BinanceException('Error al conectar con la API de Binance para cerrar posiciones: '.$e->getMessage());
+        }
+    }
 }

@@ -1,6 +1,6 @@
 ---
 created: 2026-06-11
-updated: 2026-06-11
+updated: 2026-06-12
 ---
 
 # Integración y Seguridad de Binance en ViBo Invest
@@ -21,9 +21,15 @@ Este documento detalla las decisiones técnicas y de diseño adoptadas para la i
    - *Decisión*: Cuando `BINANCE_MOCK=true` (entorno local y pruebas), el `BinanceBroker` emula el comportamiento de Binance basándose en los caracteres de las claves ingresadas:
      - **Caso Inválido**: Claves que contienen la palabra `invalid` lanzan una excepción `BinanceInvalidCredentialsException`.
      - **Caso Con Retiros**: Claves que contienen la palabra `withdraw` devuelven `enableWithdrawals => true`, disparando el flujo de rechazo / alerta.
-     - **Caso Exitoso**: Cualquier otra clave completa la vinculación sin retiros.
+     - **Fallo de Cierre**: Claves que contienen la palabra `fail_close` lanzan una excepción `BinanceException` al intentar cerrar posiciones preventivamente.
+     - **Caso Exitoso**: Cualquier otra clave completa la vinculación sin retiros y simula un cierre preventivo exitoso.
    - *Justificación*: Facilita pruebas unitarias e interactivas en el navegador en entornos de desarrollo sin requerir credenciales reales.
 
 4. **Auditoría Periódica de Seguridad en Segundo Plano**:
    - *Decisión*: Se ha programado la tarea Artisan `binance:verify-permissions` en `routes/console.php` para ejecutarse cada hora.
    - *Justificación*: Si el usuario activa manualmente los permisos de retiro en su panel de Binance después de haber vinculado su cuenta con éxito, el bot detectará este cambio en la siguiente ejecución del scheduler, pausando inmediatamente la estrategia del bot en modo real (`bot_active = false`) y guardando un estado de alerta (`binance_withdrawal_alert = true`) para mostrar un banner de advertencia ineludible en el dashboard.
+
+5. **Regla de Mitigación y Cierre Preventivo al Pausar (US04)**:
+   - *Decisión*: Al pausar el bot de forma manual o tras una alerta, el sistema solicita a Binance cancelar todas las órdenes abiertas (`DELETE /api/v3/openOrders`) para el par de referencia `BTCEUR` antes de guardar el estado `bot_active = false`.
+   - *Justificación*: Evita operaciones no deseadas o huérfanas en el exchange si el bot deja de ser supervisado.
+   - *Fail-Safe local*: Si la llamada a la API de Binance falla (ej: problemas de red, claves suspendidas), el error se registra de manera crítica (`Log::critical`) y se le muestra una advertencia al usuario, pero **se continúa con la desactivación local** del bot por seguridad para evitar que el motor de ejecución genere nuevas órdenes.

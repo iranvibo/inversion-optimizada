@@ -144,7 +144,7 @@
         <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[160px]">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Estado de Automatización</span>
-                <span class="relative flex h-3 w-3">
+                <span id="bot-indicator" class="relative flex h-3 w-3">
                     @if($user->bot_active)
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
@@ -155,17 +155,17 @@
             </div>
             
             <div class="my-4">
-                <span class="text-3xl font-extrabold block text-white uppercase tracking-tight">
+                <span id="bot-status-text" class="text-3xl font-extrabold block text-white uppercase tracking-tight">
                     {{ $user->bot_active ? 'Activo' : 'Pausado' }}
                 </span>
-                <span class="text-xs text-slate-400">
+                <span id="bot-status-desc" class="text-xs text-slate-400">
                     {{ $user->bot_active ? 'Ejecutando señales del mercado.' : 'El bot no realizará operaciones.' }}
                 </span>
             </div>
 
-            <form action="{{ route('bot.toggle') }}" method="POST" class="m-0 p-0">
+            <form id="bot-toggle-form" action="{{ route('bot.toggle') }}" method="POST" class="m-0 p-0">
                 @csrf
-                <button type="submit" 
+                <button type="submit" id="bot-toggle-btn"
                         class="w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 {{ $user->bot_active ? 'bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30' : 'bg-emerald-600 hover:bg-emerald-500 text-white' }}">
                     {{ $user->bot_active ? 'Pausar Bot' : 'Activar Bot' }}
                 </button>
@@ -332,6 +332,12 @@
     const errorEl = document.getElementById('balance-error');
     const rangeButtons = document.querySelectorAll('.range-btn');
 
+    const botIndicator = document.getElementById('bot-indicator');
+    const botStatusText = document.getElementById('bot-status-text');
+    const botStatusDesc = document.getElementById('bot-status-desc');
+    const botToggleForm = document.getElementById('bot-toggle-form');
+    const botToggleBtn = document.getElementById('bot-toggle-btn');
+
     let currentRange = 'day';
 
     const formatEuro = (value) =>
@@ -412,6 +418,68 @@
         }
     }
 
+    function updateBotUi(isActive) {
+        if (isActive) {
+            botIndicator.innerHTML = `
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            `;
+            botStatusText.textContent = 'Activo';
+            botStatusDesc.textContent = 'Ejecutando señales del mercado.';
+            botToggleBtn.textContent = 'Pausar Bot';
+            botToggleBtn.className = 'w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30';
+        } else {
+            botIndicator.innerHTML = `
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+            `;
+            botStatusText.textContent = 'Pausado';
+            botStatusDesc.textContent = 'El bot no realizará operaciones.';
+            botToggleBtn.textContent = 'Activar Bot';
+            botToggleBtn.className = 'w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-emerald-600 hover:bg-emerald-500 text-white';
+        }
+    }
+
+    if (botToggleForm) {
+        botToggleForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            botToggleBtn.disabled = true;
+            botToggleBtn.classList.add('opacity-50');
+
+            try {
+                const formData = new FormData(botToggleForm);
+                const response = await fetch(botToggleForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': formData.get('_token')
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.message || 'Error al cambiar el estado del bot.');
+                }
+
+                const data = await response.json();
+                updateBotUi(data.bot_active);
+
+                const alertContainer = document.createElement('div');
+                alertContainer.className = 'fixed bottom-5 right-5 p-4 rounded-2xl shadow-lg border border-violet-500/20 text-xs font-bold bg-slate-900 text-white animate-fade-in z-50';
+                alertContainer.textContent = data.message;
+                document.body.appendChild(alertContainer);
+                setTimeout(() => alertContainer.remove(), 4000);
+
+            } catch (err) {
+                alert('Error: ' + err.message);
+            } finally {
+                botToggleBtn.disabled = false;
+                botToggleBtn.classList.remove('opacity-50');
+            }
+        });
+    }
+
     rangeButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
             currentRange = btn.dataset.range;
@@ -420,14 +488,16 @@
         });
     });
 
-    // Actualización reactiva vía WebSockets (Escenario 3): el backend emite
-    // 'balance.updated' en el canal privado del usuario al sincronizar.
+    // Actualización reactiva vía WebSockets (Escenario 3)
     if (window.Echo) {
         window.Echo.private('App.Models.User.{{ $user->id }}')
             .listen('.balance.updated', (event) => {
                 renderBalance(event.balance);
                 pulseBalance();
                 refreshHistory();
+            })
+            .listen('.bot.status.updated', (event) => {
+                updateBotUi(event.bot_active);
             });
     }
 

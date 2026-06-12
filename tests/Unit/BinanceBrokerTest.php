@@ -85,4 +85,26 @@ class BinanceBrokerTest extends TestCase
 
         $this->binanceBroker->getTotalBalance('invalid_key', 'some_secret');
     }
+
+    // ─── Cierre preventivo de posiciones (US04) ──────────────────────────
+
+    /**
+     * Prueba que el cierre preventivo devuelva true en modo mock.
+     */
+    public function test_close_open_positions_returns_true_in_mock_mode(): void
+    {
+        $result = $this->binanceBroker->closeOpenPositions('my_secure_api_key', 'some_secret');
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Prueba que el cierre preventivo rechace credenciales inválidas.
+     */
+    public function test_close_open_positions_throws_on_invalid_credentials(): void
+    {
+        $this->expectException(BinanceInvalidCredentialsException::class);
+
+        $this->binanceBroker->closeOpenPositions('invalid_key', 'some_secret');
+    }
 }

@@ -27,4 +27,13 @@ interface BinanceBrokerInterface
      * @throws BinanceException
      */
     public function getTotalBalance(string $apiKey, string $secretKey): float;
+
+    /**
+     * Cancela todas las órdenes abiertas y gestiona el cierre preventivo
+     * de las posiciones en Binance para mitigar el riesgo al pausar el bot.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    public function closeOpenPositions(string $apiKey, string $secretKey): bool;
 }
