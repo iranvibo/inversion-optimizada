@@ -73,6 +73,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Historial de actividad del bot (US05).
+     */
+    public function botActivities(): HasMany
+    {
+        return $this->hasMany(BotActivity::class);
+    }
+
+    /**
      * Determina si el usuario ya completó el onboarding inicial.
      */
     public function hasCompletedOnboarding(): bool

@@ -26,6 +26,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/activities', [DashboardController::class, 'activities'])->name('dashboard.activities');
 
     // Evolución del balance (US03)
     Route::get('/dashboard/balance', [BalanceController::class, 'history'])->name('dashboard.balance');
@@ -33,6 +34,7 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/bot/toggle', [DashboardController::class, 'toggleBot'])->name('bot.toggle');
     Route::post('/bot/toggle-mode', [DashboardController::class, 'toggleMode'])->name('bot.toggle-mode');
+    Route::post('/bot/simulate-activity', [DashboardController::class, 'simulateActivity'])->name('bot.simulate-activity');
 
     // Vinculación de Binance
     Route::get('/binance/link', [BinanceConnectionController::class, 'showLink'])->name('binance.link');

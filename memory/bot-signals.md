@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-06-11
+updated: 2026-06-12
 ---
 
 # Origen de las Señales del Bot
@@ -36,3 +36,9 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 
 ### Controles disponibles desde la app (alcance cerrado)
 Pausar/activar bot, cambiar nivel de riesgo, alternar simulación/real, y ver estado de datos y gráficas. Nada más.
+
+### Historial de Actividad en Lenguaje Humano (US05)
+* **Registro de Acciones**: Cada acción del bot (compra por caída temporal, venta por beneficio/pérdida, o activación de protección de riesgo) se guarda en la tabla `bot_activities`.
+* **Traducción Dinámica**: Un formateador puro (`BotActivityFormatter`) traduce automáticamente los códigos y rendimientos a un lenguaje natural en español (e.g., "Se realizó una compra para aprovechar una caída temporal de precio" o "Protección de pérdida activada para asegurar tu capital").
+* **Alertas de Riesgo**: Las alertas de riesgo (como el stop-loss diario) se guardan con `risk_alert = true` y se destacan en la interfaz mediante un diseño de alerta diferenciado en la parte superior.
+* **Herramienta de Simulación**: Un endpoint `/bot/simulate-activity` permite sembrar eventos simulados directamente desde la interfaz para facilitar las pruebas manuales y los criterios de aceptación.

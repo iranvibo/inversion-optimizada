@@ -34,7 +34,92 @@ class DashboardController extends Controller
             ->latest('captured_at')
             ->first(['balance', 'captured_at']);
 
-        return view('dashboard', compact('user', 'latestSnapshot'));
+        // Historial de actividad y alertas de riesgo (US05)
+        $activities = $user->botActivities()->latest()->get();
+        $riskAlerts = $activities->where('risk_alert', true);
+
+        return view('dashboard', compact('user', 'latestSnapshot', 'activities', 'riskAlerts'));
+    }
+
+    /**
+     * Devuelve el feed de actividades del bot en JSON (US05).
+     */
+    public function activities(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return response()->json(['error' => 'No autorizado'], 401);
+        }
+
+        $activities = $user->botActivities()->latest()->get();
+
+        return response()->json([
+            'activities' => $activities->map(fn($act) => [
+                'id' => $act->id,
+                'type' => $act->type,
+                'action' => $act->action,
+                'human_description' => $act->human_description,
+                'profit_percentage' => $act->profit_percentage,
+                'profit_value' => $act->profit_value,
+                'risk_alert' => $act->risk_alert,
+                'created_at' => $act->created_at->toISOString(),
+            ]),
+        ]);
+    }
+
+    /**
+     * Simula eventos de actividad en la cuenta del usuario para validación de la US05.
+     */
+    public function simulateActivity(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return back()->with('error', 'Sesión no válida.');
+        }
+
+        // Limpiar actividades anteriores de simulación para tener un feed limpio
+        $user->botActivities()->delete();
+
+        // 1. Compra de oportunidad (Escenario 1)
+        $user->botActivities()->create([
+            'type' => 'buy',
+            'action' => 'buy_opportunity',
+            'risk_alert' => false,
+            'created_at' => now()->subMinutes(15),
+        ]);
+
+        // 2. Cierre con beneficio de +1.5% (+15€) (Escenario 2)
+        $user->botActivities()->create([
+            'type' => 'sell',
+            'action' => 'close_profit',
+            'profit_percentage' => 1.5,
+            'profit_value' => 15.00,
+            'risk_alert' => false,
+            'created_at' => now()->subMinutes(10),
+        ]);
+
+        // 3. Cierre con pérdidas / Protección (Escenario 2)
+        $user->botActivities()->create([
+            'type' => 'sell',
+            'action' => 'close_loss',
+            'profit_percentage' => -1.0,
+            'profit_value' => -10.00,
+            'risk_alert' => false,
+            'created_at' => now()->subMinutes(5),
+        ]);
+
+        // 4. Protección diaria de riesgo (Escenario 3)
+        $user->botActivities()->create([
+            'type' => 'risk_protection',
+            'action' => 'stop_loss_trigger',
+            'risk_alert' => true,
+            'created_at' => now(),
+        ]);
+
+        return back()->with([
+            'success' => 'Simulación de Actividad exitosa. Se han generado 4 eventos en tu historial.',
+            'active_tab' => 'activity',
+        ]);
     }
 
     /**

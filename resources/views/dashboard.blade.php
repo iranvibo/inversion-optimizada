@@ -24,6 +24,18 @@
         </div>
     </div>
 
+    <!-- Pestañas de Navegación (US05) -->
+    <div class="border-b border-slate-800/60 flex space-x-6">
+        <button type="button" id="tab-btn-panel" class="tab-btn border-b-2 border-violet-500 pb-3 px-1 text-sm font-semibold text-white focus:outline-none transition duration-200">
+            Panel de Control
+        </button>
+        <button type="button" id="tab-btn-activity" class="tab-btn border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
+            Actividad
+        </button>
+    </div>
+
+    <div id="tab-content-panel" class="tab-content space-y-8 animate-fade-in">
+
     <!-- MENSAJES DE ALERTA Y CONFIRMACIÓN -->
 
     <!-- Alerta de Retiros en Segundo Plano (Escenario 3) -->
@@ -318,10 +330,121 @@
                 @endif
             </div>
 
+            <!-- US05: Simular Actividad del Bot -->
+            <div class="bg-[hsl(223,47%,10%)] p-4 rounded-xl border border-slate-800 space-y-3 flex flex-col justify-between">
+                <div>
+                    <span class="text-xs font-bold text-indigo-400 block uppercase">5. Simular Actividad (US05)</span>
+                    <p class="text-xs text-slate-300">
+                        Siembra datos reales traducidos a lenguaje humano: compras de oportunidad, cierres individuales de rendimiento y protección stop-loss diaria.
+                    </p>
+                </div>
+
+                <form action="{{ route('bot.simulate-activity') }}" method="POST" class="m-0 p-0 mt-3">
+                    @csrf
+                    <button type="submit"
+                            class="w-full text-center text-[10px] font-bold py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition hover-lift">
+                        Simular Actividad del Bot
+                    </button>
+                </form>
+            </div>
+
         </div>
     </div>
 
-</div>
+    </div>
+
+    <!-- Contenido de la pestaña de Actividad (US05) -->
+    <div id="tab-content-activity" class="tab-content space-y-8 hidden animate-fade-in">
+        
+        <!-- Alertas de Riesgo Destacadas arriba (Escenario 3) -->
+        <div id="activity-risk-alerts" class="space-y-4">
+            @foreach($riskAlerts as $alert)
+                <div class="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 shadow-lg relative overflow-hidden">
+                    <!-- Glow detrás del error para estética premium -->
+                    <div class="absolute -right-10 -top-10 w-24 h-24 bg-rose-500/10 rounded-full blur-xl pointer-events-none"></div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 shrink-0 border border-rose-500/30">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-rose-400 uppercase tracking-wider block">ALERTA DE PROTECCIÓN DE RIESGO</span>
+                            <p class="text-sm font-semibold text-white mt-1">{{ $alert->human_description }}</p>
+                            <span class="text-[10px] text-slate-400 block mt-2">{{ $alert->created_at->diffForHumans() }} ({{ $alert->created_at->format('d/m/Y H:i') }})</span>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+
+        <!-- Feed Principal de Actividad Reciente -->
+        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md relative overflow-hidden">
+            <div class="absolute -left-20 -top-20 w-60 h-60 bg-violet-500/5 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="relative space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Historial de Actividad Reciente</h2>
+                    <p class="text-xs text-slate-400">Explicaciones claras en lenguaje sencillo sobre el comportamiento y las acciones del bot.</p>
+                </div>
+
+                <div id="activity-feed-list" class="divide-y divide-slate-800/40">
+                    @forelse($activities as $activity)
+                        <div class="py-4 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
+                            <div class="flex items-center gap-4">
+                                <!-- Icono según tipo -->
+                                @if($activity->type === 'buy')
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20 shrink-0">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                        </svg>
+                                    </div>
+                                @elseif($activity->type === 'sell')
+                                    <div class="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-400 flex items-center justify-center border border-violet-500/20 shrink-0">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                        </svg>
+                                    </div>
+                                @elseif($activity->type === 'risk_protection')
+                                    <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20 shrink-0">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                        </svg>
+                                    </div>
+                                @else
+                                    <div class="w-10 h-10 rounded-xl bg-slate-500/10 text-slate-400 flex items-center justify-center border border-slate-500/20 shrink-0">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                @endif
+                                
+                                <div>
+                                    <p class="text-sm font-medium text-slate-200">{{ $activity->human_description }}</p>
+                                    <span class="text-[10px] text-slate-500 block mt-1">{{ $activity->created_at->diffForHumans() }} ({{ $activity->created_at->format('d/m/Y H:i') }})</span>
+                                </div>
+                            </div>
+
+                            <!-- Visualización amigable de rendimientos individuales (Escenario 2) -->
+                            @if($activity->profit_percentage !== null)
+                                <div class="text-right shrink-0">
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold {{ $activity->profit_percentage >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20' }}">
+                                        {{ $activity->profit_percentage >= 0 ? '+' : '' }}{{ number_format($activity->profit_percentage, 1, ',', '.') }}%
+                                    </span>
+                                </div>
+                            @endif
+                        </div>
+                    @empty
+                        <div class="py-12 text-center text-slate-500 text-sm">
+                            <p>No se han registrado acciones del bot recientemente en esta cuenta.</p>
+                            <p class="text-xs text-slate-600 mt-1">Usa la herramienta del simulador en la pestaña "Panel de Control" para generar actividad de prueba.</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+    </div>
 
 <script>
 (function () {
@@ -500,6 +623,41 @@
                 updateBotUi(event.bot_active);
             });
     }
+
+    // Gestión de pestañas (US05)
+    const tabBtnPanel = document.getElementById('tab-btn-panel');
+    const tabBtnActivity = document.getElementById('tab-btn-activity');
+    const tabContentPanel = document.getElementById('tab-content-panel');
+    const tabContentActivity = document.getElementById('tab-content-activity');
+
+    function switchTab(target) {
+        if (target === 'activity') {
+            tabBtnPanel.classList.remove('border-violet-500', 'text-white');
+            tabBtnPanel.classList.add('border-transparent', 'text-slate-400');
+            tabBtnActivity.classList.remove('border-transparent', 'text-slate-400');
+            tabBtnActivity.classList.add('border-violet-500', 'text-white');
+
+            tabContentPanel.classList.add('hidden');
+            tabContentActivity.classList.remove('hidden');
+        } else {
+            tabBtnActivity.classList.remove('border-violet-500', 'text-white');
+            tabBtnActivity.classList.add('border-transparent', 'text-slate-400');
+            tabBtnPanel.classList.remove('border-transparent', 'text-slate-400');
+            tabBtnPanel.classList.add('border-violet-500', 'text-white');
+
+            tabContentActivity.classList.add('hidden');
+            tabContentPanel.classList.remove('hidden');
+        }
+    }
+
+    if (tabBtnPanel && tabBtnActivity) {
+        tabBtnPanel.addEventListener('click', () => switchTab('panel'));
+        tabBtnActivity.addEventListener('click', () => switchTab('activity'));
+    }
+
+    @if(session('active_tab') === 'activity')
+        switchTab('activity');
+    @endif
 
     // Primera carga del gráfico con el filtro por defecto (Día)
     refreshHistory();
