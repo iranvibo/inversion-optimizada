@@ -35,7 +35,7 @@ return [
 
     'http' => [
         'base_url' => env('SIGNALS_HTTP_BASE_URL'),
-        'token' => env('SIGNALS_HTTP_TOKEN'),
+        'token' => env('SIGNALS_HTTP_TOKEN', 'mi_token_secreto'),
         'timeout' => (int) env('SIGNALS_HTTP_TIMEOUT', 5),
         'retries' => (int) env('SIGNALS_HTTP_RETRIES', 2),
     ],

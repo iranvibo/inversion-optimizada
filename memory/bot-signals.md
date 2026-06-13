@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-06-12
+updated: 2026-06-14
 ---
 
 # Origen de las Señales del Bot
@@ -26,7 +26,7 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
   * `getSignalHistory(string $riskLevel): array` → `array<int, array{date: string, time: string, position: string, profit: float}>`
 * **Drivers**:
   * `mock` (`App\Infrastructure\Signals\MockSignalProvider`): Driver por defecto. Carga retornos deterministas históricos diferenciados por perfil. Permite simular cambios de señal en tests sobrescribiendo el cache mediante `Cache::put("mock_signal:{$riskLevel}", 'CLOSE')`.
-  * `http` (`App\Infrastructure\Signals\HttpSignalProvider`): Consulta `GET /api/v1/signal` y `GET /api/v1/signals/history` utilizando el Bearer token y configuraciones de timeout y reintentos de `config/signals.php`.
+  * `http` (`App\Infrastructure\Signals\HttpSignalProvider`): Consulta `GET /api/v1/signal` y `GET /api/v1/signals/history` utilizando el Bearer token (por defecto `'mi_token_secreto'` si no se define en `.env`) y configuraciones de timeout y reintentos de `config/signals.php`. La URL base real apunta a `https://trading.vibo-solutions.com`.
 
 ### Sondeo Sub-Minuto
 * Programado en `routes/console.php` para ejecutarse cada minuto (`Schedule::command('signals:poll')->everyMinute()`).
@@ -47,4 +47,9 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 * **Traducción Dinámica**: Un formateador puro (`BotActivityFormatter`) traduce automáticamente los códigos y rendimientos a un lenguaje natural en español (e.g., "Se realizó una compra para aprovechar una caída temporal de precio" o "Protección de pérdida activada para asegurar tu capital").
 * **Alertas de Riesgo**: Las alertas de riesgo (como el stop-loss diario) se guardan con `risk_alert = true` y se destacan en la interfaz mediante un diseño de alerta diferenciado en la parte superior.
 * **Herramienta de Simulación**: Un endpoint `/bot/simulate-activity` permite sembrar eventos simulados directamente desde la interfaz para facilitar las pruebas manuales y los criterios de aceptación.
+
+### Notas de Integración y Despliegue (2026-06-14)
+* **Aislamiento en Tests**: Se configuró `SIGNALS_PROVIDER=mock` de manera explícita en `phpunit.xml` para evitar que la suite de pruebas unitarias/feature realice peticiones de red reales al proveedor externo.
+* **Incidencia de Despliegue de la API**: Durante la puesta en marcha, se detectó que el pipeline de GitHub Actions del proyecto externo `btc-signals` (`deploy-bot.yml`) omitía el directorio `api/` en la propiedad `source` de la acción de copia SSH (`scp-action`). Se corrigió añadiendo `api/**` al origen para asegurar que los scripts controladores del endpoint estén presentes en el servidor VPS `trading.vibo-solutions.com`.
+* **Verificación de Producción**: Se probó con éxito la conexión y respuesta en vivo contra `https://trading.vibo-solutions.com/api/v1/signal` y `/api/v1/signals/history`, obteniendo las respuestas correctas en JSON para cada nivel de riesgo con el Bearer token provisto.
 
