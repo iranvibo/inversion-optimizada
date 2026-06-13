@@ -35,9 +35,9 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 
 ### Trabajo de Ajuste y Gatekeeper de Riesgo
 * Si la señal del proveedor difiere de la última conocida (guardada en cache `signal:last_known_position:{$riskLevel}`), se actualiza el cache y se encola `App\Jobs\AdjustPositionJob` para cada usuario activo con ese nivel.
-* **Gatekeeper de Riesgo**: En la ejecución del job, se validan los siguientes límites locales:
-  * **Stop Loss diario**: Si el saldo del usuario decrece un 5% o más respecto al primer balance del día (desde las 00:00:00), detiene el bot (`bot_active = false`), ejecuta el cierre preventivo en Binance y registra `stop_loss_trigger`.
-  * **Capital Protegido**: Si el balance decrece por debajo del 80% del `estimated_capital` inicial, detiene el bot, cierra posiciones y genera una alerta de riesgo.
+* **Gatekeeper de Riesgo**: En la ejecución del job, se validan los límites locales parametrizables desde `config/signals.php` o mediante variables de entorno en el `.env`:
+  * **Stop Loss diario** (`DAILY_STOP_LOSS_LIMIT`): Umbral de drawdown diario máximo (por defecto `0.05` / 5% del saldo inicial del día). Si se supera, detiene el bot (`bot_active = false`), ejecuta el cierre preventivo en Binance y registra `stop_loss_trigger`. Se puede desactivar estableciéndolo a `1.00` (100%).
+  * **Capital Protegido** (`PROTECTED_CAPITAL_LIMIT`): Umbral mínimo de capital respecto al capital estimado inicial (por defecto `0.80` / 80%). Si el balance cae por debajo de este valor, detiene el bot, cierra posiciones y genera una alerta. Se puede desactivar estableciéndolo a `0.00` (0%).
 * **Modo Real vs Simulación**:
   * **Real**: Llama al método `adjustPosition` de `BinanceBrokerInterface` (que realiza el cierre/cancelación preventiva y coloca la orden de mercado), recupera el balance real de Binance y registra el log feed en lenguaje natural.
   * **Simulación**: Registra logs simulados, calcula el nuevo saldo con el profit del trade, crea un snapshot y notifica al dashboard en tiempo real (`BalanceUpdated`).

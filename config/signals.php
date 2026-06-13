@@ -40,4 +40,20 @@ return [
         'retries' => (int) env('SIGNALS_HTTP_RETRIES', 2),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Reglas de Riesgo del Gatekeeper
+    |--------------------------------------------------------------------------
+    |
+    | Parámetros locales de mitigación de riesgo:
+    |   - daily_stop_loss: Drawdown diario máximo permitido (ej: 0.05 = 5%).
+    |   - protected_capital: Límite inferior de capital protegido (ej: 0.80 = 80%).
+    |
+    */
+
+    'risk' => [
+        'daily_stop_loss' => (float) env('DAILY_STOP_LOSS_LIMIT', 0.05),
+        'protected_capital' => (float) env('PROTECTED_CAPITAL_LIMIT', 0.80),
+    ],
+
 ];

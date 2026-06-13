@@ -41,32 +41,38 @@ class AdjustPositionJob implements ShouldQueue
 
         // 1. VALIDACIÓN DE REGLAS DE RIESGO LOCALES (GATEKEEPER)
 
-        // A. Stop Loss Diario (Drawdown diario > 5%)
+        // A. Stop Loss Diario (Drawdown diario máximo configurable)
         $todayStart = now()->startOfDay();
         $firstSnapshotToday = $user->balanceSnapshots()
             ->where('captured_at', '>=', $todayStart)
             ->orderBy('captured_at', 'asc')
             ->first();
 
-        if ($firstSnapshotToday) {
+        $dailyStopLossLimit = (float) config('signals.risk.daily_stop_loss', 0.05);
+
+        if ($firstSnapshotToday && $dailyStopLossLimit < 1.0) {
             $firstBalance = (float) $firstSnapshotToday->balance;
-            if ($firstBalance > 0 && ($firstBalance - $currentBalance) / $firstBalance >= 0.05) {
+            if ($firstBalance > 0 && ($firstBalance - $currentBalance) / $firstBalance >= $dailyStopLossLimit) {
+                $limitPct = $dailyStopLossLimit * 100;
                 $this->triggerRiskProtection(
                     $user,
                     'stop_loss_trigger',
-                    'Protección diaria activada: El drawdown diario superó el 5%. El bot se pausó automáticamente para proteger tu capital.'
+                    "Protección diaria activada: El drawdown diario superó el {$limitPct}%. El bot se pausó automáticamente para proteger tu capital."
                 );
                 return;
             }
         }
 
-        // B. Capital Protegido (Balance cae por debajo del 80% del capital estimado inicial)
-        $limit = (float) ($user->estimated_capital ?? 1000.0) * 0.80;
-        if ($currentBalance < $limit) {
+        // B. Capital Protegido (Límite inferior configurable)
+        $protectedCapitalLimit = (float) config('signals.risk.protected_capital', 0.80);
+        $limit = (float) ($user->estimated_capital ?? 1000.0) * $protectedCapitalLimit;
+
+        if ($protectedCapitalLimit > 0.0 && $currentBalance < $limit) {
+            $limitPct = $protectedCapitalLimit * 100;
             $this->triggerRiskProtection(
                 $user,
                 'stop_loss_trigger',
-                'Protección diaria activada: El capital disponible cayó por debajo del 80% de tu capital protegido configurado.'
+                "Protección diaria activada: El capital disponible cayó por debajo del {$limitPct}% de tu capital protegido configurado."
             );
             return;
         }
