@@ -37,7 +37,7 @@ class AdjustPositionJob implements ShouldQueue
         }
 
         $latestSnapshot = $user->balanceSnapshots()->latest('captured_at')->first();
-        $currentBalance = $latestSnapshot ? (float) $latestSnapshot->balance : (float) ($user->estimated_capital ?? 1000.0);
+        $currentBalance = $latestSnapshot ? (float) $latestSnapshot->balance : (float) ($user->estimated_capital ?? 100.0);
 
         // 1. VALIDACIÓN DE REGLAS DE RIESGO LOCALES (GATEKEEPER)
 
@@ -65,7 +65,7 @@ class AdjustPositionJob implements ShouldQueue
 
         // B. Capital Protegido (Límite inferior configurable)
         $protectedCapitalLimit = (float) config('signals.risk.protected_capital', 0.80);
-        $limit = (float) ($user->estimated_capital ?? 1000.0) * $protectedCapitalLimit;
+        $limit = (float) ($user->estimated_capital ?? 100.0) * $protectedCapitalLimit;
 
         if ($protectedCapitalLimit > 0.0 && $currentBalance < $limit) {
             $limitPct = $protectedCapitalLimit * 100;

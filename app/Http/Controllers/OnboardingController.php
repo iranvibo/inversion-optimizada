@@ -36,7 +36,7 @@ class OnboardingController extends Controller
             'minCapital' => OnboardingSimulationRequest::MIN_CAPITAL,
             'maxCapital' => OnboardingSimulationRequest::MAX_CAPITAL,
             'defaultProfile' => RiskProfile::Balanceado,
-            'defaultCapital' => 1000,
+            'defaultCapital' => 100,
         ]);
     }
 

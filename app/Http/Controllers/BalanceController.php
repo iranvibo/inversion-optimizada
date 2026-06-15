@@ -32,7 +32,7 @@ class BalanceController extends Controller
         $now = now()->toImmutable();
 
         if ($user->bot_mode === 'simulation') {
-            $capital = (float) ($user->estimated_capital ?? 1000.0);
+            $capital = (float) ($user->estimated_capital ?? 100.0);
             $snapshots = [];
 
             // Punto de partida inicial
@@ -66,6 +66,19 @@ class BalanceController extends Controller
             $report = $this->performanceService->report($snapshots, $range, $now);
 
             return response()->json($report->toArray());
+        }
+
+        if ($user->isBinanceLinked() && !$user->balanceSnapshots()->exists() && !app()->environment('testing')) {
+            try {
+                $broker = app(\App\Core\Contracts\BinanceBrokerInterface::class);
+                $balance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+                $user->balanceSnapshots()->create([
+                    'balance' => $balance,
+                    'captured_at' => now(),
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning("Failed to fetch initial Binance balance for history: " . $e->getMessage());
+            }
         }
 
         // Filtrado y orden en SQL (índice user_id + captured_at): solo se
@@ -102,7 +115,7 @@ class BalanceController extends Controller
         $now = now()->toImmutable();
 
         if (! $user->balanceSnapshots()->exists()) {
-            $base = (float) ($user->estimated_capital ?? 1000);
+            $base = (float) ($user->estimated_capital ?? 100);
             $history = $generator->generate($base, $now->modify('-1 hour'), seed: (int) $user->id);
 
             // Inserción masiva: evita el problema N+1 de crear punto a punto.
