@@ -152,11 +152,20 @@
         </div>
 
         <!-- Gráfico lineal simple: sin velas, RSI, MACD ni libros de órdenes (Escenario 1) -->
-        <div class="mt-6 rounded-xl bg-[hsl(222,47%,10%)] border border-[rgba(255,255,255,0.06)] p-5">
-            <svg id="balance-chart" viewBox="0 0 600 200" class="w-full h-auto" preserveAspectRatio="none" aria-label="Gráfico de evolución del balance"></svg>
+        <div class="mt-6 rounded-xl bg-[hsl(222,47%,10%)] border border-[rgba(255,255,255,0.06)] p-5 relative">
+            <svg id="balance-chart" viewBox="0 0 600 200" class="w-full h-auto" aria-label="Gráfico de evolución del balance"></svg>
             <p id="balance-chart-empty" class="hidden text-center text-xs text-slate-500 py-8">
                 Aún no hay historial suficiente en este rango. Prueba la herramienta de sincronización del simulador.
             </p>
+            
+            <!-- Tooltip Flotante Premium -->
+            <div id="chart-tooltip" class="absolute pointer-events-none bg-slate-950/95 border border-slate-800 rounded-xl p-3 text-xs shadow-2xl hidden z-10 transition-all duration-75 select-none" style="min-width: 140px;">
+                <div id="tooltip-date" class="text-slate-400 font-medium mb-1"></div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-violet-500"></span>
+                    <div id="tooltip-value" class="font-extrabold text-white text-sm"></div>
+                </div>
+            </div>
         </div>
         <p id="balance-error" class="hidden text-sm text-rose-400 mt-3"></p>
     </div>
@@ -510,9 +519,54 @@
     const botToggleBtn = document.getElementById('bot-toggle-btn');
 
     let currentRange = 'day';
+    let originalBalance = null;
+    let originalChangeMessage = null;
 
     const formatEuro = (value) =>
         new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+
+    const formatEuroShort = (val) =>
+        new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(val) + '€';
+
+    function formatDateXAxis(dateStr, range) {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return '';
+        if (range === 'day') {
+            return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        } else if (range === 'week') {
+            // Eje X en semana: "lun 12"
+            return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+        } else {
+            // Eje X en mes: "12 jun"
+            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+        }
+    }
+
+    function formatDateTooltip(dateStr, range) {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return '';
+        if (range === 'day') {
+            const timeStr = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            return `Hoy, ${timeStr}`;
+        } else if (range === 'week') {
+            const weekday = date.toLocaleDateString('es-ES', { weekday: 'short' });
+            const dayMonth = date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+            const timeStr = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            return `${weekday} ${dayMonth}, ${timeStr}`;
+        } else {
+            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+    }
+
+    function formatDateShort(dateStr, range) {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return '';
+        if (range === 'day') {
+            return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) + 'h';
+        } else {
+            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + 'h';
+        }
+    }
 
     function renderBalance(value) {
         amountEl.innerHTML = formatEuro(value) + '<span class="text-3xl text-slate-400 font-semibold">€</span>';
@@ -533,22 +587,55 @@
         });
     }
 
-    // Gráfico lineal simple en SVG: misma técnica que el onboarding (US02)
+    // Gráfico lineal en SVG con ejes interactivos y tooltip (US03)
     function drawChart(series) {
         const hasData = series.length >= 2;
         chart.classList.toggle('hidden', !hasData);
         emptyEl.classList.toggle('hidden', hasData);
         if (!hasData) { chart.innerHTML = ''; return; }
 
-        const W = 600, H = 200, PAD = 10;
+        const W = 600, H = 200;
+        const PAD_TOP = 15;
+        const PAD_BOTTOM = 25;
+        const PAD_LEFT = 15;
+        const PAD_RIGHT = 75;
+
         const values = series.map((p) => p.value);
         const min = Math.min(...values), max = Math.max(...values);
         const range = max - min || 1;
-        const x = (i) => PAD + (i / (series.length - 1)) * (W - 2 * PAD);
-        const y = (v) => H - PAD - ((v - min) / range) * (H - 2 * PAD);
+        const x = (i) => PAD_LEFT + (i / (series.length - 1)) * (W - PAD_LEFT - PAD_RIGHT);
+        const y = (v) => H - PAD_BOTTOM - ((v - min) / range) * (H - PAD_TOP - PAD_BOTTOM);
 
         const linePoints = series.map((p, i) => `${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
-        const areaPoints = `${PAD},${H - PAD} ${linePoints} ${(W - PAD)},${H - PAD}`;
+        const areaPoints = `${PAD_LEFT},${H - PAD_BOTTOM} ${linePoints} ${(W - PAD_RIGHT)},${H - PAD_BOTTOM}`;
+
+        // Generar líneas de cuadrícula y etiquetas del eje Y (valores)
+        const gridValues = [max, (min + max) / 2, min];
+        let yAxisHtml = '';
+        gridValues.forEach((val) => {
+            const yVal = y(val);
+            yAxisHtml += `
+                <line x1="${PAD_LEFT}" y1="${yVal}" x2="${W - PAD_RIGHT}" y2="${yVal}" stroke="rgba(255, 255, 255, 0.06)" stroke-width="1" stroke-dasharray="4 4" />
+                <text x="${W - PAD_RIGHT + 8}" y="${yVal}" fill="#94a3b8" font-size="10" font-family="system-ui, -apple-system, sans-serif" alignment-baseline="middle" text-anchor="start">${formatEuroShort(val)}</text>
+            `;
+        });
+
+        // Generar etiquetas del eje X (temporal)
+        const midIndex = Math.floor((series.length - 1) / 2);
+        const xAxisIndices = [0, midIndex, series.length - 1].filter((val, index, self) => self.indexOf(val) === index);
+        let xAxisHtml = '';
+        xAxisIndices.forEach((idx, i) => {
+            const p = series[idx];
+            const xVal = x(idx);
+            let anchor = 'middle';
+            if (xAxisIndices.length > 1) {
+                if (i === 0) anchor = 'start';
+                else if (i === xAxisIndices.length - 1) anchor = 'end';
+            }
+            xAxisHtml += `
+                <text x="${xVal}" y="${H - 5}" fill="#94a3b8" font-size="10" font-family="system-ui, -apple-system, sans-serif" text-anchor="${anchor}">${formatDateXAxis(p.t, currentRange)}</text>
+            `;
+        });
 
         chart.innerHTML = `
             <defs>
@@ -557,9 +644,116 @@
                     <stop offset="100%" stop-color="rgba(139, 92, 246, 0)"/>
                 </linearGradient>
             </defs>
+            
+            <!-- Cuadrícula y eje Y -->
+            ${yAxisHtml}
+            
+            <!-- Relleno de área y línea de la gráfica -->
             <polygon points="${areaPoints}" fill="url(#balance-area-fill)"/>
             <polyline points="${linePoints}" fill="none" stroke="hsl(263, 70%, 62%)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+            
+            <!-- Eje X -->
+            ${xAxisHtml}
+            
+            <!-- Guía vertical de interacción (oculta por defecto) -->
+            <line id="chart-guide-line" x1="0" y1="${PAD_TOP}" x2="0" y2="${H - PAD_BOTTOM}" stroke="rgba(139, 92, 246, 0.4)" stroke-width="1.5" stroke-dasharray="3 3" style="display: none;" />
+            
+            <!-- Punto indicador (oculto por defecto) -->
+            <circle id="chart-indicator-dot" r="6" fill="hsl(263, 70%, 62%)" stroke="#ffffff" stroke-width="2" style="display: none; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));" />
+            
+            <!-- Overlay invisible para capturar eventos táctiles y de ratón -->
+            <rect id="chart-overlay-rect" x="${PAD_LEFT}" y="${PAD_TOP}" width="${W - PAD_LEFT - PAD_RIGHT}" height="${H - PAD_TOP - PAD_BOTTOM}" fill="#000" opacity="0" style="cursor: crosshair;" />
         `;
+
+        // Referencias del DOM para la interacción
+        const overlay = document.getElementById('chart-overlay-rect');
+        const guideLine = document.getElementById('chart-guide-line');
+        const indicatorDot = document.getElementById('chart-indicator-dot');
+        const tooltip = document.getElementById('chart-tooltip');
+        const tooltipDate = document.getElementById('tooltip-date');
+        const tooltipValue = document.getElementById('tooltip-value');
+
+        function handleHover(e) {
+            if (!series || series.length < 2) return;
+            const rect = chart.getBoundingClientRect();
+            
+            let clientX;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+            } else {
+                clientX = e.clientX;
+            }
+
+            const mouseX = clientX - rect.left;
+            const svgX = (mouseX / rect.width) * W;
+
+            const totalXRange = W - PAD_LEFT - PAD_RIGHT;
+            const relativeX = svgX - PAD_LEFT;
+            const percentX = relativeX / totalXRange;
+            const index = Math.round(percentX * (series.length - 1));
+            const safeIndex = Math.max(0, Math.min(series.length - 1, index));
+
+            const point = series[safeIndex];
+            const ptX = x(safeIndex);
+            const ptY = y(point.value);
+
+            // Posicionar guía y dot
+            guideLine.setAttribute('x1', ptX);
+            guideLine.setAttribute('x2', ptX);
+            guideLine.style.display = 'block';
+
+            indicatorDot.setAttribute('cx', ptX);
+            indicatorDot.setAttribute('cy', ptY);
+            indicatorDot.style.display = 'block';
+
+            // Actualizar Tooltip
+            tooltipDate.textContent = formatDateTooltip(point.t, currentRange);
+            tooltipValue.textContent = formatEuro(point.value) + ' €';
+            tooltip.style.display = 'block';
+
+            const tooltipWidth = tooltip.offsetWidth || 140;
+            const tooltipHeight = tooltip.offsetHeight || 60;
+
+            let tooltipX = (ptX / W) * rect.width - (tooltipWidth / 2);
+            let tooltipY = (ptY / H) * rect.height - tooltipHeight - 15;
+
+            // Evitar desbordes del tooltip
+            if (tooltipX < 0) {
+                tooltipX = 5;
+            } else if (tooltipX + tooltipWidth > rect.width) {
+                tooltipX = rect.width - tooltipWidth - 5;
+            }
+            if (tooltipY < 0) {
+                tooltipY = (ptY / H) * rect.height + 15;
+            }
+
+            tooltip.style.left = `${tooltipX}px`;
+            tooltip.style.top = `${tooltipY}px`;
+
+            // Actualizar Balance en Cabecera
+            renderBalance(point.value);
+            changeEl.textContent = `Balance el ${formatDateShort(point.t, currentRange)}`;
+            changeEl.classList.add('text-violet-400', 'font-semibold');
+        }
+
+        function handleLeave() {
+            guideLine.style.display = 'none';
+            indicatorDot.style.display = 'none';
+            tooltip.style.display = 'none';
+
+            if (originalBalance !== null) {
+                renderBalance(originalBalance);
+            }
+            if (originalChangeMessage !== null) {
+                changeEl.textContent = originalChangeMessage;
+                changeEl.classList.remove('text-violet-400', 'font-semibold');
+            }
+        }
+
+        overlay.addEventListener('mousemove', handleHover);
+        overlay.addEventListener('touchmove', handleHover, { passive: true });
+        overlay.addEventListener('mouseleave', handleLeave);
+        overlay.addEventListener('touchend', handleLeave);
     }
 
     async function refreshHistory(pulse = false) {
@@ -576,6 +770,11 @@
             }
 
             const data = await response.json();
+            
+            // Guardar valores originales para restaurar tras el hover interactivo (US03)
+            originalBalance = data.current_balance;
+            originalChangeMessage = data.change_message;
+
             drawChart(data.series);
             changeEl.textContent = data.change_message;
 
