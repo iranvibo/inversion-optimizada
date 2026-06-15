@@ -95,21 +95,21 @@ class AdjustPositionJob implements ShouldQueue
                 // Registrar actividad en base de datos en lenguaje humano
                 if ($this->newPosition === 'CLOSE') {
                     $user->botActivities()->create([
-                        'type' => 'sell',
+                        'type' => 'close',
                         'action' => 'close_profit',
                         'profit_percentage' => 1.5,
                         'profit_value' => 15.00,
                         'risk_alert' => false,
-                        'description' => 'Posición cerrada con beneficio del +1,50% (+15,00€).',
+                        'description' => 'Inversión finalizada: posición cerrada con un +1,50% de beneficio (+15,00€).',
                     ]);
                 } else {
                     $user->botActivities()->create([
-                        'type' => $this->newPosition === 'LONG' ? 'buy' : 'sell',
-                        'action' => 'buy_opportunity',
+                        'type' => $this->newPosition === 'LONG' ? 'long' : 'short',
+                        'action' => $this->newPosition === 'LONG' ? 'open_long' : 'open_short',
                         'risk_alert' => false,
                         'description' => $this->newPosition === 'LONG'
-                            ? 'Se realizó una compra para aprovechar una caída temporal de precio.'
-                            : 'Se abrió una posición de venta (SHORT) siguiendo la señal del bot.',
+                            ? 'Se inició una inversión al alza (LONG) esperando una subida del precio.'
+                            : 'Se inició una inversión a la baja (SHORT) esperando una caída del precio.',
                     ]);
                 }
 
@@ -135,12 +135,12 @@ class AdjustPositionJob implements ShouldQueue
                 $profitVal = round($currentBalance * ($profitPercent / 100), 2);
 
                 $user->botActivities()->create([
-                    'type' => 'sell',
+                    'type' => 'close',
                     'action' => 'close_profit',
                     'profit_percentage' => $profitPercent,
                     'profit_value' => $profitVal,
                     'risk_alert' => false,
-                    'description' => "Posición cerrada con beneficio del +{$profitPercent}% (+{$profitVal}€).",
+                    'description' => "Inversión finalizada: posición cerrada con un +{$profitPercent}% de beneficio (+{$profitVal}€).",
                 ]);
 
                 // Registrar un nuevo balance snapshot simulado
@@ -155,12 +155,12 @@ class AdjustPositionJob implements ShouldQueue
                 event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
             } else {
                 $user->botActivities()->create([
-                    'type' => $this->newPosition === 'LONG' ? 'buy' : 'sell',
-                    'action' => 'buy_opportunity',
+                    'type' => $this->newPosition === 'LONG' ? 'long' : 'short',
+                    'action' => $this->newPosition === 'LONG' ? 'open_long' : 'open_short',
                     'risk_alert' => false,
                     'description' => $this->newPosition === 'LONG'
-                        ? 'Se realizó una compra para aprovechar una caída temporal de precio.'
-                        : 'Se abrió una posición de venta (SHORT) siguiendo la señal del bot.',
+                        ? 'Se inició una inversión al alza (LONG) esperando una subida del precio.'
+                        : 'Se inició una inversión a la baja (SHORT) esperando una caída del precio.',
                 ]);
             }
 

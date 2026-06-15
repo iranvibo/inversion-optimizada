@@ -40,12 +40,12 @@ class BotActivityFeedTest extends TestCase
     {
         // Creamos actividades de prueba
         $this->user->botActivities()->create([
-            'type' => 'buy',
-            'action' => 'buy_opportunity',
+            'type' => 'long',
+            'action' => 'open_long',
         ]);
 
         $this->user->botActivities()->create([
-            'type' => 'sell',
+            'type' => 'close',
             'action' => 'close_profit',
             'profit_percentage' => 1.5,
             'profit_value' => 15.00,
@@ -72,8 +72,8 @@ class BotActivityFeedTest extends TestCase
 
         $data = $response->json('activities');
         $this->assertCount(2, $data);
-        $this->assertSame('Se realizó una compra para aprovechar una caída temporal de precio.', $data[1]['human_description']);
-        $this->assertSame('Posición cerrada con un +1,50% de beneficio (+15,00€).', $data[0]['human_description']);
+        $this->assertSame('Se inició una inversión al alza (LONG) esperando una subida del precio.', $data[1]['human_description']);
+        $this->assertSame('Inversión finalizada: posición cerrada con un +1,50% de beneficio (+15,00€).', $data[0]['human_description']);
     }
 
     /**
@@ -100,15 +100,15 @@ class BotActivityFeedTest extends TestCase
 
         // Tercer evento: close_loss
         $this->assertSame('close_loss', $activities[1]->action);
-        $this->assertSame('Protección de pérdida activada para asegurar tu capital (-10,00€).', $activities[1]->human_description);
+        $this->assertSame('Inversión finalizada: protección de pérdida activada para asegurar tu capital (-10,00€).', $activities[1]->human_description);
 
         // Segundo evento: close_profit
         $this->assertSame('close_profit', $activities[2]->action);
-        $this->assertSame('Posición cerrada con un +1,50% de beneficio (+15,00€).', $activities[2]->human_description);
+        $this->assertSame('Inversión finalizada: posición cerrada con un +1,50% de beneficio (+15,00€).', $activities[2]->human_description);
 
-        // Primer evento: buy_opportunity
-        $this->assertSame('buy_opportunity', $activities[3]->action);
-        $this->assertSame('Se realizó una compra para aprovechar una caída temporal de precio.', $activities[3]->human_description);
+        // Primer evento: open_long
+        $this->assertSame('open_long', $activities[3]->action);
+        $this->assertSame('Se inició una inversión al alza (LONG) esperando una subida del precio.', $activities[3]->human_description);
     }
 
     /**
@@ -124,8 +124,8 @@ class BotActivityFeedTest extends TestCase
         ]);
 
         $this->user->botActivities()->create([
-            'type' => 'buy',
-            'action' => 'buy_opportunity',
+            'type' => 'long',
+            'action' => 'open_long',
             'risk_alert' => false,
         ]);
 
@@ -134,6 +134,6 @@ class BotActivityFeedTest extends TestCase
         $response->assertOk();
         $response->assertSee('ALERTA DE PROTECCIÓN DE RIESGO');
         $response->assertSee('Protección diaria activada: El bot se pausó automáticamente para proteger tu capital.');
-        $response->assertSee('Se realizó una compra para aprovechar una caída temporal de precio.');
+        $response->assertSee('Se inició una inversión al alza (LONG) esperando una subida del precio.');
     }
 }

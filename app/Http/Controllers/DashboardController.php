@@ -83,17 +83,17 @@ class DashboardController extends Controller
         // Limpiar actividades anteriores de simulación para tener un feed limpio
         $user->botActivities()->delete();
 
-        // 1. Compra de oportunidad (Escenario 1)
+        // 1. Compra de oportunidad (Escenario 1) -> LONG
         $user->botActivities()->create([
-            'type' => 'buy',
-            'action' => 'buy_opportunity',
+            'type' => 'long',
+            'action' => 'open_long',
             'risk_alert' => false,
             'created_at' => now()->subMinutes(15),
         ]);
 
-        // 2. Cierre con beneficio de +1.5% (+15€) (Escenario 2)
+        // 2. Cierre con beneficio de +1.5% (+15€) (Escenario 2) -> CLOSE
         $user->botActivities()->create([
-            'type' => 'sell',
+            'type' => 'close',
             'action' => 'close_profit',
             'profit_percentage' => 1.5,
             'profit_value' => 15.00,
@@ -101,9 +101,9 @@ class DashboardController extends Controller
             'created_at' => now()->subMinutes(10),
         ]);
 
-        // 3. Cierre con pérdidas / Protección (Escenario 2)
+        // 3. Cierre con pérdidas / Protección (Escenario 2) -> CLOSE
         $user->botActivities()->create([
-            'type' => 'sell',
+            'type' => 'close',
             'action' => 'close_loss',
             'profit_percentage' => -1.0,
             'profit_value' => -10.00,
@@ -383,19 +383,19 @@ class DashboardController extends Controller
                 $profit = (float) ($sig['profit'] ?? 0.0);
                 $position = strtoupper($sig['position'] ?? 'CLOSE');
 
-                $type = 'buy';
-                $action = 'buy_opportunity';
+                $type = 'close';
+                $action = 'close_profit';
                 $profitPct = null;
                 $profitVal = null;
 
                 if ($position === 'LONG') {
-                    $type = 'buy';
-                    $action = 'buy_opportunity';
+                    $type = 'long';
+                    $action = 'open_long';
                 } elseif ($position === 'SHORT') {
-                    $type = 'sell';
-                    $action = 'buy_opportunity'; // para SHORT en español
+                    $type = 'short';
+                    $action = 'open_short';
                 } else {
-                    $type = 'sell';
+                    $type = 'close';
                     $action = $profit >= 0 ? 'close_profit' : 'close_loss';
                     $profitPct = $profit * 100;
                     $profitVal = $capitalsAtTime[$dateTimeStr]['profit_value'] ?? 0.0;

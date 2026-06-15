@@ -9,17 +9,31 @@ use Tests\TestCase;
 class BotActivityFormatterTest extends TestCase
 {
     /**
-     * Prueba que formatea correctamente la compra de oportunidad.
+     * Prueba que formatea correctamente la compra de oportunidad / long.
      */
     public function test_formats_buy_opportunity(): void
     {
         $activity = new BotActivity([
-            'action' => 'buy_opportunity',
-            'type' => 'buy',
+            'action' => 'open_long',
+            'type' => 'long',
         ]);
 
         $message = BotActivityFormatter::format($activity);
-        $this->assertSame('Se realizó una compra para aprovechar una caída temporal de precio.', $message);
+        $this->assertSame('Se inició una inversión al alza (LONG) esperando una subida del precio.', $message);
+    }
+
+    /**
+     * Prueba que formatea correctamente la venta corta / short.
+     */
+    public function test_formats_open_short(): void
+    {
+        $activity = new BotActivity([
+            'action' => 'open_short',
+            'type' => 'short',
+        ]);
+
+        $message = BotActivityFormatter::format($activity);
+        $this->assertSame('Se inició una inversión a la baja (SHORT) esperando una caída del precio.', $message);
     }
 
     /**
@@ -29,13 +43,13 @@ class BotActivityFormatterTest extends TestCase
     {
         $activity = new BotActivity([
             'action' => 'close_profit',
-            'type' => 'sell',
+            'type' => 'close',
             'profit_percentage' => 1.55,
             'profit_value' => 15.50,
         ]);
 
         $message = BotActivityFormatter::format($activity);
-        $this->assertSame('Posición cerrada con un +1,55% de beneficio (+15,50€).', $message);
+        $this->assertSame('Inversión finalizada: posición cerrada con un +1,55% de beneficio (+15,50€).', $message);
     }
 
     /**
@@ -45,13 +59,13 @@ class BotActivityFormatterTest extends TestCase
     {
         $activity = new BotActivity([
             'action' => 'close_loss',
-            'type' => 'sell',
+            'type' => 'close',
             'profit_percentage' => -1.00,
             'profit_value' => -10.00,
         ]);
 
         $message = BotActivityFormatter::format($activity);
-        $this->assertSame('Protección de pérdida activada para asegurar tu capital (-10,00€).', $message);
+        $this->assertSame('Inversión finalizada: protección de pérdida activada para asegurar tu capital (-10,00€).', $message);
     }
 
     /**

@@ -21,19 +21,23 @@ class BotActivityFormatter
 
         switch ($activity->action) {
             case 'buy_opportunity':
-                return 'Se realizó una compra para aprovechar una caída temporal de precio.';
+            case 'open_long':
+                return 'Se inició una inversión al alza (LONG) esperando una subida del precio.';
+
+            case 'open_short':
+                return 'Se inició una inversión a la baja (SHORT) esperando una caída del precio.';
 
             case 'close_profit':
                 if ($percentage !== null && $value !== null) {
-                    return "Posición cerrada con un +{$percentage}% de beneficio (+{$value}€).";
+                    return "Inversión finalizada: posición cerrada con un +{$percentage}% de beneficio (+{$value}€).";
                 }
-                return 'Posición cerrada con beneficio.';
+                return 'Inversión finalizada: posición cerrada con beneficio.';
 
             case 'close_loss':
                 if ($value !== null) {
-                    return "Protección de pérdida activada para asegurar tu capital (-{$value}€).";
+                    return "Inversión finalizada: protección de pérdida activada para asegurar tu capital (-{$value}€).";
                 }
-                return 'Protección de pérdida activada para asegurar tu capital.';
+                return 'Inversión finalizada: protección de pérdida activada para asegurar tu capital.';
 
             case 'stop_loss_trigger':
                 return 'Protección diaria activada: El bot se pausó automáticamente para proteger tu capital.';
