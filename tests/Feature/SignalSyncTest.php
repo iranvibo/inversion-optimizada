@@ -85,7 +85,7 @@ class SignalSyncTest extends TestCase
         // Verificar que se creó la actividad en el historial
         $this->assertDatabaseHas('bot_activities', [
             'user_id' => $this->user->id,
-            'type' => 'sell',
+            'type' => 'close',
             'action' => 'close_profit',
             'risk_alert' => false,
         ]);

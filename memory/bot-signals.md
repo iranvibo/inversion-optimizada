@@ -48,8 +48,12 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 
 ### Historial de Actividad en Lenguaje Humano (US05)
 * **Registro de Acciones**: Cada acción del bot (compra por caída temporal, venta por beneficio/pérdida, o activación de protección de riesgo) se guarda en la tabla `bot_activities`.
-* **Traducción Dinámica**: Un formateador puro (`BotActivityFormatter`) traduce automáticamente los códigos y rendimientos a un lenguaje natural en español (e.g., "Se realizó una compra para aprovechar una caída temporal de precio" o "Protección de pérdida activada para asegurar tu capital").
-* **Alertas de Riesgo**: Las alertas de riesgo (como el stop-loss diario) se guardan con `risk_alert = true` y se destacan en la interfaz mediante un diseño de alerta diferenciado en la parte superior.
+* **Clasificación y Tipos de Actividades** (Decisión 2026-06-15):
+  * **Inversión al Alza (`LONG` / tipo `'long'` o `'buy'`):** Se muestra con el texto *"Se inició una inversión al alza (LONG) esperando una subida del precio."* e icono verde de tendencia hacia arriba.
+  * **Inversión a la Baja (`SHORT` / tipo `'short'`):** Se muestra con el texto *"Se inició una inversión a la baja (SHORT) esperando una caída del precio."* e icono rojo/rosa de tendencia hacia abajo.
+  * **Cierre de Operación (`CLOSE` / tipo `'close'` o `'sell'`):** Se muestra con el texto *"Inversión finalizada: posición cerrada con [beneficio/pérdida]."* e icono gris de círculo de verificación (checkmark circle).
+  * **Protección de Riesgo (`risk_protection`):** Alertas de drawdown diario/seguridad e icono de escudo rojo.
+* **Traducción Dinámica**: Un formateador puro (`BotActivityFormatter`) traduce automáticamente los códigos y rendimientos a un lenguaje natural en español de forma que sea simple y claro para usuarios inexpertos.
 * **Herramienta de Simulación**: Un endpoint `/bot/simulate-activity` permite sembrar eventos simulados directamente desde la interfaz para facilitar las pruebas manuales y los criterios de aceptación.
 
 ### Notas de Integración y Despliegue (2026-06-14)
