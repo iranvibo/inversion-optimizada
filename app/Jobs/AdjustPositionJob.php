@@ -89,6 +89,9 @@ class AdjustPositionJob implements ShouldQueue
                 // Cancelar órdenes anteriores y ajustar posición en Binance
                 $broker->adjustPosition($user->binance_api_key, $user->binance_secret_key, $this->newPosition);
 
+                // Registrar la posición real ajustada en caché
+                \Illuminate\Support\Facades\Cache::put("user:{$user->id}:real_position", $this->newPosition);
+
                 // Registrar actividad en base de datos en lenguaje humano
                 if ($this->newPosition === 'CLOSE') {
                     $user->botActivities()->create([
@@ -160,6 +163,9 @@ class AdjustPositionJob implements ShouldQueue
                         : 'Se abrió una posición de venta (SHORT) siguiendo la señal del bot.',
                 ]);
             }
+
+            // Registrar la posición simulada ajustada en caché
+            \Illuminate\Support\Facades\Cache::put("user:{$user->id}:simulation_position", $this->newPosition);
         }
     }
 
@@ -171,6 +177,10 @@ class AdjustPositionJob implements ShouldQueue
         $user->update([
             'bot_active' => false,
         ]);
+
+        // Al pausarse el bot por riesgo, forzar las posiciones a CLOSE
+        \Illuminate\Support\Facades\Cache::put("user:{$user->id}:real_position", 'CLOSE');
+        \Illuminate\Support\Facades\Cache::put("user:{$user->id}:simulation_position", 'CLOSE');
 
         if ($user->bot_mode === 'real' && $user->isBinanceLinked()) {
             try {

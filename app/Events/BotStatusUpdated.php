@@ -33,6 +33,7 @@ class BotStatusUpdated implements ShouldBroadcast
         return [
             'bot_active' => $this->botActive,
             'user_id' => $this->user->id,
+            'current_position' => $this->user->current_position,
         ];
     }
 }

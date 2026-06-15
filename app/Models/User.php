@@ -45,6 +45,15 @@ class User extends Authenticatable
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = [
+        'current_position',
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -102,5 +111,33 @@ class User extends Authenticatable
     public function hasActiveBot(): bool
     {
         return $this->bot_active;
+    }
+
+    /**
+     * Accesor para obtener la posición actual del bot (Simulación vs Real).
+     */
+    public function getCurrentPositionAttribute(): string
+    {
+        if (!$this->bot_active) {
+            return 'CLOSE';
+        }
+
+        if ($this->bot_mode === 'simulation') {
+            $riskLevel = strtolower($this->risk_level);
+            $apiPosition = \Illuminate\Support\Facades\Cache::get("signal:last_known_position:{$riskLevel}");
+            if (!$apiPosition) {
+                try {
+                    $signalProvider = app(\App\Core\Contracts\SignalProviderInterface::class);
+                    $signal = $signalProvider->getCurrentSignal($riskLevel);
+                    $apiPosition = strtoupper($signal['position'] ?? 'CLOSE');
+                    \Illuminate\Support\Facades\Cache::put("signal:last_known_position:{$riskLevel}", $apiPosition);
+                } catch (\Exception $e) {
+                    $apiPosition = 'CLOSE';
+                }
+            }
+            return $apiPosition;
+        }
+
+        return \Illuminate\Support\Facades\Cache::get("user:{$this->id}:real_position", 'CLOSE');
     }
 }

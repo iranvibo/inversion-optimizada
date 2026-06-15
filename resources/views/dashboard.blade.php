@@ -188,12 +188,26 @@
             </div>
             
             <div class="my-4">
-                <span id="bot-status-text" class="text-3xl font-extrabold block text-white uppercase tracking-tight">
-                    {{ $user->bot_active ? 'Activo' : 'Pausado' }}
-                </span>
-                <span id="bot-status-desc" class="text-xs text-slate-400">
-                    {{ $user->bot_active ? 'Ejecutando señales del mercado.' : 'El bot no realizará operaciones.' }}
-                </span>
+                <div class="mb-2">
+                    <span id="bot-status-text" class="text-3xl font-extrabold block text-white uppercase tracking-tight">
+                        {{ $user->bot_active ? 'Activo' : 'Pausado' }}
+                    </span>
+                    <span id="bot-status-desc" class="text-xs text-slate-400">
+                        {{ $user->bot_active ? 'Ejecutando señales del mercado.' : 'El bot no realizará operaciones.' }}
+                    </span>
+                </div>
+                <div class="pt-2 border-t border-slate-800/40 flex items-center justify-between">
+                    <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Posición Actual</span>
+                    <span id="bot-position-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg {{ $user->current_position === 'LONG' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : ($user->current_position === 'SHORT' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-500/10 text-slate-400 border border-slate-500/20') }}">
+                        @if($user->current_position === 'LONG')
+                            Comprado (LONG)
+                        @elseif($user->current_position === 'SHORT')
+                            Vendido (SHORT)
+                        @else
+                            Fuera de mercado (CLOSE)
+                        @endif
+                    </span>
+                </div>
             </div>
 
             <form id="bot-toggle-form" action="{{ route('bot.toggle') }}" method="POST" class="m-0 p-0">
@@ -790,6 +804,23 @@
         }
     }
 
+    function updateBotPositionUi(position) {
+        const badge = document.getElementById('bot-position-badge');
+        if (!badge) return;
+
+        badge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-lg';
+        if (position === 'LONG') {
+            badge.classList.add('bg-emerald-500/10', 'text-emerald-400', 'border', 'border-emerald-500/20');
+            badge.textContent = 'Comprado (LONG)';
+        } else if (position === 'SHORT') {
+            badge.classList.add('bg-rose-500/10', 'text-rose-400', 'border', 'border-rose-500/20');
+            badge.textContent = 'Vendido (SHORT)';
+        } else {
+            badge.classList.add('bg-slate-500/10', 'text-slate-400', 'border', 'border-slate-500/20');
+            badge.textContent = 'Fuera de mercado (CLOSE)';
+        }
+    }
+
     function updateBotUi(isActive) {
         if (isActive) {
             botIndicator.innerHTML = `
@@ -808,6 +839,7 @@
             botStatusDesc.textContent = 'El bot no realizará operaciones.';
             botToggleBtn.textContent = 'Activar Bot';
             botToggleBtn.className = 'w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-emerald-600 hover:bg-emerald-500 text-white';
+            updateBotPositionUi('CLOSE');
         }
     }
 
@@ -843,6 +875,9 @@
                 }
 
                 updateBotUi(data.bot_active);
+                if (data.current_position) {
+                    updateBotPositionUi(data.current_position);
+                }
                 showToast(data.message);
 
             } catch (err) {
@@ -889,6 +924,10 @@
                     : 'Operaciones simuladas con capital de prueba.';
                 
                 botToggleModeBtn.textContent = `Cambiar a Modo ${isReal ? 'Simulación' : 'Real'}`;
+
+                if (data.current_position) {
+                    updateBotPositionUi(data.current_position);
+                }
 
                 showToast(data.message);
                 refreshHistory(true);
@@ -944,6 +983,9 @@
                 riskLevelDesc.textContent = desc;
 
                 showToast(data.message);
+                if (data.current_position) {
+                    updateBotPositionUi(data.current_position);
+                }
                 refreshHistory(true);
 
             } catch (err) {
@@ -970,9 +1012,15 @@
                 renderBalance(event.balance);
                 pulseBalance();
                 refreshHistory();
+                if (event.current_position) {
+                    updateBotPositionUi(event.current_position);
+                }
             })
             .listen('.bot.status.updated', (event) => {
                 updateBotUi(event.bot_active);
+                if (event.current_position) {
+                    updateBotPositionUi(event.current_position);
+                }
             });
     }
 

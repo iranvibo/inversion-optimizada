@@ -45,6 +45,7 @@ class BalanceUpdated implements ShouldBroadcast
         return [
             'balance' => round($this->balance, 2),
             'captured_at' => $this->capturedAt->format(DATE_ATOM),
+            'current_position' => $this->user->current_position,
         ];
     }
 }

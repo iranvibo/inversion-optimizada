@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-06-14
+updated: 2026-06-15
 ---
 
 # Origen de las Señales del Bot
@@ -41,6 +41,10 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 * **Modo Real vs Simulación**:
   * **Real**: Llama al método `adjustPosition` de `BinanceBrokerInterface` (que realiza el cierre/cancelación preventiva y coloca la orden de mercado), recupera el balance real de Binance y registra el log feed en lenguaje natural.
   * **Simulación**: Registra logs simulados, calcula el nuevo saldo con el profit del trade, crea un snapshot y notifica al dashboard en tiempo real (`BalanceUpdated`).
+  * **Seguimiento de Posición Actual** (Decisión 2026-06-15):
+    * En **Simulación**, se lee la posición de la API externa (o mock) asociada al nivel de riesgo (`signal:last_known_position:{$riskLevel}`).
+    * En **Real**, se lee la posición efectivamente ejecutada en el exchange (`user:{$userId}:real_position` en caché), asegurando que fallos de red/API o retrasos en Binance no distorsionen la información de la cartera real del usuario.
+    * Si el bot se pausa o se activa una regla de seguridad/riesgo, ambas posiciones se fuerzan inmediatamente a `CLOSE`.
 
 ### Historial de Actividad en Lenguaje Humano (US05)
 * **Registro de Acciones**: Cada acción del bot (compra por caída temporal, venta por beneficio/pérdida, o activación de protección de riesgo) se guarda en la tabla `bot_activities`.

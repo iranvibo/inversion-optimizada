@@ -160,7 +160,7 @@ class DashboardBalanceTest extends TestCase
             return $event->user->is($this->user)
                 && $event->balance > 0
                 && $event->broadcastAs() === 'balance.updated'
-                && array_keys($event->broadcastWith()) === ['balance', 'captured_at'];
+                && array_keys($event->broadcastWith()) === ['balance', 'captured_at', 'current_position'];
         });
     }
 

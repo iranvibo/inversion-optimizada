@@ -36,7 +36,7 @@ class DashboardController extends Controller
             ->first(['balance', 'captured_at']);
 
         // Historial de actividad y alertas de riesgo (US05)
-        $activities = $user->botActivities()->latest()->get();
+        $activities = $this->getActivitiesForUser($user);
         $riskAlerts = $activities->where('risk_alert', true);
 
         $signalProviderUnstable = Cache::has("signal_provider_unstable:" . strtolower($user->risk_level));
@@ -54,7 +54,7 @@ class DashboardController extends Controller
             return response()->json(['error' => 'No autorizado'], 401);
         }
 
-        $activities = $user->botActivities()->latest()->get();
+        $activities = $this->getActivitiesForUser($user);
 
         return response()->json([
             'activities' => $activities->map(fn($act) => [
@@ -168,6 +168,11 @@ class DashboardController extends Controller
             'bot_active' => $newStatus,
         ]);
 
+        if (!$newStatus) {
+            Cache::put("user:{$user->id}:real_position", 'CLOSE');
+            Cache::put("user:{$user->id}:simulation_position", 'CLOSE');
+        }
+
         // Disparar evento de WebSocket en tiempo real
         event(new BotStatusUpdated($user, $newStatus));
 
@@ -179,6 +184,7 @@ class DashboardController extends Controller
                 return response()->json([
                     'success' => true,
                     'bot_active' => $newStatus,
+                    'current_position' => $user->current_position,
                     'message' => $statusMessage,
                     'warning' => $closeError,
                 ]);
@@ -190,6 +196,7 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => true,
                 'bot_active' => $newStatus,
+                'current_position' => $user->current_position,
                 'message' => $statusMessage,
             ]);
         }
@@ -232,6 +239,8 @@ class DashboardController extends Controller
             }
         }
 
+        Cache::put("user:{$user->id}:real_position", 'CLOSE');
+
         $user->update([
             'bot_mode' => $newMode,
         ]);
@@ -243,6 +252,7 @@ class DashboardController extends Controller
                 return response()->json([
                     'success' => true,
                     'bot_mode' => $newMode,
+                    'current_position' => $user->current_position,
                     'message' => $statusMessage,
                     'warning' => $closeError,
                 ]);
@@ -254,6 +264,7 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => true,
                 'bot_mode' => $newMode,
+                'current_position' => $user->current_position,
                 'message' => $statusMessage,
             ]);
         }
@@ -289,6 +300,7 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => true,
                 'risk_level' => $riskLevel,
+                'current_position' => $user->current_position,
                 'message' => $statusMessage,
             ]);
         }
@@ -320,5 +332,96 @@ class DashboardController extends Controller
         Artisan::call('binance:verify-permissions');
 
         return back()->with('success', 'Simulación Activada: Se modificó la API Key a una con permisos de retiro y se ejecutó la auditoría de seguridad. El bot se ha pausado y se ha activado la alerta.');
+    }
+
+    /**
+     * Recupera y mapea las actividades del bot para un usuario.
+     * En modo simulación, se obtienen dinámicamente del historial de señales de la API.
+     */
+    protected function getActivitiesForUser($user)
+    {
+        if ($user->bot_mode === 'real') {
+            return $user->botActivities()->latest()->get();
+        }
+
+        $dbActivities = $user->botActivities()->latest()->get();
+        if ($dbActivities->isNotEmpty()) {
+            return $dbActivities;
+        }
+
+        try {
+            $signalProvider = app(\App\Core\Contracts\SignalProviderInterface::class);
+            $history = $signalProvider->getSignalHistory($user->risk_level ?? 'balanceado');
+
+            // Ordenar por fecha descendente (más recientes primero)
+            usort($history, fn ($a, $b) => strcmp($b['date'] . ' ' . $b['time'], $a['date'] . ' ' . $a['time']));
+
+            $activities = collect();
+            $capital = (float) ($user->estimated_capital ?? 100.0);
+
+            // Para calcular los valores en euros (profit_value) a partir del profit_percentage,
+            // necesitamos procesar la serie en orden cronológico primero para calcular el capital acumulado
+            // en cada punto, y luego mapearlo.
+            $chronological = $history;
+            usort($chronological, fn ($a, $b) => strcmp($a['date'] . ' ' . $a['time'], $b['date'] . ' ' . $b['time']));
+
+            $capitalsAtTime = [];
+            foreach ($chronological as $sig) {
+                $dateTimeStr = $sig['date'] . ' ' . $sig['time'];
+                $profit = (float) ($sig['profit'] ?? 0.0);
+                $capitalBefore = $capital;
+                $capital *= (1 + $profit);
+                $capitalsAtTime[$dateTimeStr] = [
+                    'before' => $capitalBefore,
+                    'after' => $capital,
+                    'profit_value' => round($capitalBefore * $profit, 2)
+                ];
+            }
+
+            foreach ($history as $sig) {
+                $dateTimeStr = $sig['date'] . ' ' . $sig['time'];
+                $profit = (float) ($sig['profit'] ?? 0.0);
+                $position = strtoupper($sig['position'] ?? 'CLOSE');
+
+                $type = 'buy';
+                $action = 'buy_opportunity';
+                $profitPct = null;
+                $profitVal = null;
+
+                if ($position === 'LONG') {
+                    $type = 'buy';
+                    $action = 'buy_opportunity';
+                } elseif ($position === 'SHORT') {
+                    $type = 'sell';
+                    $action = 'buy_opportunity'; // para SHORT en español
+                } else {
+                    $type = 'sell';
+                    $action = $profit >= 0 ? 'close_profit' : 'close_loss';
+                    $profitPct = $profit * 100;
+                    $profitVal = $capitalsAtTime[$dateTimeStr]['profit_value'] ?? 0.0;
+                }
+
+                $activity = new \App\Models\BotActivity([
+                    'type' => $type,
+                    'action' => $action,
+                    'profit_percentage' => $profitPct,
+                    'profit_value' => $profitVal,
+                    'risk_alert' => false,
+                ]);
+
+                // Asignar timestamps virtualmente
+                $activity->created_at = \Illuminate\Support\Carbon::parse($dateTimeStr);
+                // Forzar el ID para que Vue/Blade tengan una llave única
+                $activity->id = crc32($dateTimeStr . $position . $profit);
+
+                $activities->push($activity);
+            }
+
+            return $activities;
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Error loading simulated activity history: " . $e->getMessage());
+            return collect();
+        }
     }
 }
