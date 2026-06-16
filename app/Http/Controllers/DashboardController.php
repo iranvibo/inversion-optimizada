@@ -341,12 +341,13 @@ class DashboardController extends Controller
     protected function getActivitiesForUser($user)
     {
         if ($user->bot_mode === 'real') {
-            return $user->botActivities()->latest()->get();
+            $activities = $user->botActivities()->latest()->get();
+            return $this->sortActivities($activities);
         }
 
         $dbActivities = $user->botActivities()->latest()->get();
         if ($dbActivities->isNotEmpty()) {
-            return $dbActivities;
+            return $this->sortActivities($dbActivities);
         }
 
         try {
@@ -354,7 +355,24 @@ class DashboardController extends Controller
             $history = $signalProvider->getSignalHistory($user->risk_level ?? 'balanceado');
 
             // Ordenar por fecha descendente (más recientes primero)
-            usort($history, fn ($a, $b) => strcmp($b['date'] . ' ' . $b['time'], $a['date'] . ' ' . $a['time']));
+            usort($history, function ($a, $b) {
+                $timeComparison = strcmp($b['date'] . ' ' . $b['time'], $a['date'] . ' ' . $a['time']);
+                if ($timeComparison !== 0) {
+                    return $timeComparison;
+                }
+
+                $aPos = strtoupper($a['position'] ?? '');
+                $bPos = strtoupper($b['position'] ?? '');
+
+                if ($aPos === 'CLOSE' && $bPos !== 'CLOSE') {
+                    return 1;
+                }
+                if ($bPos === 'CLOSE' && $aPos !== 'CLOSE') {
+                    return -1;
+                }
+
+                return 0;
+            });
 
             $activities = collect();
             $capital = (float) ($user->estimated_capital ?? 100.0);
@@ -363,15 +381,33 @@ class DashboardController extends Controller
             // necesitamos procesar la serie en orden cronológico primero para calcular el capital acumulado
             // en cada punto, y luego mapearlo.
             $chronological = $history;
-            usort($chronological, fn ($a, $b) => strcmp($a['date'] . ' ' . $a['time'], $b['date'] . ' ' . $b['time']));
+            usort($chronological, function ($a, $b) {
+                $timeComparison = strcmp($a['date'] . ' ' . $a['time'], $b['date'] . ' ' . $b['time']);
+                if ($timeComparison !== 0) {
+                    return $timeComparison;
+                }
+
+                $aPos = strtoupper($a['position'] ?? '');
+                $bPos = strtoupper($b['position'] ?? '');
+
+                if ($aPos === 'CLOSE' && $bPos !== 'CLOSE') {
+                    return -1;
+                }
+                if ($bPos === 'CLOSE' && $aPos !== 'CLOSE') {
+                    return 1;
+                }
+
+                return 0;
+            });
 
             $capitalsAtTime = [];
             foreach ($chronological as $sig) {
                 $dateTimeStr = $sig['date'] . ' ' . $sig['time'];
+                $posKey = $dateTimeStr . '_' . strtoupper($sig['position'] ?? 'CLOSE');
                 $profit = (float) ($sig['profit'] ?? 0.0);
                 $capitalBefore = $capital;
                 $capital *= (1 + $profit);
-                $capitalsAtTime[$dateTimeStr] = [
+                $capitalsAtTime[$posKey] = [
                     'before' => $capitalBefore,
                     'after' => $capital,
                     'profit_value' => round($capitalBefore * $profit, 2)
@@ -398,7 +434,8 @@ class DashboardController extends Controller
                     $type = 'close';
                     $action = $profit >= 0 ? 'close_profit' : 'close_loss';
                     $profitPct = $profit * 100;
-                    $profitVal = $capitalsAtTime[$dateTimeStr]['profit_value'] ?? 0.0;
+                    $posKey = $dateTimeStr . '_' . $position;
+                    $profitVal = $capitalsAtTime[$posKey]['profit_value'] ?? 0.0;
                 }
 
                 $activity = new \App\Models\BotActivity([
@@ -417,11 +454,43 @@ class DashboardController extends Controller
                 $activities->push($activity);
             }
 
-            return $activities;
+            return $this->sortActivities($activities);
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Error loading simulated activity history: " . $e->getMessage());
             return collect();
         }
+    }
+
+    /**
+     * Ordena una colección de actividades garantizando que las aperturas (LONG/SHORT)
+     * queden por encima de los cierres (CLOSE) cuando ocurren en el mismo segundo.
+     */
+    protected function sortActivities($activities)
+    {
+        return $activities->sort(function ($a, $b) {
+            $timeA = $a->created_at;
+            $timeB = $b->created_at;
+
+            if ($timeA->ne($timeB)) {
+                return $timeB->greaterThan($timeA) ? 1 : -1;
+            }
+
+            $aType = $a->type;
+            $bType = $b->type;
+
+            if ($aType === 'close' && $bType !== 'close') {
+                return 1;
+            }
+            if ($bType === 'close' && $aType !== 'close') {
+                return -1;
+            }
+
+            if (isset($a->id) && isset($b->id)) {
+                return $b->id <=> $a->id;
+            }
+
+            return 0;
+        })->values();
     }
 }

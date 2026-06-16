@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-06-15
+updated: 2026-06-16
 ---
 
 # Origen de las Señales del Bot
@@ -54,6 +54,8 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
   * **Cierre de Operación (`CLOSE` / tipo `'close'` o `'sell'`):** Se muestra con el texto *"Inversión finalizada: posición cerrada con [beneficio/pérdida]."* e icono gris de círculo de verificación (checkmark circle).
   * **Protección de Riesgo (`risk_protection`):** Alertas de drawdown diario/seguridad e icono de escudo rojo.
 * **Traducción Dinámica**: Un formateador puro (`BotActivityFormatter`) traduce automáticamente los códigos y rendimientos a un lenguaje natural en español de forma que sea simple y claro para usuarios inexpertos.
+* **Ordenación de Eventos Simultáneos (Decisión 2026-06-16)**: Cuando se cierra una operación y se abre otra al mismo segundo (mismo timestamp, p.ej. `CLOSE` y `SHORT`), la apertura (`LONG`/`SHORT`) se ordena por encima del cierre (`CLOSE`) en la lista descendente (más reciente primero). Esto previene malentendidos donde parecía que el cierre correspondía a la nueva posición.
+* **Cálculo de Capital sin Colisiones**: Para calcular el retorno en euros (`profit_value`) de cada operación en simulación sin que se sobreescriban los datos de eventos simultáneos, se indexa la serie usando una clave compuesta `{timestamp}_{position}` en lugar de usar solo el timestamp.
 * **Herramienta de Simulación**: Un endpoint `/bot/simulate-activity` permite sembrar eventos simulados directamente desde la interfaz para facilitar las pruebas manuales y los criterios de aceptación.
 
 ### Notas de Integración y Despliegue (2026-06-14)

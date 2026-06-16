@@ -38,18 +38,22 @@ class BotActivityFeedTest extends TestCase
      */
     public function test_activities_endpoint_returns_json_feed(): void
     {
-        // Creamos actividades de prueba
-        $this->user->botActivities()->create([
+        // Creamos actividades de prueba con tiempos distintos para evitar colisiones de segundo
+        $act1 = $this->user->botActivities()->create([
             'type' => 'long',
             'action' => 'open_long',
         ]);
+        $act1->created_at = now()->subMinutes(1);
+        $act1->save();
 
-        $this->user->botActivities()->create([
+        $act2 = $this->user->botActivities()->create([
             'type' => 'close',
             'action' => 'close_profit',
             'profit_percentage' => 1.5,
             'profit_value' => 15.00,
         ]);
+        $act2->created_at = now();
+        $act2->save();
 
         $response = $this->actingAs($this->user)
             ->getJson(route('dashboard.activities'));
@@ -135,5 +139,80 @@ class BotActivityFeedTest extends TestCase
         $response->assertSee('ALERTA DE PROTECCIÓN DE RIESGO');
         $response->assertSee('Protección diaria activada: El bot se pausó automáticamente para proteger tu capital.');
         $response->assertSee('Se inició una inversión al alza (LONG) esperando una subida del precio.');
+    }
+
+    /**
+     * Prueba que las actividades con el mismo timestamp se ordenen correctamente,
+     * colocando la apertura de posición (LONG/SHORT) antes del cierre (CLOSE) en orden descendente.
+     */
+    public function test_activities_with_same_timestamp_are_sorted_correctly(): void
+    {
+        $timestamp = now();
+
+        // Creamos una actividad de cierre
+        $close = $this->user->botActivities()->create([
+            'type' => 'close',
+            'action' => 'close_profit',
+            'created_at' => $timestamp,
+        ]);
+
+        // Creamos una actividad de apertura (LONG) al mismo tiempo
+        $long = $this->user->botActivities()->create([
+            'type' => 'long',
+            'action' => 'open_long',
+            'created_at' => $timestamp,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson(route('dashboard.activities'));
+
+        $response->assertOk();
+        $data = $response->json('activities');
+
+        // La apertura (LONG) debe ser la primera (más reciente/arriba), y el cierre la segunda
+        $this->assertCount(2, $data);
+        $this->assertSame('long', $data[0]['type']);
+        $this->assertSame('close', $data[1]['type']);
+    }
+
+    /**
+     * Prueba que las actividades simuladas dinámicas con el mismo timestamp se ordenen
+     * correctamente (LONG/SHORT antes de CLOSE en orden descendente).
+     */
+    public function test_simulated_activities_with_same_timestamp_are_sorted_correctly(): void
+    {
+        // Forzamos modo simulación
+        $this->user->update(['bot_mode' => 'simulation']);
+
+        // Mock del proveedor de señales
+        $mockProvider = $this->createMock(\App\Core\Contracts\SignalProviderInterface::class);
+        $mockProvider->method('getSignalHistory')
+            ->willReturn([
+                [
+                    'date' => '2026-06-16',
+                    'time' => '00:40:00',
+                    'position' => 'CLOSE',
+                    'profit' => 0.118,
+                ],
+                [
+                    'date' => '2026-06-16',
+                    'time' => '00:40:00',
+                    'position' => 'SHORT',
+                    'profit' => 0.0,
+                ],
+            ]);
+
+        $this->app->instance(\App\Core\Contracts\SignalProviderInterface::class, $mockProvider);
+
+        $response = $this->actingAs($this->user)
+            ->getJson(route('dashboard.activities'));
+
+        $response->assertOk();
+        $data = $response->json('activities');
+
+        // El SHORT debe quedar arriba del CLOSE
+        $this->assertCount(2, $data);
+        $this->assertSame('short', $data[0]['type']);
+        $this->assertSame('close', $data[1]['type']);
     }
 }

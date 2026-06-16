@@ -44,7 +44,24 @@ class BalanceController extends Controller
             try {
                 $history = $this->signalProvider->getSignalHistory($user->risk_level);
                 // Ordenar cronológicamente
-                usort($history, fn ($a, $b) => strcmp($a['date'] . ' ' . $a['time'], $b['date'] . ' ' . $b['time']));
+                usort($history, function ($a, $b) {
+                    $timeComparison = strcmp($a['date'] . ' ' . $a['time'], $b['date'] . ' ' . $b['time']);
+                    if ($timeComparison !== 0) {
+                        return $timeComparison;
+                    }
+
+                    $aPos = strtoupper($a['position'] ?? '');
+                    $bPos = strtoupper($b['position'] ?? '');
+
+                    if ($aPos === 'CLOSE' && $bPos !== 'CLOSE') {
+                        return -1;
+                    }
+                    if ($bPos === 'CLOSE' && $aPos !== 'CLOSE') {
+                        return 1;
+                    }
+
+                    return 0;
+                });
 
                 foreach ($history as $signal) {
                     $dateTimeStr = $signal['date'] . ' ' . $signal['time'];
