@@ -24,7 +24,10 @@
       "Bash(vendor/bin/pint --dirty)",
       "Bash(docker-compose ps *)",
       "Bash(echo \"exit:$?\")",
-      "Bash(php -r \"require 'vendor/autoload.php'; var_dump\\(class_exists\\('Kreait\\\\\\\\Firebase\\\\\\\\Factory'\\), class_exists\\('Kreait\\\\\\\\Laravel\\\\\\\\Firebase\\\\\\\\ServiceProvider'\\), class_exists\\('Firebase\\\\\\\\JWT\\\\\\\\JWT'\\)\\);\")"
+      "Bash(php -r \"require 'vendor/autoload.php'; var_dump\\(class_exists\\('Kreait\\\\\\\\Firebase\\\\\\\\Factory'\\), class_exists\\('Kreait\\\\\\\\Laravel\\\\\\\\Firebase\\\\\\\\ServiceProvider'\\), class_exists\\('Firebase\\\\\\\\JWT\\\\\\\\JWT'\\)\\);\")",
+      "Bash(composer update *)",
+      "Bash(composer validate *)",
+      "Bash(composer install *)"
     ]
   }
 }
