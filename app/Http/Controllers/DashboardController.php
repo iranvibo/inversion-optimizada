@@ -66,6 +66,8 @@ class DashboardController extends Controller
                 'profit_value' => $act->profit_value,
                 'risk_alert' => $act->risk_alert,
                 'created_at' => $act->created_at->toISOString(),
+                'created_at_formatted' => $act->created_at->format('d/m/Y H:i'),
+                'created_at_human' => $act->created_at->diffForHumans(),
             ]),
         ]);
     }

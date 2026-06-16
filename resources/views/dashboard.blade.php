@@ -885,6 +885,7 @@
                     updateBotPositionUi(data.current_position);
                 }
                 showToast(data.message);
+                refreshActivities();
 
             } catch (err) {
                 showToast(err.message, true);
@@ -937,6 +938,7 @@
 
                 showToast(data.message);
                 refreshHistory(true);
+                refreshActivities();
 
             } catch (err) {
                 showToast(err.message, true);
@@ -993,6 +995,7 @@
                     updateBotPositionUi(data.current_position);
                 }
                 refreshHistory(true);
+                refreshActivities();
 
             } catch (err) {
                 showToast(err.message, true);
@@ -1011,6 +1014,136 @@
         });
     });
 
+    async function refreshActivities() {
+        const feedList = document.getElementById('activity-feed-list');
+        const riskAlertsContainer = document.getElementById('activity-risk-alerts');
+        if (!feedList) return;
+
+        try {
+            const response = await fetch("{{ route('dashboard.activities') }}", {
+                headers: { 'Accept': 'application/json' },
+            });
+
+            if (!response.ok) {
+                throw new Error('No se pudo cargar la actividad.');
+            }
+
+            const data = await response.json();
+            const activities = data.activities || [];
+
+            // 1. Renderizar Risk Alerts
+            if (riskAlertsContainer) {
+                const alerts = activities.filter(act => act.risk_alert);
+                if (alerts.length > 0) {
+                    riskAlertsContainer.innerHTML = alerts.map(alert => `
+                        <div class="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 shadow-lg relative overflow-hidden animate-fade-in">
+                            <div class="absolute -right-10 -top-10 w-24 h-24 bg-rose-500/10 rounded-full blur-xl pointer-events-none"></div>
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 shrink-0 border border-rose-500/30">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-bold text-rose-400 uppercase tracking-wider block">ALERTA DE PROTECCIÓN DE RIESGO</span>
+                                    <p class="text-sm font-semibold text-white mt-1">${alert.human_description}</p>
+                                    <span class="text-[10px] text-slate-400 block mt-2">${alert.created_at_human} (${alert.created_at_formatted})</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    riskAlertsContainer.innerHTML = '';
+                }
+            }
+
+            // 2. Renderizar feed principal
+            if (activities.length > 0) {
+                feedList.innerHTML = activities.map(activity => {
+                    let iconHtml = '';
+                    if (activity.type === 'long' || activity.type === 'buy') {
+                        iconHtml = `
+                            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20 shrink-0" title="Inversión al Alza (LONG)">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8L6 21" />
+                                </svg>
+                            </div>
+                        `;
+                    } else if (activity.type === 'short') {
+                        iconHtml = `
+                            <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20 shrink-0" title="Inversión a la Baja (SHORT)">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0v-8m0 8L6 3" />
+                                </svg>
+                            </div>
+                        `;
+                    } else if (activity.type === 'close' || activity.type === 'sell') {
+                        iconHtml = `
+                            <div class="w-10 h-10 rounded-xl bg-slate-500/10 text-slate-400 flex items-center justify-center border border-slate-500/20 shrink-0" title="Posición Cerrada (CLOSE)">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                        `;
+                    } else if (activity.type === 'risk_protection') {
+                        iconHtml = `
+                            <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20 shrink-0" title="Protección de Riesgo">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                            </div>
+                        `;
+                    } else {
+                        iconHtml = `
+                            <div class="w-10 h-10 rounded-xl bg-slate-500/10 text-slate-400 flex items-center justify-center border border-slate-500/20 shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                        `;
+                    }
+
+                    let profitHtml = '';
+                    if (activity.profit_percentage !== null) {
+                        const profitVal = parseFloat(activity.profit_percentage);
+                        const sign = profitVal >= 0 ? '+' : '';
+                        const formattedVal = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(profitVal);
+                        const badgeClass = profitVal >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                        profitHtml = `
+                            <div class="text-right shrink-0">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${badgeClass}">
+                                    ${sign}${formattedVal}%
+                                </span>
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="py-4 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
+                            <div class="flex items-center gap-4">
+                                ${iconHtml}
+                                <div>
+                                    <p class="text-sm font-medium text-slate-200">${activity.human_description}</p>
+                                    <span class="text-[10px] text-slate-500 block mt-1">${activity.created_at_human} (${activity.created_at_formatted})</span>
+                                </div>
+                            </div>
+                            ${profitHtml}
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                feedList.innerHTML = `
+                    <div class="py-12 text-center text-slate-500 text-sm">
+                        <p>No se han registrado acciones del bot recientemente en esta cuenta.</p>
+                        <p class="text-xs text-slate-600 mt-1">Usa la herramienta del simulador en la pestaña "Panel de Control" para generar actividad de prueba.</p>
+                    </div>
+                `;
+            }
+        } catch (err) {
+            console.error('Error refreshing activities:', err);
+        }
+    }
+
     // Actualización reactiva vía WebSockets (Escenario 3)
     if (window.Echo) {
         window.Echo.private('App.Models.User.{{ $user->id }}')
@@ -1021,12 +1154,14 @@
                 if (event.current_position) {
                     updateBotPositionUi(event.current_position);
                 }
+                refreshActivities();
             })
             .listen('.bot.status.updated', (event) => {
                 updateBotUi(event.bot_active);
                 if (event.current_position) {
                     updateBotPositionUi(event.current_position);
                 }
+                refreshActivities();
             });
     }
 
@@ -1045,6 +1180,8 @@
 
             tabContentPanel.classList.add('hidden');
             tabContentActivity.classList.remove('hidden');
+
+            refreshActivities();
         } else {
             tabBtnActivity.classList.remove('border-violet-500', 'text-white');
             tabBtnActivity.classList.add('border-transparent', 'text-slate-400');
