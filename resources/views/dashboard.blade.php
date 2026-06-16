@@ -623,7 +623,19 @@
         const PAD_RIGHT = 75;
 
         const values = series.map((p) => p.value);
-        const min = Math.min(...values), max = Math.max(...values);
+        let min = Math.min(...values);
+        let max = Math.max(...values);
+
+        // Evitar auto-escalado agresivo en micro-fluctuaciones (US03)
+        // Forzamos un rango mínimo del 5% del valor promedio para atenuar ruido
+        const avg = (min + max) / 2 || 1;
+        const minRange = avg * 0.05; // 5% de amplitud mínima
+        if ((max - min) < minRange) {
+            const padding = (minRange - (max - min)) / 2;
+            min -= padding;
+            max += padding;
+        }
+
         const range = max - min || 1;
         const x = (i) => PAD_LEFT + (i / (series.length - 1)) * (W - PAD_LEFT - PAD_RIGHT);
         const y = (v) => H - PAD_BOTTOM - ((v - min) / range) * (H - PAD_TOP - PAD_BOTTOM);

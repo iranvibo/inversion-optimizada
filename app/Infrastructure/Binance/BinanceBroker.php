@@ -73,7 +73,10 @@ class BinanceBroker implements BinanceBrokerInterface
     protected function handleRealBalance(string $apiKey, string $secretKey): float
     {
         $timestamp = now()->timestamp * 1000;
-        $queryString = http_build_query(['timestamp' => $timestamp]);
+        $queryString = http_build_query([
+            'timestamp' => $timestamp,
+            'quoteAsset' => 'EUR',
+        ]);
         $signature = hash_hmac('sha256', $queryString, $secretKey);
 
         $apiUrl = config('services.binance.api_url', 'https://api.binance.com');
@@ -95,18 +98,12 @@ class BinanceBroker implements BinanceBrokerInterface
                 throw new BinanceException('No se pudo obtener el balance de Binance: HTTP '.$response->status());
             }
 
-            $totalBtc = array_sum(array_map(
+            $totalEur = array_sum(array_map(
                 fn (array $wallet) => (float) ($wallet['balance'] ?? 0),
                 $response->json() ?? [],
             ));
 
-            $ticker = Http::get("{$apiUrl}/api/v3/ticker/price", ['symbol' => 'BTCEUR']);
-
-            if ($ticker->failed() || ! isset($ticker->json()['price'])) {
-                throw new BinanceException('No se pudo obtener el precio de conversión BTC/EUR.');
-            }
-
-            return round($totalBtc * (float) $ticker->json()['price'], 2);
+            return round($totalEur, 2);
         } catch (\Exception $e) {
             if ($e instanceof BinanceInvalidCredentialsException || $e instanceof BinanceException) {
                 throw $e;

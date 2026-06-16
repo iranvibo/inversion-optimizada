@@ -1,6 +1,6 @@
 ---
 created: 2026-06-11
-updated: 2026-06-12
+updated: 2026-06-16
 ---
 
 # Integración y Seguridad de Binance en ViBo Invest
@@ -14,7 +14,7 @@ Este documento detalla las decisiones técnicas y de diseño adoptadas para la i
    - *Justificación*: Impide la exposición accidental de credenciales. Las llaves se cifran automáticamente al guardarse en la base de datos MySQL y solo se descifran en memoria del servidor cuando es estrictamente necesario para firmar transacciones salientes.
 
 2. **Validación de Permisos de Retiro (No-Withdrawals Check)**:
-   - *Decisión*: Al vincular la cuenta o en la auditoría periódica, se consulta `/sapi/v1/account/apiRestrictions` y se rechaza la vinculación si `enableWithdrawals` es `true`.
+   - *Decisión*: Al vincular la cuenta o en la auditoría periódica, se consulta `/sapi/v1/account/apiRestrictions` y se rechaza la vinculación si `enableWithdrawals` is `true`.
    - *Justificación*: Es la promesa básica de seguridad al usuario minorista. Mitiga el riesgo de que la plataforma pueda transferir o retirar fondos, limitándose únicamente a operar en Spot/Margen si se requiere.
 
 3. **Manejo de Respuestas de Binance en Mocks**:
@@ -38,4 +38,8 @@ Este documento detalla las decisiones técnicas y de diseño adoptadas para la i
    - *Decisión*: Al pasar del modo de Dinero Real al modo de Simulación con el bot encendido (`bot_active = true`), el sistema ejecuta un cierre preventivo de posiciones y cancela órdenes abiertas en Binance antes de continuar operando únicamente en simulación.
    - *Justificación*: Previene dejar posiciones reales abiertas y huérfanas en Binance que queden fuera del control del bot una vez que este empiece a operar únicamente en modo simulación.
    - *Fail-Safe local*: Sigue la misma regla de US04; si el broker falla, el error se registra como crítico y se muestra una advertencia, pero se permite que el cambio a simulación prosiga localmente.
+
+7. **Optimización de Balance y Amortiguación de Ruido (US03)**:
+   - *Decisión*: Se modificó `handleRealBalance` para solicitar el balance consolidado de Binance usando `quoteAsset => 'EUR'`. Además, se implementó un rango mínimo de escala (5% del balance promedio) en la visualización del gráfico en el frontend.
+   - *Justificación*: Al omitir `quoteAsset`, Binance convertía por defecto los saldos a BTC y el backend los volvía a convertir a EUR, introduciendo fluctuaciones artificiales por spreads y desfases. Al forzar `quoteAsset=EUR`, las cuentas con balance estable devuelven un valor estático. El rango mínimo del 5% en el frontend evita que micro-desviaciones menores al 1% (por variaciones normales de cartera) se muestren como picos de sierra agresivos, visualizándose correctamente como una línea estable horizontal.
 
