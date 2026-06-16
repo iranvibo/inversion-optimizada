@@ -145,9 +145,9 @@
 
             <!-- Filtros temporales: Día / Semana / Mes (Escenario 2) -->
             <div id="range-filters" class="flex items-center gap-2 bg-[hsl(223,47%,10%)] rounded-xl p-1 border border-[rgba(255,255,255,0.06)] self-start">
-                <button type="button" data-range="day" class="range-btn text-xs font-bold py-2 px-4 rounded-lg transition duration-200 bg-violet-600 text-white">Día</button>
+                <button type="button" data-range="day" class="range-btn text-xs font-bold py-2 px-4 rounded-lg transition duration-200 text-slate-400 hover:text-white">Día</button>
                 <button type="button" data-range="week" class="range-btn text-xs font-bold py-2 px-4 rounded-lg transition duration-200 text-slate-400 hover:text-white">Semana</button>
-                <button type="button" data-range="month" class="range-btn text-xs font-bold py-2 px-4 rounded-lg transition duration-200 text-slate-400 hover:text-white">Mes</button>
+                <button type="button" data-range="month" class="range-btn text-xs font-bold py-2 px-4 rounded-lg transition duration-200 bg-violet-600 text-white">Mes</button>
             </div>
         </div>
 
@@ -540,7 +540,7 @@
     const botToggleForm = document.getElementById('bot-toggle-form');
     const botToggleBtn = document.getElementById('bot-toggle-btn');
 
-    let currentRange = 'day';
+    let currentRange = 'month';
     let originalBalance = null;
     let originalChangeMessage = null;
 
@@ -1202,7 +1202,7 @@
         switchTab('activity');
     @endif
 
-    // Primera carga del gráfico con el filtro por defecto (Día)
+    // Primera carga del gráfico con el filtro por defecto (Mes)
     refreshHistory();
 })();
 </script>

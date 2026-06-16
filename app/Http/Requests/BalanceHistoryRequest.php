@@ -45,6 +45,6 @@ class BalanceHistoryRequest extends FormRequest
     {
         $validated = $this->validated('range');
 
-        return $validated === null ? TimeRange::Day : TimeRange::from($validated);
+        return $validated === null ? TimeRange::Month : TimeRange::from($validated);
     }
 }

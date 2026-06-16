@@ -118,12 +118,12 @@ class DashboardBalanceTest extends TestCase
         $this->assertCount(2, $fetch('month'));
     }
 
-    public function test_history_endpoint_defaults_to_day_range(): void
+    public function test_history_endpoint_defaults_to_month_range(): void
     {
         $response = $this->actingAs($this->user)->getJson(route('dashboard.balance'));
 
         $response->assertOk();
-        $this->assertSame('day', $response->json('range'));
+        $this->assertSame('month', $response->json('range'));
     }
 
     public function test_history_endpoint_rejects_invalid_range(): void
