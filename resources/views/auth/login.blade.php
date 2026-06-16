@@ -11,9 +11,9 @@
 @endpush
 
 @section('content')
-<div class="flex items-center justify-center min-height-[60vh] py-12">
+<div class="flex items-center justify-center min-h-[60vh] py-12">
     <div class="w-full max-w-md login-card rounded-2xl p-8 animate-fade-in">
-        
+
         <!-- Encabezado -->
         <div class="text-center mb-8">
             <h1 class="text-3xl font-extrabold tracking-tight text-white mb-2">Bienvenido a ViBo Invest</h1>
@@ -32,12 +32,15 @@
             </div>
         @endif
 
-        <!-- Formulario Tradicional (Opcional) -->
+        <!-- Acceso con Google -->
+        @include('auth.partials.social')
+
+        <!-- Formulario tradicional -->
         <form action="{{ route('login') }}" method="POST" class="space-y-5">
             @csrf
             <div>
                 <label for="email" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Correo Electrónico</label>
-                <input type="email" name="email" id="email" required
+                <input type="email" name="email" id="email" required autofocus
                        class="w-full bg-[hsl(223,47%,10%)] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-violet-500 transition duration-200"
                        placeholder="tu@correo.com" value="{{ old('email') }}">
                 @error('email')
@@ -55,11 +58,26 @@
                 @enderror
             </div>
 
-            <button type="submit" 
+            <label class="flex items-center gap-2 text-xs text-slate-400 select-none cursor-pointer">
+                <input type="checkbox" name="remember" class="rounded border-slate-700 bg-[hsl(223,47%,10%)] text-violet-600 focus:ring-violet-500">
+                Mantener la sesión iniciada
+            </label>
+
+            <button type="submit"
                     class="w-full bg-violet-600 hover:bg-violet-500 text-white font-medium py-3 rounded-xl transition duration-200 text-sm focus:outline-none hover-lift">
                 Iniciar Sesión
             </button>
         </form>
+
+        <!-- Pie -->
+        <p class="text-center text-sm text-slate-400 mt-6">
+            ¿No tienes cuenta?
+            <a href="{{ route('register') }}" class="text-violet-400 hover:text-violet-300 font-medium">Crear una cuenta</a>
+        </p>
+        <p class="text-center text-[11px] text-slate-500 mt-4">
+            Al continuar, aceptas nuestra
+            <a href="{{ route('privacy') }}" class="underline hover:text-slate-300">Política de Privacidad</a>.
+        </p>
 
     </div>
 </div>

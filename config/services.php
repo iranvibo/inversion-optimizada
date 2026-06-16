@@ -40,4 +40,13 @@ return [
         'api_url' => env('BINANCE_API_URL', 'https://api.binance.com'),
     ],
 
+    /*
+    | Configuración de Firebase. Sólo se necesita el project_id para verificar
+    | en el backend los ID tokens de Google. Las claves públicas que usa el SDK
+    | de JavaScript se exponen al navegador mediante las variables VITE_FIREBASE_*.
+    */
+    'firebase' => [
+        'project_id' => env('FIREBASE_PROJECT_ID'),
+    ],
+
 ];

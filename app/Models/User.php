@@ -3,11 +3,13 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Core\Contracts\SignalProviderInterface;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Cache;
 
 class User extends Authenticatable
 {
@@ -23,6 +25,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'firebase_uid',
+        'avatar',
+        'accepted_privacy_at',
         'binance_api_key',
         'binance_secret_key',
         'binance_verified',
@@ -62,6 +67,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'accepted_privacy_at' => 'datetime',
             'password' => 'hashed',
             'binance_api_key' => 'encrypted',
             'binance_secret_key' => 'encrypted',
@@ -118,26 +124,27 @@ class User extends Authenticatable
      */
     public function getCurrentPositionAttribute(): string
     {
-        if (!$this->bot_active) {
+        if (! $this->bot_active) {
             return 'CLOSE';
         }
 
         if ($this->bot_mode === 'simulation') {
             $riskLevel = strtolower($this->risk_level);
-            $apiPosition = \Illuminate\Support\Facades\Cache::get("signal:last_known_position:{$riskLevel}");
-            if (!$apiPosition) {
+            $apiPosition = Cache::get("signal:last_known_position:{$riskLevel}");
+            if (! $apiPosition) {
                 try {
-                    $signalProvider = app(\App\Core\Contracts\SignalProviderInterface::class);
+                    $signalProvider = app(SignalProviderInterface::class);
                     $signal = $signalProvider->getCurrentSignal($riskLevel);
                     $apiPosition = strtoupper($signal['position'] ?? 'CLOSE');
-                    \Illuminate\Support\Facades\Cache::put("signal:last_known_position:{$riskLevel}", $apiPosition);
+                    Cache::put("signal:last_known_position:{$riskLevel}", $apiPosition);
                 } catch (\Exception $e) {
                     $apiPosition = 'CLOSE';
                 }
             }
+
             return $apiPosition;
         }
 
-        return \Illuminate\Support\Facades\Cache::get("user:{$this->id}:real_position", 'CLOSE');
+        return Cache::get("user:{$this->id}:real_position", 'CLOSE');
     }
 }

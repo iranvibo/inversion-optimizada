@@ -3,47 +3,142 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\FirebaseTokenVerifier;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
+use RuntimeException;
 
 class AuthController extends Controller
 {
     /**
-     * Muestra la vista de login.
+     * Muestra la vista de inicio de sesión.
      */
     public function showLogin()
     {
         if (Auth::check()) {
             return redirect()->route('dashboard');
         }
-        return view('login');
+
+        return view('auth.login');
     }
 
     /**
-     * Procesa el login.
+     * Muestra la vista de registro.
+     */
+    public function showRegister()
+    {
+        if (Auth::check()) {
+            return redirect()->route('dashboard');
+        }
+
+        return view('auth.register');
+    }
+
+    /**
+     * Procesa el inicio de sesión con correo y contraseña.
      */
     public function login(Request $request)
     {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
+        ], [], [
+            'email' => 'correo electrónico',
+            'password' => 'contraseña',
         ]);
 
-        if (Auth::attempt($credentials)) {
+        if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            // Usuario recién registrado: primero pasa por el onboarding (US02)
-            if (!Auth::user()->hasCompletedOnboarding()) {
-                return redirect()->route('onboarding.show');
-            }
-
-            return redirect()->intended('dashboard');
+            return $this->afterLogin();
         }
 
         return back()->withErrors([
             'email' => 'Las credenciales no coinciden con nuestros registros.',
         ])->onlyInput('email');
+    }
+
+    /**
+     * Procesa el registro con correo y contraseña.
+     */
+    public function register(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'privacy' => ['accepted'],
+        ], [
+            'privacy.accepted' => 'Debes aceptar la Política de Privacidad para continuar.',
+        ], [
+            'name' => 'nombre',
+            'email' => 'correo electrónico',
+            'password' => 'contraseña',
+        ]);
+
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => $data['password'],
+            'accepted_privacy_at' => now(),
+        ]);
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return $this->afterLogin();
+    }
+
+    /**
+     * Inicia o registra una sesión a partir de un ID token de Google (Firebase).
+     *
+     * El SDK de Firebase en el navegador realiza el flujo de Google y envía aquí
+     * el ID token resultante, que verificamos antes de crear la sesión.
+     */
+    public function google(Request $request, FirebaseTokenVerifier $verifier): JsonResponse
+    {
+        $request->validate([
+            'id_token' => ['required', 'string'],
+        ]);
+
+        try {
+            $claims = $verifier->verify($request->string('id_token'));
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'message' => 'No pudimos validar tu cuenta de Google. Inténtalo de nuevo.',
+            ], 422);
+        }
+
+        $user = User::where('firebase_uid', $claims['sub'])
+            ->orWhere('email', $claims['email'] ?? null)
+            ->first();
+
+        if ($user) {
+            // Vincula una cuenta de correo existente con su identidad de Google.
+            $user->forceFill([
+                'firebase_uid' => $claims['sub'],
+                'avatar' => $claims['picture'] ?? $user->avatar,
+                'accepted_privacy_at' => $user->accepted_privacy_at ?? now(),
+            ])->save();
+        } else {
+            $user = User::create([
+                'name' => $claims['name'] ?? Str::before($claims['email'] ?? 'Usuario', '@'),
+                'email' => $claims['email'] ?? $claims['sub'].'@google.local',
+                'firebase_uid' => $claims['sub'],
+                'avatar' => $claims['picture'] ?? null,
+                'accepted_privacy_at' => now(),
+            ]);
+        }
+
+        Auth::login($user, true);
+        $request->session()->regenerate();
+
+        return response()->json([
+            'redirect' => $this->afterLoginUrl(),
+        ]);
     }
 
     /**
@@ -56,5 +151,25 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login');
+    }
+
+    /**
+     * Redirección tras autenticarse: onboarding si aún no se ha completado.
+     */
+    private function afterLogin()
+    {
+        return redirect($this->afterLoginUrl());
+    }
+
+    /**
+     * URL de destino tras autenticarse.
+     */
+    private function afterLoginUrl(): string
+    {
+        if (! Auth::user()->hasCompletedOnboarding()) {
+            return route('onboarding.show');
+        }
+
+        return route('dashboard');
     }
 }

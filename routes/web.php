@@ -15,7 +15,13 @@ Route::get('/', function () {
 // Autenticación
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/auth/google', [AuthController::class, 'google'])->name('auth.google');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Política de privacidad
+Route::view('/privacidad', 'legal.privacy')->name('privacy');
 
 // Rutas protegidas
 Route::middleware('auth')->group(function () {

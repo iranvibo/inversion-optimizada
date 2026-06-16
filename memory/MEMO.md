@@ -2,4 +2,5 @@
 - [bot-signals.md](bot-signals.md) — Señales por polling de API externa con nivel de riesgo (LONG/SHORT/CLOSE), mock por defecto, capital simulado híbrido | tags: bot, señales, api, polling, mock, integración, arquitectura
 - [project-architecture.md](project-architecture.md) — Decisiones de arquitectura (Laravel 12/PHP 8.4), Docker, Redis, polling y despliegue CI/CD | tags: arquitectura, docker, redis, laravel, polling, mock, infraestructura, deploy, ci-cd
 - [binance-integration.md](binance-integration.md) — Integración de Binance, cifrado local de credenciales, bloqueo de retiros y auditoría periódica | tags: binance, seguridad, cifrado, api, mock, integración
+- [auth-firebase.md](auth-firebase.md) — Login/registro: contraseña + Google (Firebase ID token verificado con php-jwt), password nullable, política de privacidad | tags: auth, login, registro, firebase, google, jwt, privacidad, seguridad
 
