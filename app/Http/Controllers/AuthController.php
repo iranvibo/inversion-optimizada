@@ -47,30 +47,6 @@ class AuthController extends Controller
     }
 
     /**
-     * Auto-login para desarrollo y testeo rápido con un solo clic.
-     */
-    public function autoLogin()
-    {
-        // Obtener o crear el usuario de prueba predeterminado
-        $user = User::firstOrCreate(
-            ['email' => 'test@example.com'],
-            [
-                'name' => 'Usuario Demo ViBo',
-                'password' => Hash::make('password'),
-            ]
-        );
-
-        Auth::login($user);
-
-        // Usuario recién registrado: primero pasa por el onboarding (US02)
-        if (!$user->hasCompletedOnboarding()) {
-            return redirect()->route('onboarding.show')->with('success', 'Bienvenido a ViBo Invest: configura tu perfil de riesgo para empezar.');
-        }
-
-        return redirect()->route('dashboard')->with('success', 'Sesión iniciada con éxito (Modo Demo).');
-    }
-
-    /**
      * Cierra la sesión.
      */
     public function logout(Request $request)

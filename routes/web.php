@@ -15,7 +15,6 @@ Route::get('/', function () {
 // Autenticación
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
-Route::get('/login/auto', [AuthController::class, 'autoLogin'])->name('login.auto');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Rutas protegidas
