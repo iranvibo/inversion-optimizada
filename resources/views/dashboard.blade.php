@@ -171,13 +171,26 @@
     </div>
 
     <!-- SECCIÓN DE TARJETAS PRINCIPALES (US07) -->
+    @php
+        $rl = strtolower($user->risk_level);
+        $riskFill = $rl === 'agresivo' ? 3 : ($rl === 'balanceado' ? 2 : 1);
+        $riskColor = $rl === 'agresivo' ? 'bg-rose-500' : ($rl === 'balanceado' ? 'bg-amber-500' : 'bg-emerald-500');
+        $riskWord = $rl === 'agresivo' ? 'Riesgo alto' : ($rl === 'balanceado' ? 'Riesgo medio' : 'Riesgo bajo');
+    @endphp
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        
+
         <!-- Tarjeta 1: Estado del Bot -->
-        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[160px]">
+        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[170px]">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Estado de Automatización</span>
-                <span id="bot-indicator" class="relative flex h-3 w-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-9 h-9 rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/20 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Estado del Bot</span>
+                </div>
+                <span id="bot-indicator" class="relative flex h-3 w-3 shrink-0">
                     @if($user->bot_active)
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
@@ -186,10 +199,10 @@
                     @endif
                 </span>
             </div>
-            
+
             <div class="my-4">
                 <div class="mb-2">
-                    <span id="bot-status-text" class="text-3xl font-extrabold block text-white uppercase tracking-tight">
+                    <span id="bot-status-text" class="text-2xl font-extrabold block text-white uppercase tracking-tight">
                         {{ $user->bot_active ? 'Activo' : 'Pausado' }}
                     </span>
                     <span id="bot-status-desc" class="text-xs text-slate-400">
@@ -220,11 +233,18 @@
         </div>
 
         <!-- Tarjeta 2: Modo de Operativa -->
-        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[160px]">
+        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[170px]">
             <div>
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Modo de Operación</span>
+                <div class="flex items-center gap-2.5">
+                    <span class="w-9 h-9 rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/20 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m4 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                    </span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Modo de Operación</span>
+                </div>
                 <div class="my-4">
-                    <span id="bot-mode-text" class="text-3xl font-extrabold block text-white tracking-tight">
+                    <span id="bot-mode-text" class="text-2xl font-extrabold block text-white uppercase tracking-tight">
                         {{ $user->bot_mode === 'real' ? 'Dinero Real' : 'Simulación' }}
                     </span>
                     <span id="bot-mode-desc" class="text-xs text-slate-400 block mt-1">
@@ -247,17 +267,35 @@
         </div>
 
         <!-- Tarjeta 3: Nivel de Riesgo (US07) -->
-        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[160px]">
+        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[170px]">
             <div>
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Nivel de Riesgo</span>
+                <div class="flex items-center gap-2.5">
+                    <span class="w-9 h-9 rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/20 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Nivel de Riesgo</span>
+                </div>
                 <div class="my-4">
-                    <span id="risk-level-badge" class="text-3xl font-extrabold block text-white tracking-tight uppercase">
+                    <span id="risk-level-badge" class="text-2xl font-extrabold block text-white tracking-tight uppercase">
                         {{ $user->risk_level }}
                     </span>
-                    <span id="risk-level-desc" class="text-xs text-slate-400 block mt-1">
-                        @if(strtolower($user->risk_level) === 'conservador')
+
+                    <!-- Medidor visual de riesgo: traduce el nivel a bajo / medio / alto sin jerga -->
+                    <div class="flex items-center gap-2 mt-3">
+                        <div id="risk-gauge" class="flex items-center gap-1 flex-1" role="img" aria-label="Nivel de riesgo: {{ $riskWord }}">
+                            @for($i = 1; $i <= 3; $i++)
+                                <span class="risk-seg h-1.5 flex-1 rounded-full {{ $i <= $riskFill ? $riskColor : 'bg-slate-700/70' }}"></span>
+                            @endfor
+                        </div>
+                        <span id="risk-gauge-label" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">{{ $riskWord }}</span>
+                    </div>
+
+                    <span id="risk-level-desc" class="text-xs text-slate-400 block mt-2">
+                        @if($rl === 'conservador')
                             Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas.
-                        @elseif(strtolower($user->risk_level) === 'balanceado')
+                        @elseif($rl === 'balanceado')
                             Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas.
                         @else
                             Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas.
@@ -270,9 +308,9 @@
                 @csrf
                 <div class="flex gap-2">
                     <select id="risk-level-select" name="risk_level" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-2 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-violet-500">
-                        <option value="conservador" {{ strtolower($user->risk_level) === 'conservador' ? 'selected' : '' }}>Conservador</option>
-                        <option value="balanceado" {{ strtolower($user->risk_level) === 'balanceado' ? 'selected' : '' }}>Balanceado</option>
-                        <option value="agresivo" {{ strtolower($user->risk_level) === 'agresivo' ? 'selected' : '' }}>Agresivo</option>
+                        <option value="conservador" {{ $rl === 'conservador' ? 'selected' : '' }}>Conservador</option>
+                        <option value="balanceado" {{ $rl === 'balanceado' ? 'selected' : '' }}>Balanceado</option>
+                        <option value="agresivo" {{ $rl === 'agresivo' ? 'selected' : '' }}>Agresivo</option>
                     </select>
                     <button type="submit" id="risk-level-btn"
                             class="text-xs font-bold py-2.5 px-3 rounded-xl transition duration-200 bg-violet-600 hover:bg-violet-500 text-white shadow-md shrink-0">
@@ -283,18 +321,25 @@
         </div>
 
         <!-- Tarjeta 4: Configuración de Binance -->
-        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[160px]">
+        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[170px]">
             <div>
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Conexión de Binance</span>
+                <div class="flex items-center gap-2.5">
+                    <span class="w-9 h-9 rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/20 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                    </span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Conexión Binance</span>
+                </div>
                 <div class="my-4">
                     @if($user->isBinanceLinked())
-                        <span class="text-sm font-bold text-white block">Credenciales Vinculadas</span>
+                        <span class="text-2xl font-extrabold block text-emerald-400 uppercase tracking-tight">Conectado</span>
                         <code class="text-[11px] text-slate-400 bg-slate-900 px-2 py-1 rounded block truncate mt-2">
                             API: {{ substr($user->binance_api_key, 0, 8) }}...{{ substr($user->binance_api_key, -8) }}
                         </code>
                     @else
-                        <span class="text-xl font-bold text-rose-400 block mt-2">No Conectado</span>
-                        <span class="text-xs text-slate-400 block">Conecta tu API para operar en real de forma segura.</span>
+                        <span class="text-2xl font-extrabold block text-rose-400 uppercase tracking-tight">Sin conexión</span>
+                        <span class="text-xs text-slate-400 block mt-1">Conecta tu API para operar en real de forma segura.</span>
                     @endif
                 </div>
             </div>
@@ -302,13 +347,13 @@
             @if($user->isBinanceLinked())
                 <form action="{{ route('binance.disconnect') }}" method="POST" class="m-0 p-0">
                     @csrf
-                    <button type="submit" 
+                    <button type="submit"
                             class="w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30">
                         Desvincular Cuenta
                     </button>
                 </form>
             @else
-                <a href="{{ route('binance.link') }}" 
+                <a href="{{ route('binance.link') }}"
                    class="w-full text-center text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-violet-600 hover:bg-violet-500 text-white inline-block">
                     Conectar Binance
                 </a>
@@ -965,6 +1010,22 @@
     const riskLevelBtn = document.getElementById('risk-level-btn');
     const riskLevelBadge = document.getElementById('risk-level-badge');
     const riskLevelDesc = document.getElementById('risk-level-desc');
+    const riskGauge = document.getElementById('risk-gauge');
+    const riskGaugeLabel = document.getElementById('risk-gauge-label');
+
+    // Actualiza el medidor visual de riesgo (bajo / medio / alto) sin recargar la página
+    function updateRiskGauge(level) {
+        if (!riskGauge) return;
+        const fill = level === 'agresivo' ? 3 : (level === 'balanceado' ? 2 : 1);
+        const color = level === 'agresivo' ? 'bg-rose-500' : (level === 'balanceado' ? 'bg-amber-500' : 'bg-emerald-500');
+        const word = level === 'agresivo' ? 'Riesgo alto' : (level === 'balanceado' ? 'Riesgo medio' : 'Riesgo bajo');
+
+        riskGauge.querySelectorAll('.risk-seg').forEach((seg, i) => {
+            seg.className = 'risk-seg h-1.5 flex-1 rounded-full ' + (i < fill ? color : 'bg-slate-700/70');
+        });
+        riskGauge.setAttribute('aria-label', `Nivel de riesgo: ${word}`);
+        if (riskGaugeLabel) riskGaugeLabel.textContent = word;
+    }
 
     if (riskLevelForm) {
         riskLevelForm.addEventListener('submit', async (e) => {
@@ -1001,6 +1062,7 @@
                     desc = 'Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas.';
                 }
                 riskLevelDesc.textContent = desc;
+                updateRiskGauge(rLevel);
 
                 showToast(data.message);
                 if (data.current_position) {
