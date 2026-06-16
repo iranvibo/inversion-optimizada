@@ -80,6 +80,7 @@
             animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
     </style>
+    @stack('styles')
 </head>
 <body class="relative">
     <!-- Fondos de brillo degradados de fondo para sensación premium -->

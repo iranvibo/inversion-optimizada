@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@head
+@push('styles')
     <style>
         .login-card {
             background-color: var(--bg-secondary);
@@ -8,11 +8,11 @@
             box-shadow: var(--shadow-premium);
         }
     </style>
-@endhead
+@endpush
 
 @section('content')
 <div class="flex items-center justify-center min-height-[60vh] py-12">
-    <div class="w-full max-w-md bg-[hsl(223,47%,14%)] rounded-2xl p-8 border border-[rgba(255,255,255,0.06)] shadow-2xl animate-fade-in">
+    <div class="w-full max-w-md login-card rounded-2xl p-8 animate-fade-in">
         
         <!-- Encabezado -->
         <div class="text-center mb-8">
