@@ -294,11 +294,11 @@
 
                     <span id="risk-level-desc" class="text-xs text-slate-400 block mt-2">
                         @if($rl === 'conservador')
-                            Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas.
+                            Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas de hasta un 15%.
                         @elseif($rl === 'balanceado')
-                            Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas.
+                            Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas de hasta un 30%.
                         @else
-                            Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas.
+                            Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas de hasta un 50%.
                         @endif
                     </span>
                 </div>
@@ -1055,11 +1055,11 @@
                 
                 let desc = '';
                 if (rLevel === 'conservador') {
-                    desc = 'Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas.';
+                    desc = 'Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas de hasta un 15%.';
                 } else if (rLevel === 'balanceado') {
-                    desc = 'Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas.';
+                    desc = 'Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas de hasta un 30%.';
                 } else {
-                    desc = 'Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas.';
+                    desc = 'Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas de hasta un 50%.';
                 }
                 riskLevelDesc.textContent = desc;
                 updateRiskGauge(rLevel);

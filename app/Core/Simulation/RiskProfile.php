@@ -32,9 +32,9 @@ enum RiskProfile: string
     public function description(): string
     {
         return match ($this) {
-            self::Conservador => 'Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas.',
-            self::Balanceado => 'Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas.',
-            self::Agresivo => 'Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas.',
+            self::Conservador => 'Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas de hasta un 15%.',
+            self::Balanceado => 'Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas de hasta un 30%.',
+            self::Agresivo => 'Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas de hasta un 50%.',
         };
     }
 
