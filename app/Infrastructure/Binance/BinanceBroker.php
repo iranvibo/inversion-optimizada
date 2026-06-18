@@ -41,7 +41,14 @@ class BinanceBroker implements BinanceBrokerInterface
             return $this->handleMockBalance($apiKey, $secretKey);
         }
 
-        return $this->handleRealBalance($apiKey, $secretKey);
+        // El balance que se muestra al usuario debe reflejar el patrimonio neto
+        // total: el saldo libre MÁS el valor actual de cualquier posición abierta
+        // (con su beneficio/pérdida latente). Si solo se contara el saldo libre,
+        // abrir una posición "haría desaparecer" el capital comprometido y el
+        // gráfico caería en picado pese a no haber pérdida real.
+        return $this->isFuturesMode()
+            ? $this->handleRealEquityFutures($apiKey, $secretKey)
+            : $this->handleRealEquityMargin($apiKey, $secretKey);
     }
 
     /**
@@ -151,54 +158,84 @@ class BinanceBroker implements BinanceBrokerInterface
     }
 
     /**
-     * Consulta real: suma los balances de todas las wallets (denominados en BTC
-     * por el endpoint oficial) y los convierte a EUR con el ticker BTCEUR.
-     * Simplificación deliberada del MVP: una sola conversión en lugar de
-     * valorar activo por activo.
+     * Patrimonio neto real de la cuenta Cross Margin, denominado en el activo de
+     * margen (USDC/USDT, que la UI muestra como €). Se calcula como:
+     *
+     *     equity = netAsset(margen) + netAsset(base) × precio_mercado
+     *
+     * El `netAsset` del activo de margen ya descuenta lo prestado en esa divisa,
+     * y el `netAsset` del activo base (p.ej. BTC) es positivo en un LONG (mantienes
+     * BTC) o negativo en un SHORT (debes BTC); al valorarlo a precio de mercado el
+     * resultado incorpora automáticamente el beneficio/pérdida latente de la
+     * posición abierta. Así el balance refleja "todo lo que tienes" aunque parte
+     * del capital esté operando, en lugar de caer al comprometerlo.
      *
      * @throws BinanceInvalidCredentialsException
      * @throws BinanceException
      */
-    protected function handleRealBalance(string $apiKey, string $secretKey): float
+    protected function handleRealEquityMargin(string $apiKey, string $secretKey): float
     {
-        $timestamp = now()->timestamp * 1000;
+        $marginAsset = config('services.binance.margin_asset', 'USDT');
+        $baseAsset = $this->baseAsset();
+
+        $marginNet = 0.0;
+        $baseNet = 0.0;
+
+        foreach ($this->fetchMarginUserAssets($apiKey, $secretKey) as $entry) {
+            if (($entry['asset'] ?? null) === $marginAsset) {
+                $marginNet = (float) ($entry['netAsset'] ?? 0);
+            } elseif (($entry['asset'] ?? null) === $baseAsset) {
+                $baseNet = (float) ($entry['netAsset'] ?? 0);
+            }
+        }
+
+        // Solo se consulta el precio si hay exposición al activo base que valorar.
+        $price = $baseNet !== 0.0 ? $this->getMarketPrice($apiKey, $secretKey) : 0.0;
+
+        return round($marginNet + $baseNet * $price, 2);
+    }
+
+    /**
+     * Patrimonio neto real de la cuenta de Futuros USDⓈ-M: `totalMarginBalance`
+     * (GET /fapi/v2/account) = saldo del wallet + beneficio/pérdida latente de las
+     * posiciones abiertas. Es el equity de la cuenta y no decae al bloquear margen
+     * para abrir una posición.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function handleRealEquityFutures(string $apiKey, string $secretKey): float
+    {
         $queryString = http_build_query([
-            'timestamp' => $timestamp,
-            'quoteAsset' => 'EUR',
+            'timestamp' => now()->timestamp * 1000,
         ]);
         $signature = hash_hmac('sha256', $queryString, $secretKey);
-
-        $apiUrl = config('services.binance.api_url', 'https://api.binance.com');
+        $futuresUrl = config('services.binance.futures_url', 'https://fapi.binance.com');
 
         try {
             $response = Http::withHeaders([
                 'X-MBX-APIKEY' => $apiKey,
-            ])->get("{$apiUrl}/sapi/v1/asset/wallet/balance?{$queryString}&signature={$signature}");
+            ])->get("{$futuresUrl}/fapi/v2/account?{$queryString}&signature={$signature}");
 
             if ($response->status() === 400 || $response->status() === 401) {
                 $data = $response->json();
                 if (isset($data['code']) && $data['code'] === -2015) {
                     throw new BinanceInvalidCredentialsException;
                 }
-                throw new BinanceException($data['msg'] ?? 'Error de autenticación o permisos en Binance.');
+                throw new BinanceException($data['msg'] ?? 'Error de autenticación o permisos al consultar la cuenta de futuros.');
             }
 
             if ($response->failed()) {
-                throw new BinanceException('No se pudo obtener el balance de Binance: HTTP '.$response->status());
+                throw new BinanceException('No se pudo obtener el balance de futuros de Binance: HTTP '.$response->status());
             }
 
-            $totalEur = array_sum(array_map(
-                fn (array $wallet) => (float) ($wallet['balance'] ?? 0),
-                $response->json() ?? [],
-            ));
-
-            return round($totalEur, 2);
+            return round((float) ($response->json('totalMarginBalance') ?? 0), 2);
         } catch (\Exception $e) {
             if ($e instanceof BinanceInvalidCredentialsException || $e instanceof BinanceException) {
                 throw $e;
             }
-            Log::error('Binance balance check failed: '.$e->getMessage());
-            throw new BinanceException('Error al conectar con la API de Binance: '.$e->getMessage());
+            Log::error('Binance futures equity query failed: '.$e->getMessage());
+            throw new BinanceException('Error al conectar con la API de Binance para obtener el patrimonio de futuros: '.$e->getMessage());
         }
     }
 
@@ -401,6 +438,42 @@ class BinanceBroker implements BinanceBrokerInterface
     }
 
     /**
+     * Tamaño del paso (LOT_SIZE) del par operado, derivado de la precisión de
+     * cantidad configurada. Binance exige que la cantidad de la orden sea un
+     * múltiplo de este paso; cualquier resto por debajo de un paso es "polvo".
+     */
+    protected function lotStep(): float
+    {
+        $precision = max(0, (int) config('services.binance.quantity_precision', 5));
+
+        return 1 / (10 ** $precision);
+    }
+
+    /**
+     * Trunca una cantidad HACIA ABAJO al paso del lote. Se usa al vender lo que se
+     * mantiene (no se puede vender más BTC del que hay: redondear al alza provoca
+     * "Account has insufficient balance for requested action").
+     */
+    protected function floorToLot(float $quantity): float
+    {
+        $factor = 1 / $this->lotStep();
+
+        return floor($quantity * $factor) / $factor;
+    }
+
+    /**
+     * Redondea una cantidad HACIA ARRIBA al paso del lote. Se usa al recomprar el
+     * activo prestado para saldar un corto: hay que cubrir toda la deuda, así que
+     * conviene comprar un paso de más (queda como polvo) antes que dejar deuda viva.
+     */
+    protected function ceilToLot(float $quantity): float
+    {
+        $factor = 1 / $this->lotStep();
+
+        return ceil($quantity * $factor) / $factor;
+    }
+
+    /**
      * Devuelve la posición abierta actualmente en Binance: 'LONG', 'SHORT' o 'CLOSE'.
      */
     public function getOpenPosition(string $apiKey, string $secretKey): string
@@ -480,7 +553,9 @@ class BinanceBroker implements BinanceBrokerInterface
 
         $borrowed = (float) ($asset['borrowed'] ?? 0);
         $net = (float) ($asset['netAsset'] ?? 0);
-        $dust = 1e-6;
+        // El polvo se alinea al paso del lote: un cierre deja siempre un resto
+        // inferior a un paso (por el truncado), que no debe leerse como posición.
+        $dust = $this->lotStep();
 
         return match (true) {
             $borrowed > $dust => 'SHORT',
@@ -722,9 +797,7 @@ class BinanceBroker implements BinanceBrokerInterface
         $notional = round($balance * $fraction * $leverage, 2);
 
         // Cantidad redondeada HACIA ABAJO al LOT_SIZE del par (para no exceder el saldo).
-        $precision = max(0, (int) config('services.binance.quantity_precision', 5));
-        $factor = 10 ** $precision;
-        $quantity = $price > 0 ? floor($notional / $price * $factor) / $factor : 0.0;
+        $quantity = $price > 0 ? $this->floorToLot($notional / $price) : 0.0;
 
         return [
             'position' => $position,
@@ -882,14 +955,15 @@ class BinanceBroker implements BinanceBrokerInterface
         $asset = $this->fetchMarginAsset($apiKey, $secretKey, $this->baseAsset());
         $free = (float) ($asset['free'] ?? 0);
         $borrowed = (float) ($asset['borrowed'] ?? 0);
-        $dust = 1e-6;
+        // Restos por debajo de un paso de lote son polvo no operable.
+        $dust = $this->lotStep();
 
         if ($borrowed > $dust) {
-            // Corto abierto: recomprar el BTC prestado y devolverlo.
-            $this->placeMarginOrder($apiKey, $secretKey, 'BUY', round($borrowed, 5), 'AUTO_REPAY');
+            // Corto abierto: recomprar (al alza, para cubrir toda la deuda) y devolver.
+            $this->placeMarginOrder($apiKey, $secretKey, 'BUY', $this->ceilToLot($borrowed), 'AUTO_REPAY');
         } elseif ($free > $dust) {
-            // Largo abierto: vender el BTC mantenido.
-            $this->placeMarginOrder($apiKey, $secretKey, 'SELL', round($free, 5), 'AUTO_REPAY');
+            // Largo abierto: vender el BTC mantenido, truncando para no exceder el saldo.
+            $this->placeMarginOrder($apiKey, $secretKey, 'SELL', $this->floorToLot($free), 'AUTO_REPAY');
         }
 
         return true;

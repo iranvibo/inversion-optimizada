@@ -35,6 +35,8 @@ Route::middleware('auth')->group(function () {
 
     // Evolución del balance (US03)
     Route::get('/dashboard/balance', [BalanceController::class, 'history'])->name('dashboard.balance');
+    // Patrimonio neto en vivo para refrescar la cabecera con el P/L de la posición
+    Route::get('/dashboard/balance/live', [BalanceController::class, 'live'])->name('dashboard.balance.live');
     Route::post('/binance/simulate-balance-sync', [BalanceController::class, 'simulateSync'])->name('binance.simulate-balance-sync');
 
     Route::post('/bot/toggle', [DashboardController::class, 'toggleBot'])->name('bot.toggle');

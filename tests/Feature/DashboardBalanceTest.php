@@ -203,4 +203,32 @@ class DashboardBalanceTest extends TestCase
         $this->assertSame(0, $unlinked->balanceSnapshots()->count());
         Event::assertNotDispatched(BalanceUpdated::class);
     }
+
+    // ─── Escenario 3: patrimonio neto en vivo (P/L de la posición) ───────
+
+    public function test_live_endpoint_returns_current_equity_in_real_mode(): void
+    {
+        $this->user->update(['bot_mode' => 'real']);
+
+        $response = $this->actingAs($this->user)->getJson(route('dashboard.balance.live'));
+
+        $response->assertOk();
+        $response->assertJson(['live' => true]);
+        $this->assertGreaterThan(0, $response->json('balance'));
+    }
+
+    public function test_live_endpoint_is_inert_in_simulation_mode(): void
+    {
+        $this->user->update(['bot_mode' => 'simulation']);
+
+        $response = $this->actingAs($this->user)->getJson(route('dashboard.balance.live'));
+
+        $response->assertOk();
+        $response->assertExactJson(['live' => false, 'balance' => null]);
+    }
+
+    public function test_live_endpoint_requires_authentication(): void
+    {
+        $this->getJson(route('dashboard.balance.live'))->assertUnauthorized();
+    }
 }

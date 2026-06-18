@@ -588,6 +588,8 @@
     let currentRange = 'month';
     let originalBalance = null;
     let originalChangeMessage = null;
+    let chartHovering = false;
+    let liveBalance = null;
 
     const formatEuro = (value) =>
         new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
@@ -810,12 +812,14 @@
             tooltip.style.top = `${tooltipY}px`;
 
             // Actualizar Balance en Cabecera
+            chartHovering = true;
             renderBalance(point.value);
             changeEl.textContent = `Balance el ${formatDateShort(point.t, currentRange)}`;
             changeEl.classList.add('text-violet-400', 'font-semibold');
         }
 
         function handleLeave() {
+            chartHovering = false;
             guideLine.style.display = 'none';
             indicatorDot.style.display = 'none';
             tooltip.style.display = 'none';
@@ -1217,6 +1221,46 @@
             console.error('Error refreshing activities:', err);
         }
     }
+
+@if($user->bot_mode === 'real' && $user->isBinanceLinked())
+    // Sondeo del patrimonio neto en vivo: la cabecera se mueve con el P/L de la
+    // posición abierta sin esperar al snapshot programado (cada 15 min). No toca
+    // el histórico del gráfico; solo refresca el número grande.
+    async function pollLiveBalance() {
+        // No malgastar peticiones si la pestaña está oculta.
+        if (document.hidden) return;
+
+        try {
+            const response = await fetch(`{{ route('dashboard.balance.live') }}`, {
+                headers: { 'Accept': 'application/json' },
+            });
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (!data.live || data.balance === null || data.balance === undefined) return;
+
+            const changed = liveBalance !== null && data.balance !== liveBalance;
+            liveBalance = data.balance;
+            // Que un "mouse leave" del gráfico restaure el último valor en vivo,
+            // no el snapshot antiguo.
+            originalBalance = data.balance;
+
+            if (!chartHovering) {
+                renderBalance(data.balance);
+                if (changed) pulseBalance();
+            }
+
+            if (data.current_position) {
+                updateBotPositionUi(data.current_position);
+            }
+        } catch (err) {
+            // Silencioso: la cabecera conserva el último valor mostrado.
+        }
+    }
+
+    setInterval(pollLiveBalance, 5000);
+    pollLiveBalance();
+@endif
 
     // Actualización reactiva vía WebSockets (Escenario 3)
     if (window.Echo) {

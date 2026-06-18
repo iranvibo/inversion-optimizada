@@ -322,6 +322,40 @@ class BinanceBrokerTest extends TestCase
     }
 
     /**
+     * El balance total en Cross Margin es el patrimonio neto: colateral libre más
+     * el valor de la posición a precio de mercado. Un SHORT (BTC prestado, netAsset
+     * negativo) no hace caer el balance, solo refleja su P/L latente.
+     */
+    public function test_margin_total_balance_includes_open_position_value(): void
+    {
+        // SHORT abierto: se vendieron 0.02 BTC prestados a ~50000 → +1000 USDC libres
+        // y una deuda de 0.02 BTC (netAsset -0.02). A precio 50000 el equity vuelve a
+        // ser el colateral original (1000), sin caída por tener capital operando.
+        $this->fakeMarginMode([
+            ['asset' => 'USDC', 'free' => '2000', 'borrowed' => '0', 'netAsset' => '2000'],
+            ['asset' => 'BTC', 'free' => '0', 'borrowed' => '0.02', 'netAsset' => '-0.02'],
+        ]);
+
+        $balance = $this->binanceBroker->getTotalBalance('k', 's');
+
+        // 2000 + (-0.02 × 50000) = 2000 - 1000 = 1000.
+        $this->assertSame(1000.0, $balance);
+    }
+
+    /**
+     * Sin posición abierta, el balance total es el saldo libre del activo de margen.
+     */
+    public function test_margin_total_balance_without_position_is_free_collateral(): void
+    {
+        $this->fakeMarginMode([
+            ['asset' => 'USDC', 'free' => '750', 'borrowed' => '0', 'netAsset' => '750'],
+            ['asset' => 'BTC', 'free' => '0', 'borrowed' => '0', 'netAsset' => '0'],
+        ]);
+
+        $this->assertSame(750.0, $this->binanceBroker->getTotalBalance('k', 's'));
+    }
+
+    /**
      * Sin apalancamiento (leverage 1), abrir LONG compra BTC con colateral propio
      * (NO_SIDE_EFFECT), sin pedir prestado.
      */
@@ -371,5 +405,37 @@ class BinanceBrokerTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request->url(), '/sapi/v1/margin/order')
             && str_contains($request->url(), 'side=BUY')
             && str_contains($request->url(), 'sideEffectType=AUTO_REPAY'));
+    }
+
+    /**
+     * Regresión: cerrar un LONG con un saldo fraccional NO debe vender más BTC del
+     * que se mantiene. La cantidad se trunca al lote (0.00016984 → 0.00016), no se
+     * redondea al alza (0.00017), que provocaba "insufficient balance" en Binance.
+     */
+    public function test_margin_close_long_does_not_sell_more_than_held(): void
+    {
+        $this->fakeMarginMode([
+            ['asset' => 'BTC', 'free' => '0.00016984', 'borrowed' => '0', 'netAsset' => '0.00016984'],
+            ['asset' => 'USDC', 'free' => '40', 'borrowed' => '0', 'netAsset' => '40'],
+        ]);
+
+        $changed = $this->binanceBroker->adjustPosition('k', 's', 'CLOSE', 'balanceado');
+
+        $this->assertTrue($changed);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/sapi/v1/margin/order')
+            && str_contains($request->url(), 'side=SELL')
+            && str_contains($request->url(), 'quantity=0.00016')
+            && ! str_contains($request->url(), 'quantity=0.00017'));
+    }
+
+    /**
+     * Regresión: un resto de BTC por debajo de un paso de lote (polvo) tras un
+     * cierre debe interpretarse como CLOSE, no como un LONG residual.
+     */
+    public function test_margin_sub_lot_dust_is_close_not_long(): void
+    {
+        $this->fakeMarginMode([['asset' => 'BTC', 'free' => '0.0000096', 'borrowed' => '0', 'netAsset' => '0.0000096']]);
+
+        $this->assertSame('CLOSE', $this->binanceBroker->getOpenPosition('k', 's'));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Core\Contracts\BinanceBrokerInterface;
 use App\Core\Contracts\SignalProviderInterface;
 use App\Core\Portfolio\PortfolioPerformanceService;
 use App\Events\BalanceUpdated;
@@ -9,6 +10,8 @@ use App\Http\Requests\BalanceHistoryRequest;
 use App\Infrastructure\Demo\FakeBalanceHistoryGenerator;
 use App\Models\BalanceSnapshot;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Adaptador de interfaz (US03): expone la evolución del balance del usuario
@@ -19,7 +22,48 @@ class BalanceController extends Controller
     public function __construct(
         private readonly PortfolioPerformanceService $performanceService,
         private readonly SignalProviderInterface $signalProvider,
+        private readonly BinanceBrokerInterface $binanceBroker,
     ) {}
+
+    /**
+     * Patrimonio neto en vivo (US03): devuelve el equity actual de la cuenta para
+     * que la cabecera "Balance Total" se mueva con el P/L de la posición abierta,
+     * sin persistir un snapshot (eso lo hace el job programado cada 15 min).
+     *
+     * El sondeo del navegador es frecuente (cada pocos segundos), así que la
+     * llamada real a Binance se cachea unos segundos por usuario para no agotar
+     * el rate limit del exchange ni multiplicar peticiones firmadas.
+     */
+    public function live()
+    {
+        $user = Auth::user();
+
+        // Solo el modo real con Binance vinculado tiene patrimonio "en vivo":
+        // en simulación el balance no está atado a una posición real del exchange.
+        if ($user->bot_mode !== 'real' || ! $user->isBinanceLinked()) {
+            return response()->json(['live' => false, 'balance' => null]);
+        }
+
+        try {
+            $balance = Cache::remember(
+                "user:{$user->id}:live_equity",
+                now()->addSeconds(5),
+                fn () => $this->binanceBroker->getTotalBalance(
+                    $user->binance_api_key,
+                    $user->binance_secret_key,
+                ),
+            );
+        } catch (\Throwable $e) {
+            // Fallo transitorio (red/API/permisos): la UI conserva el último valor.
+            return response()->json(['live' => false, 'balance' => null]);
+        }
+
+        return response()->json([
+            'live' => true,
+            'balance' => $balance,
+            'current_position' => $user->current_position,
+        ]);
+    }
 
     /**
      * Escenarios 1 y 2: serie temporal del balance + % de cambio en lenguaje
@@ -45,7 +89,7 @@ class BalanceController extends Controller
                 $history = $this->signalProvider->getSignalHistory($user->risk_level);
                 // Ordenar cronológicamente
                 usort($history, function ($a, $b) {
-                    $timeComparison = strcmp($a['date'] . ' ' . $a['time'], $b['date'] . ' ' . $b['time']);
+                    $timeComparison = strcmp($a['date'].' '.$a['time'], $b['date'].' '.$b['time']);
                     if ($timeComparison !== 0) {
                         return $timeComparison;
                     }
@@ -64,9 +108,9 @@ class BalanceController extends Controller
                 });
 
                 foreach ($history as $signal) {
-                    $dateTimeStr = $signal['date'] . ' ' . $signal['time'];
+                    $dateTimeStr = $signal['date'].' '.$signal['time'];
                     $capturedAt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $dateTimeStr);
-                    if (!$capturedAt) {
+                    if (! $capturedAt) {
                         continue;
                     }
                     $capital *= (1 + (float) $signal['profit']);
@@ -77,7 +121,7 @@ class BalanceController extends Controller
                 }
             } catch (\Exception $e) {
                 // Si falla el proveedor, mostramos el punto inicial o logeamos
-                \Illuminate\Support\Facades\Log::error("Error loading signal history for balance chart: " . $e->getMessage());
+                Log::error('Error loading signal history for balance chart: '.$e->getMessage());
             }
 
             $report = $this->performanceService->report($snapshots, $range, $now);
@@ -85,16 +129,16 @@ class BalanceController extends Controller
             return response()->json($report->toArray());
         }
 
-        if ($user->isBinanceLinked() && !$user->balanceSnapshots()->exists() && !app()->environment('testing')) {
+        if ($user->isBinanceLinked() && ! $user->balanceSnapshots()->exists() && ! app()->environment('testing')) {
             try {
-                $broker = app(\App\Core\Contracts\BinanceBrokerInterface::class);
+                $broker = app(BinanceBrokerInterface::class);
                 $balance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
                 $user->balanceSnapshots()->create([
                     'balance' => $balance,
                     'captured_at' => now(),
                 ]);
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning("Failed to fetch initial Binance balance for history: " . $e->getMessage());
+                Log::warning('Failed to fetch initial Binance balance for history: '.$e->getMessage());
             }
         }
 
