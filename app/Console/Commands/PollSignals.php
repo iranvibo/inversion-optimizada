@@ -88,21 +88,43 @@ class PollSignals extends Command
             // 3. Comprobar si la señal difiere de la última conocida (Idempotencia)
             $cacheKey = "signal:last_known_position:{$riskLevel}";
             $lastKnownPosition = Cache::get($cacheKey);
+            $signalChanged = $newPosition !== $lastKnownPosition;
 
-            if ($newPosition !== $lastKnownPosition) {
+            if ($signalChanged) {
                 // Actualizar la última posición conocida
                 Cache::put($cacheKey, $newPosition);
+            }
 
-                // 4. Encolar trabajo de ajuste para cada usuario activo con ese nivel de riesgo
-                $users = User::where('bot_active', true)
-                    ->where('risk_level', $riskLevel)
-                    ->get(['id']);
+            // 4. Encolar trabajo de ajuste para cada usuario activo con ese nivel
+            // de riesgo. Además del cambio de señal global, reconciliamos la deriva
+            // por usuario: en modo real la posición ejecutada (`real_position`)
+            // puede quedar desincronizada del objetivo si un job anterior falló al
+            // contactar Binance o no llegó a procesarse. Como la idempotencia es
+            // global, sin esta reconciliación el usuario quedaría "atascado" en la
+            // posición vieja hasta que la señal volviese a cambiar.
+            $users = User::where('bot_active', true)
+                ->where('risk_level', $riskLevel)
+                ->get(['id', 'bot_mode']);
 
-                foreach ($users as $user) {
-                    AdjustPositionJob::dispatch($user->id, $newPosition);
+            $dispatched = 0;
+            foreach ($users as $user) {
+                $needsAdjustment = $signalChanged;
+
+                if (! $needsAdjustment && $user->bot_mode === 'real') {
+                    $effectivePosition = Cache::get("user:{$user->id}:real_position");
+                    $needsAdjustment = $effectivePosition !== null && $effectivePosition !== $newPosition;
                 }
 
-                Log::info("Cambio de señal detectado para '{$riskLevel}': '{$lastKnownPosition}' -> '{$newPosition}'. Encolados trabajos de ajuste para {$users->count()} usuarios.");
+                if ($needsAdjustment) {
+                    AdjustPositionJob::dispatch($user->id, $newPosition);
+                    $dispatched++;
+                }
+            }
+
+            if ($signalChanged) {
+                Log::info("Cambio de señal detectado para '{$riskLevel}': '{$lastKnownPosition}' -> '{$newPosition}'. Encolados {$dispatched} trabajos de ajuste.");
+            } elseif ($dispatched > 0) {
+                Log::warning("Reconciliación de posición para '{$riskLevel}': encolados {$dispatched} ajustes hacia '{$newPosition}' por desincronización (posible job fallido previo).");
             }
         }
     }

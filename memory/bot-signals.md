@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-06-18
+updated: 2026-06-18b
 ---
 
 # Origen de las Señales del Bot
@@ -38,6 +38,7 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 
 ### Trabajo de Ajuste y Gatekeeper de Riesgo
 * Si la señal del proveedor difiere de la última conocida (guardada en cache `signal:last_known_position:{$riskLevel}`), se actualiza el cache y se encola `App\Jobs\AdjustPositionJob` para cada usuario activo con ese nivel.
+* **Reconciliación de Deriva por Usuario (Decisión 2026-06-18)**: La idempotencia del sondeo es **global por nivel de riesgo** (`signal:last_known_position:{riskLevel}`), pero la posición ejecutada en modo real es **por usuario** (`user:{id}:real_position`). Si un `AdjustPositionJob` falla al contactar Binance (la excepción se traga en el `catch` y **no** se actualiza `real_position`) o no llega a procesarse, el usuario queda "atascado" en la posición vieja: como la señal global ya coincide con la API, `PollSignals` nunca volvía a encolar el ajuste hasta que la señal cambiara de nuevo (síntoma: la API devuelve LONG pero el dashboard sigue mostrando SHORT). **Solución**: `PollSignals` ahora, además de actuar ante cambios de señal, reconcilia por usuario: para cada usuario activo en modo real cuya `real_position` (si existe en caché) difiera del objetivo, encola un `AdjustPositionJob` aunque la señal global no haya cambiado. `adjustPosition` ya es idempotente (lee el estado real del exchange), por lo que reintentos son seguros. Además, `toggleMode` reconcilia con la señal vigente al pasar a modo real con el bot activo (antes dejaba `real_position` en CLOSE). La idempotencia simple se preserva cuando `real_position` no existe (null), que es el caso del primer ciclo.
 * **Gatekeeper de Riesgo**: En la ejecución del job, se validan los límites locales parametrizables desde `config/signals.php` o mediante variables de entorno en el `.env`:
   * **Stop Loss diario** (`DAILY_STOP_LOSS_LIMIT`): Umbral de drawdown diario máximo (por defecto `0.05` / 5% del saldo inicial del día). Si se supera, detiene el bot (`bot_active = false`), ejecuta el cierre preventivo en Binance y registra `stop_loss_trigger`. Se puede desactivar estableciéndolo a `1.00` (100%).
   * **Capital Protegido** (`PROTECTED_CAPITAL_LIMIT`): Umbral mínimo de capital respecto al capital estimado inicial (por defecto `0.80` / 80%). Si el balance cae por debajo de este valor, detiene el bot, cierra posiciones y genera una alerta. Se puede desactivar estableciéndolo a `0.00` (0%).

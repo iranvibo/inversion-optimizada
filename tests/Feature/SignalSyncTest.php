@@ -119,6 +119,38 @@ class SignalSyncTest extends TestCase
         $this->assertSame(0, $this->user->botActivities()->count());
     }
 
+    // ─── Escenario 2b: Reconciliación de deriva por usuario (real) ───────
+
+    public function test_real_position_drift_is_reconciled_even_without_signal_change(): void
+    {
+        Event::fake([BalanceUpdated::class]);
+
+        // La señal global vigente y el mock coinciden en LONG (no hay "cambio").
+        Cache::put('signal:last_known_position:balanceado', 'LONG');
+        Cache::put('mock_signal:balanceado', 'LONG');
+
+        // Pero la posición real del usuario quedó desincronizada en SHORT (p.ej.
+        // un job anterior falló al contactar Binance). Debe reconciliarse a LONG.
+        Cache::put("user:{$this->user->id}:real_position", 'SHORT');
+
+        $this->brokerMock->shouldReceive('adjustPosition')
+            ->once()
+            ->with($this->user->binance_api_key, $this->user->binance_secret_key, 'LONG', 'balanceado')
+            ->andReturn(true);
+        $this->brokerMock->shouldReceive('getTotalBalance')
+            ->once()
+            ->andReturn(1020.00);
+
+        $this->artisan('signals:poll')->assertExitCode(0);
+
+        $this->assertSame('LONG', Cache::get("user:{$this->user->id}:real_position"));
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $this->user->id,
+            'type' => 'long',
+            'action' => 'open_long',
+        ]);
+    }
+
     // ─── Escenario 3: Histórico de señales para el gráfico simulado ──────
 
     public function test_history_endpoint_returns_simulated_capital_evolution_in_simulation_mode(): void

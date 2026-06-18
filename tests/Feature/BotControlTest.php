@@ -286,6 +286,38 @@ class BotControlTest extends TestCase
     }
 
     /**
+     * Al pasar a modo real con el bot activo, la posición se reconcilia con la
+     * señal vigente (no se queda en CLOSE tras forzar el cierre del cambio).
+     */
+    public function test_changing_to_real_mode_with_active_bot_reconciles_with_current_signal(): void
+    {
+        Queue::fake();
+
+        $provider = Mockery::mock(SignalProviderInterface::class);
+        $provider->shouldReceive('getCurrentSignal')
+            ->andReturn(['position' => 'LONG', 'issued_at' => now()->toIso8601String(), 'signal_id' => 'sig-test']);
+        $this->app->instance(SignalProviderInterface::class, $provider);
+
+        $this->user->update([
+            'bot_mode' => 'simulation',
+            'bot_active' => true,
+            'risk_level' => 'balanceado',
+        ]);
+
+        $this->actingAs($this->user)
+            ->post(route('bot.toggle-mode'))
+            ->assertRedirect();
+
+        $this->user->refresh();
+        $this->assertSame('real', $this->user->bot_mode);
+
+        Queue::assertPushed(
+            AdjustPositionJob::class,
+            fn (AdjustPositionJob $job) => $job->userId === $this->user->id && $job->newPosition === 'LONG'
+        );
+    }
+
+    /**
      * Test de la US07: Bloqueo de modo real si el usuario no tiene Binance vinculado.
      */
     public function test_prevents_mode_change_to_real_without_binance_linked(): void

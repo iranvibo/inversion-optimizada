@@ -285,6 +285,15 @@ class DashboardController extends Controller
             'bot_mode' => $newMode,
         ]);
 
+        // Al pasar a modo real con el bot ya activo, la posición real se acaba de
+        // forzar a CLOSE; el sondeo solo reacciona a CAMBIOS de señal, así que
+        // reconciliamos de inmediato con la señal vigente para no quedarnos en
+        // CLOSE mientras la señal sigue siendo LONG/SHORT (mismo criterio que la
+        // activación del bot).
+        if ($newMode === 'real' && $user->bot_active && $user->isBinanceLinked()) {
+            $this->reconcilePositionWithCurrentSignal($user);
+        }
+
         $statusMessage = 'Modo cambiado a: '.strtoupper($newMode);
         if ($closeError) {
             $statusMessage .= ' '.$closeError;
