@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-06-16
+updated: 2026-06-18
 ---
 
 # Origen de las Señales del Bot
@@ -64,3 +64,6 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 * **Incidencia de Despliegue de la API**: Durante la puesta en marcha, se detectó que el pipeline de GitHub Actions del proyecto externo `btc-signals` (`deploy-bot.yml`) omitía el directorio `api/` en la propiedad `source` de la acción de copia SSH (`scp-action`). Se corrigió añadiendo `api/**` al origen para asegurar que los scripts controladores del endpoint estén presentes en el servidor VPS `trading.vibo-solutions.com`.
 * **Verificación de Producción**: Se probó con éxito la conexión y respuesta en vivo contra `https://trading.vibo-solutions.com/api/v1/signal` y `/api/v1/signals/history`, obteniendo las respuestas correctas en JSON para cada nivel de riesgo con el Bearer token provisto.
 
+### Diferenciación de Curva de Capital (Junio 2026)
+* **Incidencia de Equidades Idénticas**: Se detectó que los niveles agresivo y balanceado devolvían la misma curva de capital en modo simulación (con el proveedor HTTP). La causa raíz es que la API externa (`btc-signals`) devolvía el profit calculado sobre el margen (importe invertido en el trade) en lugar del capital total. Al usar las mismas señales de entrada/salida, los profits porcentuales sobre margen eran idénticos y anulaban el efecto del tamaño de posición (90% vs 50% vs 20%), provocando curvas duplicadas al calcular `$capital *= 1 + profit` en la app Laravel.
+* **Solución**: Se modificó `BtcStrategy.php` en la API externa para calcular un nuevo campo `account_profit` (`$tradeNetPnl / $activePosition['capitalBeforeEntry']`), que refleja la variación porcentual real sobre la cuenta total. El endpoint `/api/v1/signals/history` mapea este `account_profit` al campo `profit` de la respuesta JSON para preservar la compatibilidad con la app Laravel y sus cálculos del gráfico sin requerir cambios en este repositorio.
