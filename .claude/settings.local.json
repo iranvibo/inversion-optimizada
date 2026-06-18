@@ -27,7 +27,8 @@
       "Bash(php -r \"require 'vendor/autoload.php'; var_dump\\(class_exists\\('Kreait\\\\\\\\Firebase\\\\\\\\Factory'\\), class_exists\\('Kreait\\\\\\\\Laravel\\\\\\\\Firebase\\\\\\\\ServiceProvider'\\), class_exists\\('Firebase\\\\\\\\JWT\\\\\\\\JWT'\\)\\);\")",
       "Bash(composer update *)",
       "Bash(composer validate *)",
-      "Bash(composer install *)"
+      "Bash(composer install *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\),indent=2\\)\\); print\\('REQUIRE-DEV:',json.dumps\\(d.get\\('require-dev',{}\\),indent=2\\)\\)\")"
     ]
   }
 }
