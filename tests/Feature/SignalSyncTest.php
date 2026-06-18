@@ -68,7 +68,7 @@ class SignalSyncTest extends TestCase
         // Configurar expectativas en el broker
         $this->brokerMock->shouldReceive('adjustPosition')
             ->once()
-            ->with($this->user->binance_api_key, $this->user->binance_secret_key, 'CLOSE')
+            ->with($this->user->binance_api_key, $this->user->binance_secret_key, 'CLOSE', 'balanceado')
             ->andReturn(true);
 
         $this->brokerMock->shouldReceive('getTotalBalance')

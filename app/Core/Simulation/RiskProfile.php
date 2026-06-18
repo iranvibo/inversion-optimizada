@@ -39,6 +39,32 @@ enum RiskProfile: string
     }
 
     /**
+     * Fracción del capital disponible que se compromete al abrir una posición
+     * en modo real (US06). Cuanto más agresivo el perfil, mayor exposición.
+     *
+     *   Conservador → 20% del capital
+     *   Balanceado  → 50% del capital
+     *   Agresivo    → 90% del capital
+     */
+    public function capitalFraction(): float
+    {
+        return match ($this) {
+            self::Conservador => 0.20,
+            self::Balanceado => 0.50,
+            self::Agresivo => 0.90,
+        };
+    }
+
+    /**
+     * Resuelve el perfil desde un string arbitrario (insensible a mayúsculas),
+     * cayendo a Balanceado si el valor no es reconocido.
+     */
+    public static function fromString(?string $value): self
+    {
+        return self::tryFrom(strtolower((string) $value)) ?? self::Balanceado;
+    }
+
+    /**
      * Lista de valores válidos para reglas de validación.
      *
      * @return list<string>

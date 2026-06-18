@@ -1,6 +1,6 @@
 ---
 created: 2026-06-11
-updated: 2026-06-16
+updated: 2026-06-18
 ---
 
 # Integración y Seguridad de Binance en ViBo Invest
@@ -42,4 +42,26 @@ Este documento detalla las decisiones técnicas y de diseño adoptadas para la i
 7. **Optimización de Balance y Amortiguación de Ruido (US03)**:
    - *Decisión*: Se modificó `handleRealBalance` para solicitar el balance consolidado de Binance usando `quoteAsset => 'EUR'`. Además, se implementó un rango mínimo de escala (5% del balance promedio) en la visualización del gráfico en el frontend.
    - *Justificación*: Al omitir `quoteAsset`, Binance convertía por defecto los saldos a BTC y el backend los volvía a convertir a EUR, introduciendo fluctuaciones artificiales por spreads y desfases. Al forzar `quoteAsset=EUR`, las cuentas con balance estable devuelven un valor estático. El rango mínimo del 5% en el frontend evita que micro-desviaciones menores al 1% (por variaciones normales de cartera) se muestren como picos de sierra agresivos, visualizándose correctamente como una línea estable horizontal.
+
+8. **Apertura de Posiciones en Modo Real: Dimensionamiento y Gestión de Posición (US06, 2026-06-18)**:
+   - *Decisión*: `BinanceBrokerInterface::adjustPosition($apiKey, $secretKey, $position, $riskLevel='balanceado')` ahora encapsula toda la gestión de posición consultando el **estado real del exchange** (no la caché de la app) antes de actuar:
+     - Se añadió `getOpenPosition($apiKey, $secretKey): string` → `'LONG'|'SHORT'|'CLOSE'` (real: `GET /fapi/v2/positionRisk`, `positionAmt` >0/<0/=0).
+     - Reglas: si ya hay posición abierta en la misma dirección **no se reabre**; `CLOSE` solo cierra si hay algo abierto; una señal contraria **cierra y abre** la nueva; cada apertura **reconsulta el capital disponible más actualizado** (`getTotalBalance`).
+     - `adjustPosition` devuelve `bool` = *si ejecutó un cambio de estado*. `AdjustPositionJob` usa ese retorno para **no registrar actividad ni snapshot ni evento** cuando la operación es idempotente (no-op), aunque siempre actualiza `user:{id}:real_position` al estado objetivo.
+   - *Dimensionamiento (fracción de capital por perfil)*: regla de negocio centralizada en `RiskProfile::capitalFraction()` — **Conservador 20%, Balanceado 50%, Agresivo 90%**. Nocional de la orden = `capital_disponible × fracción × apalancamiento`. `RiskProfile::fromString()` normaliza el `risk_level` (insensible a mayúsculas, fallback Balanceado).
+   - *Apalancamiento*: 10x por defecto, configurable en `services.binance.leverage` (`BINANCE_LEVERAGE`). Par configurable en `services.binance.symbol` (`BINANCE_SYMBOL`, def. `BTCEUR`). En real se fija con `POST /fapi/v1/leverage` (fallo no bloqueante: se registra y continúa) y la orden se coloca como market en `POST /fapi/v1/order` con cantidad = `nocional / precio`.
+   - *Mock*: el broker mantiene la "posición abierta" en caché (`BinanceBroker::mockPositionCacheKey($apiKey)`) y el contexto de la última orden de apertura (perfil, fracción, apalancamiento, capital, nocional) en `BinanceBroker::mockLastOrderCacheKey($apiKey)` con precio determinista (50000), lo que permite verificar reglas y dimensionamiento en tests sin tocar Binance. `closeOpenPositions` en mock también aplana la posición (la deja en CLOSE).
+   - *Justificación*: La fuente de verdad de "¿hay posición abierta?" y "¿cuánto capital hay?" debe ser el exchange en el instante de actuar, no estado cacheado que puede quedar desincronizado por fallos de red o latencia. El retorno idempotente evita duplicar órdenes y actividades.
+
+9. **Path real coherente con Futuros USDⓈ-M (2026-06-18, MVP futuros)**:
+   - *Decisión*: La apertura/cierre con apalancamiento es intrínsecamente de **futuros**, no spot. El path real del broker usa endpoints `/fapi/*` en un **host distinto** (`fapi.binance.com`, config `services.binance.futures_url` / `BINANCE_FUTURES_URL`), separado de `api_url` (spot/SAPI, usado por `checkApiRestrictions` y `getTotalBalance` del dashboard):
+     - Posición: `GET /fapi/v2/positionRisk` (`fetchRealPositionAmt` → signo de `positionAmt`).
+     - Apalancamiento: `POST /fapi/v1/leverage` (fallo no bloqueante).
+     - Precio: `GET /fapi/v1/ticker/price`.
+     - Órdenes: `POST /fapi/v1/order` (market) vía `sendFuturesMarketOrder($side, $qty, $reduceOnly)`.
+     - **Cierre real coherente**: `closeOpenPositions` ahora cancela órdenes (`DELETE /fapi/v1/allOpenOrders`) **y aplana la posición** con una market `reduceOnly` opuesta a `positionAmt`. Esto sirve tanto a la señal CLOSE como al cierre preventivo de pausa/riesgo (US04/US07) en futuros.
+   - *Capital para dimensionar*: se añadió `getAvailableBalance()` (`GET /fapi/v2/balance`, `availableBalance` del activo de margen configurado), distinto de `getTotalBalance()` (cartera consolidada en EUR para el gráfico US03). `buildOrderContext` usa `getAvailableBalance`. Mock determinista por clave (`1000 + crc32 % 9000`, sin oscilación).
+   - *Símbolo y activo de margen configurables*: `services.binance.symbol` (`BINANCE_SYMBOL`, def. **`BTCUSDT`**) y `services.binance.margin_asset` (`BINANCE_MARGIN_ASSET`, def. `USDT`). Para BTC, `BTCUSDT` es el contrato de futuros más líquido. Si el usuario quiere conservar USDC: `BINANCE_SYMBOL=BTCUSDC` + `BINANCE_MARGIN_ASSET=USDC` (menos liquidez).
+   - *Justificación*: con `BTCEUR` y el host de spot, los `/fapi/*` fallaban silenciosamente (excepción tragada en `AdjustPositionJob`) y nunca se abría posición. El path real queda íntegramente sobre futuros; los tests automatizados siguen cubriendo el comportamiento vía mock (el driver real no se ejercita en CI).
+   - *Infra local (no es bug de código)*: en Docker, el servicio `queue-worker` (`php artisan queue:work redis`) debe estar levantado o los jobs encolados en Redis no se procesan. `redis` solo resuelve dentro de la red Docker; ejecutar artisan en el host falla con `getaddrinfo for redis failed`.
 

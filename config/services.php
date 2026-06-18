@@ -37,7 +37,14 @@ return [
 
     'binance' => [
         'mock' => env('BINANCE_MOCK', true),
+        // Spot/SAPI (restricciones de API y balance consolidado de cartera).
         'api_url' => env('BINANCE_API_URL', 'https://api.binance.com'),
+        // USDⓈ-M Futures (apertura/cierre de posiciones con apalancamiento). Host distinto al de spot.
+        'futures_url' => env('BINANCE_FUTURES_URL', 'https://fapi.binance.com'),
+        // Par de futuros operado, su activo de margen y apalancamiento objetivo (US06).
+        'symbol' => env('BINANCE_SYMBOL', 'BTCUSDT'),
+        'margin_asset' => env('BINANCE_MARGIN_ASSET', 'USDT'),
+        'leverage' => (int) env('BINANCE_LEVERAGE', 10),
     ],
 
     /*

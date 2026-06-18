@@ -29,6 +29,16 @@ interface BinanceBrokerInterface
     public function getTotalBalance(string $apiKey, string $secretKey): float;
 
     /**
+     * Obtiene el saldo disponible en la cartera de Futuros USDⓈ-M denominado en el
+     * activo de margen configurado (USDT/USDC). Es el capital realmente utilizable
+     * para abrir posiciones apalancadas y se consulta en cada apertura (US06).
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    public function getAvailableBalance(string $apiKey, string $secretKey): float;
+
+    /**
      * Cancela todas las órdenes abiertas y gestiona el cierre preventivo
      * de las posiciones en Binance para mitigar el riesgo al pausar el bot.
      *
@@ -38,11 +48,33 @@ interface BinanceBrokerInterface
     public function closeOpenPositions(string $apiKey, string $secretKey): bool;
 
     /**
-     * Ajusta la posición en Binance según la señal (LONG, SHORT, CLOSE).
-     * En el MVP, se simula o ejecuta cancelando órdenes previas y colocando la nueva.
+     * Devuelve la posición efectivamente abierta en Binance en este instante:
+     * 'LONG', 'SHORT' o 'CLOSE' (sin posición abierta).
+     *
+     * Se consulta el estado real del exchange para decidir si abrir, cerrar,
+     * mantener o invertir una posición (US06).
      *
      * @throws BinanceInvalidCredentialsException
      * @throws BinanceException
      */
-    public function adjustPosition(string $apiKey, string $secretKey, string $position): bool;
+    public function getOpenPosition(string $apiKey, string $secretKey): string;
+
+    /**
+     * Ajusta la posición en Binance según la señal objetivo (LONG, SHORT, CLOSE),
+     * partiendo siempre del estado real consultado en el exchange (US06):
+     *
+     *   - Si ya hay una posición abierta en la misma dirección, no se reabre.
+     *   - Si la señal es de cierre (CLOSE), se cierra la posición abierta (si la hay).
+     *   - Si hay una posición contraria abierta, se cierra y se abre la nueva.
+     *   - Al abrir, se consulta el capital disponible más actualizado y se
+     *     compromete la fracción asociada al perfil de riesgo, con el
+     *     apalancamiento configurado (10x por defecto, "de ser posible").
+     *
+     * @param  string  $riskLevel  Perfil de riesgo del usuario (define la fracción de capital).
+     * @return bool  true si se ejecutó un cambio de estado en el exchange; false si fue idempotente.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    public function adjustPosition(string $apiKey, string $secretKey, string $position, string $riskLevel = 'balanceado'): bool;
 }

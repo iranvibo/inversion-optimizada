@@ -279,7 +279,7 @@ class AdjustPositionJobTest extends TestCase
 
         $this->broker->shouldReceive('adjustPosition')
             ->once()
-            ->with($user->binance_api_key, $user->binance_secret_key, 'LONG')
+            ->with($user->binance_api_key, $user->binance_secret_key, 'LONG', 'balanceado')
             ->andReturn(true);
         $this->broker->shouldReceive('getTotalBalance')
             ->once()
@@ -299,6 +299,66 @@ class AdjustPositionJobTest extends TestCase
         ]);
         $this->assertSame('LONG', Cache::get("user:{$user->id}:real_position"));
         Event::assertDispatched(BalanceUpdated::class);
+    }
+
+    public function test_real_mode_passes_user_risk_level_to_broker(): void
+    {
+        Event::fake([BalanceUpdated::class]);
+
+        $user = User::factory()->create([
+            'bot_active' => true,
+            'bot_mode' => 'real',
+            'binance_api_key' => 'key',
+            'binance_secret_key' => 'secret',
+            'binance_verified' => true,
+            'risk_level' => 'agresivo',
+            'estimated_capital' => 1000,
+        ]);
+
+        $this->broker->shouldReceive('adjustPosition')
+            ->once()
+            ->with($user->binance_api_key, $user->binance_secret_key, 'SHORT', 'agresivo')
+            ->andReturn(true);
+        $this->broker->shouldReceive('getTotalBalance')->once()->andReturn(1000.00);
+
+        $this->runJob($user->id, 'SHORT');
+
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $user->id,
+            'type' => 'short',
+            'action' => 'open_short',
+        ]);
+    }
+
+    public function test_real_mode_idempotent_no_op_skips_activity_and_balance_sync(): void
+    {
+        Event::fake([BalanceUpdated::class]);
+
+        $user = User::factory()->create([
+            'bot_active' => true,
+            'bot_mode' => 'real',
+            'binance_api_key' => 'key',
+            'binance_secret_key' => 'secret',
+            'binance_verified' => true,
+            'risk_level' => 'balanceado',
+            'estimated_capital' => 1000,
+        ]);
+
+        // La posición objetivo ya está abierta en Binance: el broker devuelve false.
+        $this->broker->shouldReceive('adjustPosition')
+            ->once()
+            ->with($user->binance_api_key, $user->binance_secret_key, 'LONG', 'balanceado')
+            ->andReturn(false);
+        // No debe sincronizar balance si no hubo cambio.
+        $this->broker->shouldNotReceive('getTotalBalance');
+
+        $this->runJob($user->id, 'LONG');
+
+        $this->assertSame(0, $user->botActivities()->count());
+        $this->assertSame(0, $user->balanceSnapshots()->count());
+        // La caché de posición sí refleja el estado objetivo.
+        $this->assertSame('LONG', Cache::get("user:{$user->id}:real_position"));
+        Event::assertNotDispatched(BalanceUpdated::class);
     }
 
     public function test_real_mode_aborts_when_binance_not_linked(): void

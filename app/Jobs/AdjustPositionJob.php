@@ -86,11 +86,23 @@ class AdjustPositionJob implements ShouldQueue
             }
 
             try {
-                // Cancelar órdenes anteriores y ajustar posición en Binance
-                $broker->adjustPosition($user->binance_api_key, $user->binance_secret_key, $this->newPosition);
+                // Ajustar posición en Binance partiendo del estado real del exchange.
+                // Devuelve false si la operación es idempotente (la posición ya
+                // está en el estado objetivo o no hay nada que cerrar).
+                $changed = $broker->adjustPosition(
+                    $user->binance_api_key,
+                    $user->binance_secret_key,
+                    $this->newPosition,
+                    $user->risk_level ?? 'balanceado'
+                );
 
-                // Registrar la posición real ajustada en caché
+                // Registrar la posición real objetivo en caché (refleja el estado deseado).
                 \Illuminate\Support\Facades\Cache::put("user:{$user->id}:real_position", $this->newPosition);
+
+                // Sin cambios en el exchange: no se registra actividad ni se sincroniza balance.
+                if (! $changed) {
+                    return;
+                }
 
                 // Registrar actividad en base de datos en lenguaje humano
                 if ($this->newPosition === 'CLOSE') {
