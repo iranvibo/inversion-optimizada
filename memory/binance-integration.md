@@ -3,6 +3,8 @@ created: 2026-06-11
 updated: 2026-06-18
 ---
 
+> **12. Profit real al cerrar posición (2026-06-18)**: `AdjustPositionJob` (modo real) ya **no** registra el cierre con un beneficio hardcodeado (+1,5%/+15€). Ahora: al abrir LONG/SHORT guarda el equity real (`getTotalBalance`) en `Cache user:{id}:open_capital`; al cerrar (señal CLOSE) hace `Cache::pull` de ese capital (fallback al último snapshot) y calcula `profit = equity_cierre − capital_apertura` y `% = profit/apertura×100` en el helper `recordCloseActivity()`, eligiendo `close_profit`/`close_loss` por el signo. El formateador `BotActivityFormatter` para `close_loss` ahora muestra `% y -valor€` con texto neutro ("posición cerrada con una pérdida del X% (-Y€)") en vez del antiguo "protección de pérdida activada". **Limitación**: un flip directo LONG↔SHORT en un mismo job solo registra la apertura nueva, no el cierre del anterior (adjustPosition no expone qué cerró). Simulación sigue con su +1,5% sintético. `getTotalBalance` se sigue llamando 1 sola vez por job.
+
 # Integración y Seguridad de Binance en ViBo Invest
 
 Este documento detalla las decisiones técnicas y de diseño adoptadas para la integración de la API de Binance, las validaciones de seguridad de permisos de retiro y las claves de prueba (mocks) del sistema.

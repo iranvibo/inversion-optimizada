@@ -34,10 +34,13 @@ class BotActivityFormatter
                 return 'Inversión finalizada: posición cerrada con beneficio.';
 
             case 'close_loss':
-                if ($value !== null) {
-                    return "Inversión finalizada: protección de pérdida activada para asegurar tu capital (-{$value}€).";
+                if ($percentage !== null && $value !== null) {
+                    return "Inversión finalizada: posición cerrada con una pérdida del {$percentage}% (-{$value}€).";
                 }
-                return 'Inversión finalizada: protección de pérdida activada para asegurar tu capital.';
+                if ($value !== null) {
+                    return "Inversión finalizada: posición cerrada con una pérdida de -{$value}€.";
+                }
+                return 'Inversión finalizada: posición cerrada con pérdida.';
 
             case 'stop_loss_trigger':
                 return 'Protección diaria activada: El bot se pausó automáticamente para proteger tu capital.';

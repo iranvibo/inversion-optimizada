@@ -361,6 +361,111 @@ class AdjustPositionJobTest extends TestCase
         Event::assertNotDispatched(BalanceUpdated::class);
     }
 
+    public function test_real_mode_close_books_real_profit_from_open_and_close_capital(): void
+    {
+        Event::fake([BalanceUpdated::class]);
+
+        $user = User::factory()->create([
+            'bot_active' => true,
+            'bot_mode' => 'real',
+            'binance_api_key' => 'key',
+            'binance_secret_key' => 'secret',
+            'binance_verified' => true,
+            'risk_level' => 'balanceado',
+            'estimated_capital' => 1000,
+        ]);
+
+        // La posición se abrió con un capital (equity) de 1000.
+        Cache::put("user:{$user->id}:open_capital", 1000.00);
+
+        $this->broker->shouldReceive('adjustPosition')
+            ->once()
+            ->with($user->binance_api_key, $user->binance_secret_key, 'CLOSE', 'balanceado')
+            ->andReturn(true);
+        // Al cerrar, el equity real es 1080 → beneficio real de +80 (+8%).
+        $this->broker->shouldReceive('getTotalBalance')
+            ->once()
+            ->andReturn(1080.00);
+
+        $this->runJob($user->id, 'CLOSE');
+
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $user->id,
+            'type' => 'close',
+            'action' => 'close_profit',
+            'profit_percentage' => 8.00,
+            'profit_value' => 80.00,
+        ]);
+        $this->assertDatabaseHas('balance_snapshots', [
+            'user_id' => $user->id,
+            'balance' => 1080.00,
+        ]);
+        // El capital de apertura se consume tras cerrar.
+        $this->assertNull(Cache::get("user:{$user->id}:open_capital"));
+        Event::assertDispatched(BalanceUpdated::class);
+    }
+
+    public function test_real_mode_close_books_real_loss_when_capital_drops(): void
+    {
+        Event::fake([BalanceUpdated::class]);
+
+        $user = User::factory()->create([
+            'bot_active' => true,
+            'bot_mode' => 'real',
+            'binance_api_key' => 'key',
+            'binance_secret_key' => 'secret',
+            'binance_verified' => true,
+            'risk_level' => 'balanceado',
+            'estimated_capital' => 1000,
+        ]);
+
+        // Capital de apertura por encima del de cierre → pérdida real.
+        Cache::put("user:{$user->id}:open_capital", 1000.00);
+
+        $this->broker->shouldReceive('adjustPosition')
+            ->once()
+            ->with($user->binance_api_key, $user->binance_secret_key, 'CLOSE', 'balanceado')
+            ->andReturn(true);
+        // Equity real al cerrar 950 → pérdida de -50 (-5%).
+        $this->broker->shouldReceive('getTotalBalance')->once()->andReturn(950.00);
+
+        $this->runJob($user->id, 'CLOSE');
+
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $user->id,
+            'type' => 'close',
+            'action' => 'close_loss',
+            'profit_percentage' => -5.00,
+            'profit_value' => -50.00,
+        ]);
+    }
+
+    public function test_real_mode_open_records_opening_capital_for_later_close(): void
+    {
+        Event::fake([BalanceUpdated::class]);
+
+        $user = User::factory()->create([
+            'bot_active' => true,
+            'bot_mode' => 'real',
+            'binance_api_key' => 'key',
+            'binance_secret_key' => 'secret',
+            'binance_verified' => true,
+            'risk_level' => 'balanceado',
+            'estimated_capital' => 1000,
+        ]);
+
+        $this->broker->shouldReceive('adjustPosition')
+            ->once()
+            ->with($user->binance_api_key, $user->binance_secret_key, 'LONG', 'balanceado')
+            ->andReturn(true);
+        $this->broker->shouldReceive('getTotalBalance')->once()->andReturn(1200.00);
+
+        $this->runJob($user->id, 'LONG');
+
+        // Al abrir, el equity real queda guardado como capital de apertura.
+        $this->assertSame(1200.00, Cache::get("user:{$user->id}:open_capital"));
+    }
+
     public function test_real_mode_aborts_when_binance_not_linked(): void
     {
         $user = User::factory()->create([

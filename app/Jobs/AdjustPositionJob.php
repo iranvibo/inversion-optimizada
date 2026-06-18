@@ -104,17 +104,25 @@ class AdjustPositionJob implements ShouldQueue
                     return;
                 }
 
+                // Patrimonio neto real (equity) tras ejecutar el cambio en el exchange.
+                $newBalance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+
                 // Registrar actividad en base de datos en lenguaje humano
                 if ($this->newPosition === 'CLOSE') {
-                    $user->botActivities()->create([
-                        'type' => 'close',
-                        'action' => 'close_profit',
-                        'profit_percentage' => 1.5,
-                        'profit_value' => 15.00,
-                        'risk_alert' => false,
-                        'description' => 'Inversión finalizada: posición cerrada con un +1,50% de beneficio (+15,00€).',
-                    ]);
+                    // Capital con el que se abrió la posición que se acaba de cerrar.
+                    // Si no se registró (p.ej. bot reiniciado, posición abierta fuera
+                    // del bot), se usa el último balance conocido como referencia.
+                    $openCapital = (float) \Illuminate\Support\Facades\Cache::pull(
+                        "user:{$user->id}:open_capital",
+                        $currentBalance
+                    );
+
+                    $this->recordCloseActivity($user, $openCapital, $newBalance);
                 } else {
+                    // Al abrir, se guarda el capital de partida (equity real) para
+                    // calcular el beneficio/pérdida real cuando la posición se cierre.
+                    \Illuminate\Support\Facades\Cache::put("user:{$user->id}:open_capital", $newBalance);
+
                     $user->botActivities()->create([
                         'type' => $this->newPosition === 'LONG' ? 'long' : 'short',
                         'action' => $this->newPosition === 'LONG' ? 'open_long' : 'open_short',
@@ -126,7 +134,6 @@ class AdjustPositionJob implements ShouldQueue
                 }
 
                 // Sincronizar el nuevo balance
-                $newBalance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
                 $now = now()->toImmutable();
                 $user->balanceSnapshots()->create([
                     'balance' => $newBalance,
@@ -179,6 +186,33 @@ class AdjustPositionJob implements ShouldQueue
             // Registrar la posición simulada ajustada en caché
             \Illuminate\Support\Facades\Cache::put("user:{$user->id}:simulation_position", $this->newPosition);
         }
+    }
+
+    /**
+     * Registra la actividad de cierre calculando el beneficio/pérdida REAL a partir
+     * del capital con el que se abrió la posición y el capital tras cerrarla.
+     *
+     *   profit = capital_cierre − capital_apertura
+     *   porcentaje = profit / capital_apertura × 100
+     *
+     * Según el signo se clasifica como cierre con beneficio (close_profit) o con
+     * pérdida (close_loss). El importe y el porcentaje quedan guardados (con signo)
+     * y se muestran al usuario en el feed de actividad.
+     */
+    private function recordCloseActivity(User $user, float $openCapital, float $closeCapital): void
+    {
+        $profitValue = round($closeCapital - $openCapital, 2);
+        $profitPercentage = $openCapital > 0
+            ? round(($profitValue / $openCapital) * 100, 2)
+            : 0.0;
+
+        $user->botActivities()->create([
+            'type' => 'close',
+            'action' => $profitValue >= 0 ? 'close_profit' : 'close_loss',
+            'profit_percentage' => $profitPercentage,
+            'profit_value' => $profitValue,
+            'risk_alert' => false,
+        ]);
     }
 
     /**

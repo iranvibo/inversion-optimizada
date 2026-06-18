@@ -104,7 +104,7 @@ class BotActivityFeedTest extends TestCase
 
         // Tercer evento: close_loss
         $this->assertSame('close_loss', $activities[1]->action);
-        $this->assertSame('Inversión finalizada: protección de pérdida activada para asegurar tu capital (-10,00€).', $activities[1]->human_description);
+        $this->assertSame('Inversión finalizada: posición cerrada con una pérdida del 1,00% (-10,00€).', $activities[1]->human_description);
 
         // Segundo evento: close_profit
         $this->assertSame('close_profit', $activities[2]->action);
