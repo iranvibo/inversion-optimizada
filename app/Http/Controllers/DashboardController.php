@@ -3,8 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Core\Contracts\BinanceBrokerInterface;
+use App\Core\Contracts\SignalProviderInterface;
 use App\Events\BotStatusUpdated;
+use App\Jobs\AdjustPositionJob;
+use App\Models\BotActivity;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -39,7 +44,7 @@ class DashboardController extends Controller
         $activities = $this->getActivitiesForUser($user);
         $riskAlerts = $activities->where('risk_alert', true);
 
-        $signalProviderUnstable = Cache::has("signal_provider_unstable:" . strtolower($user->risk_level));
+        $signalProviderUnstable = Cache::has('signal_provider_unstable:'.strtolower($user->risk_level));
 
         return view('dashboard', compact('user', 'latestSnapshot', 'activities', 'riskAlerts', 'signalProviderUnstable'));
     }
@@ -57,7 +62,7 @@ class DashboardController extends Controller
         $activities = $this->getActivitiesForUser($user);
 
         return response()->json([
-            'activities' => $activities->map(fn($act) => [
+            'activities' => $activities->map(fn ($act) => [
                 'id' => $act->id,
                 'type' => $act->type,
                 'action' => $act->action,
@@ -137,6 +142,7 @@ class DashboardController extends Controller
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Sesión no válida.'], 401);
             }
+
             return back()->with('error', 'Sesión no válida.');
         }
 
@@ -145,6 +151,7 @@ class DashboardController extends Controller
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Operación Bloqueada: Para activar el bot en modo REAL debes vincular una cuenta de Binance autorizada.'], 403);
             }
+
             return back()->with('error', 'Operación Bloqueada: Para activar el bot en modo REAL debes vincular una cuenta de Binance autorizada.');
         }
 
@@ -156,8 +163,8 @@ class DashboardController extends Controller
                     $this->binanceBroker->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
                     Log::info("Cierre preventivo de posiciones ejecutado para el usuario ID: {$user->id}");
                 } catch (\Exception $e) {
-                    $closeError = "Advertencia: El bot se pausó localmente, pero hubo un problema al cerrar posiciones en Binance: " . $e->getMessage();
-                    Log::critical("Fallo al cerrar posiciones preventivamente para el usuario ID: {$user->id}. Detalle: " . $e->getMessage());
+                    $closeError = 'Advertencia: El bot se pausó localmente, pero hubo un problema al cerrar posiciones en Binance: '.$e->getMessage();
+                    Log::critical("Fallo al cerrar posiciones preventivamente para el usuario ID: {$user->id}. Detalle: ".$e->getMessage());
                 }
             }
         } else {
@@ -170,9 +177,16 @@ class DashboardController extends Controller
             'bot_active' => $newStatus,
         ]);
 
-        if (!$newStatus) {
+        if (! $newStatus) {
             Cache::put("user:{$user->id}:real_position", 'CLOSE');
             Cache::put("user:{$user->id}:simulation_position", 'CLOSE');
+        } elseif ($user->bot_mode === 'real' && $user->isBinanceLinked()) {
+            // Reconciliación al activar: el motor solo reacciona a CAMBIOS de señal,
+            // así que tras un pausa→cierre la posición real queda en CLOSE mientras la
+            // señal vigente puede seguir siendo SHORT/LONG. Al encender, alineamos la
+            // posición con la señal actual encolando un ajuste idempotente (no reabre
+            // si ya coincide), en lugar de esperar a que la señal cambie.
+            $this->reconcilePositionWithCurrentSignal($user);
         }
 
         // Disparar evento de WebSocket en tiempo real
@@ -181,7 +195,7 @@ class DashboardController extends Controller
         $statusMessage = $newStatus ? 'Bot ACTIVADO con éxito.' : 'Bot PAUSADO de inmediato.';
 
         if ($closeError) {
-            $statusMessage .= ' ' . $closeError;
+            $statusMessage .= ' '.$closeError;
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -191,6 +205,7 @@ class DashboardController extends Controller
                     'warning' => $closeError,
                 ]);
             }
+
             return back()->with('error', $statusMessage);
         }
 
@@ -207,6 +222,27 @@ class DashboardController extends Controller
     }
 
     /**
+     * Encola un ajuste de posición hacia la señal vigente del proveedor para el
+     * nivel de riesgo del usuario. Idempotente: si la posición real ya coincide,
+     * el job no hace nada. Un fallo al consultar la señal no bloquea la activación.
+     */
+    private function reconcilePositionWithCurrentSignal(User $user): void
+    {
+        try {
+            $signal = app(SignalProviderInterface::class)
+                ->getCurrentSignal($user->risk_level ?? 'balanceado');
+            $position = strtoupper($signal['position'] ?? 'CLOSE');
+
+            AdjustPositionJob::dispatch($user->id, $position);
+            Log::info("Reconciliación al activar: encolado ajuste a '{$position}' para el usuario ID: {$user->id}.");
+        } catch (\Throwable $e) {
+            // Sin señal disponible: el bot queda activo y el sondeo normal actuará
+            // en el próximo cambio. No se interrumpe la activación.
+            Log::warning("No se pudo reconciliar la posición al activar el bot del usuario ID: {$user->id}. Detalle: ".$e->getMessage());
+        }
+    }
+
+    /**
      * Alterna el modo del Bot (Simulación / Real).
      */
     public function toggleMode(Request $request)
@@ -216,6 +252,7 @@ class DashboardController extends Controller
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Sesión no válida.'], 401);
             }
+
             return back();
         }
 
@@ -227,6 +264,7 @@ class DashboardController extends Controller
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $errorMessage], 403);
             }
+
             return back()->with('error', $errorMessage);
         }
 
@@ -236,8 +274,8 @@ class DashboardController extends Controller
                 $this->binanceBroker->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
                 Log::info("Cierre preventivo de posiciones ejecutado al cambiar a modo simulación para el usuario ID: {$user->id}");
             } catch (\Exception $e) {
-                $closeError = "Advertencia: El modo cambió a simulación, pero hubo un problema al cerrar posiciones en Binance: " . $e->getMessage();
-                Log::critical("Fallo al cerrar posiciones preventivamente al cambiar a simulación para el usuario ID: {$user->id}. Detalle: " . $e->getMessage());
+                $closeError = 'Advertencia: El modo cambió a simulación, pero hubo un problema al cerrar posiciones en Binance: '.$e->getMessage();
+                Log::critical("Fallo al cerrar posiciones preventivamente al cambiar a simulación para el usuario ID: {$user->id}. Detalle: ".$e->getMessage());
             }
         }
 
@@ -247,9 +285,9 @@ class DashboardController extends Controller
             'bot_mode' => $newMode,
         ]);
 
-        $statusMessage = 'Modo cambiado a: ' . strtoupper($newMode);
+        $statusMessage = 'Modo cambiado a: '.strtoupper($newMode);
         if ($closeError) {
-            $statusMessage .= ' ' . $closeError;
+            $statusMessage .= ' '.$closeError;
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -259,6 +297,7 @@ class DashboardController extends Controller
                     'warning' => $closeError,
                 ]);
             }
+
             return back()->with('error', $statusMessage);
         }
 
@@ -284,6 +323,7 @@ class DashboardController extends Controller
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Sesión no válida.'], 401);
             }
+
             return back()->with('error', 'Sesión no válida.');
         }
 
@@ -296,7 +336,7 @@ class DashboardController extends Controller
             'risk_level' => $riskLevel,
         ]);
 
-        $statusMessage = 'Nivel de riesgo actualizado a: ' . ucfirst($riskLevel);
+        $statusMessage = 'Nivel de riesgo actualizado a: '.ucfirst($riskLevel);
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -344,6 +384,7 @@ class DashboardController extends Controller
     {
         if ($user->bot_mode === 'real') {
             $activities = $user->botActivities()->latest()->get();
+
             return $this->sortActivities($activities);
         }
 
@@ -353,12 +394,12 @@ class DashboardController extends Controller
         }
 
         try {
-            $signalProvider = app(\App\Core\Contracts\SignalProviderInterface::class);
+            $signalProvider = app(SignalProviderInterface::class);
             $history = $signalProvider->getSignalHistory($user->risk_level ?? 'balanceado');
 
             // Ordenar por fecha descendente (más recientes primero)
             usort($history, function ($a, $b) {
-                $timeComparison = strcmp($b['date'] . ' ' . $b['time'], $a['date'] . ' ' . $a['time']);
+                $timeComparison = strcmp($b['date'].' '.$b['time'], $a['date'].' '.$a['time']);
                 if ($timeComparison !== 0) {
                     return $timeComparison;
                 }
@@ -384,7 +425,7 @@ class DashboardController extends Controller
             // en cada punto, y luego mapearlo.
             $chronological = $history;
             usort($chronological, function ($a, $b) {
-                $timeComparison = strcmp($a['date'] . ' ' . $a['time'], $b['date'] . ' ' . $b['time']);
+                $timeComparison = strcmp($a['date'].' '.$a['time'], $b['date'].' '.$b['time']);
                 if ($timeComparison !== 0) {
                     return $timeComparison;
                 }
@@ -404,20 +445,20 @@ class DashboardController extends Controller
 
             $capitalsAtTime = [];
             foreach ($chronological as $sig) {
-                $dateTimeStr = $sig['date'] . ' ' . $sig['time'];
-                $posKey = $dateTimeStr . '_' . strtoupper($sig['position'] ?? 'CLOSE');
+                $dateTimeStr = $sig['date'].' '.$sig['time'];
+                $posKey = $dateTimeStr.'_'.strtoupper($sig['position'] ?? 'CLOSE');
                 $profit = (float) ($sig['profit'] ?? 0.0);
                 $capitalBefore = $capital;
                 $capital *= (1 + $profit);
                 $capitalsAtTime[$posKey] = [
                     'before' => $capitalBefore,
                     'after' => $capital,
-                    'profit_value' => round($capitalBefore * $profit, 2)
+                    'profit_value' => round($capitalBefore * $profit, 2),
                 ];
             }
 
             foreach ($history as $sig) {
-                $dateTimeStr = $sig['date'] . ' ' . $sig['time'];
+                $dateTimeStr = $sig['date'].' '.$sig['time'];
                 $profit = (float) ($sig['profit'] ?? 0.0);
                 $position = strtoupper($sig['position'] ?? 'CLOSE');
 
@@ -436,11 +477,11 @@ class DashboardController extends Controller
                     $type = 'close';
                     $action = $profit >= 0 ? 'close_profit' : 'close_loss';
                     $profitPct = $profit * 100;
-                    $posKey = $dateTimeStr . '_' . $position;
+                    $posKey = $dateTimeStr.'_'.$position;
                     $profitVal = $capitalsAtTime[$posKey]['profit_value'] ?? 0.0;
                 }
 
-                $activity = new \App\Models\BotActivity([
+                $activity = new BotActivity([
                     'type' => $type,
                     'action' => $action,
                     'profit_percentage' => $profitPct,
@@ -449,9 +490,9 @@ class DashboardController extends Controller
                 ]);
 
                 // Asignar timestamps virtualmente
-                $activity->created_at = \Illuminate\Support\Carbon::parse($dateTimeStr);
+                $activity->created_at = Carbon::parse($dateTimeStr);
                 // Forzar el ID para que Vue/Blade tengan una llave única
-                $activity->id = crc32($dateTimeStr . $position . $profit);
+                $activity->id = crc32($dateTimeStr.$position.$profit);
 
                 $activities->push($activity);
             }
@@ -459,7 +500,8 @@ class DashboardController extends Controller
             return $this->sortActivities($activities);
 
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Error loading simulated activity history: " . $e->getMessage());
+            Log::error('Error loading simulated activity history: '.$e->getMessage());
+
             return collect();
         }
     }

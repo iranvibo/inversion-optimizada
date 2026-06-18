@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Core\Contracts\SignalProviderInterface;
 use App\Events\BotStatusUpdated;
+use App\Jobs\AdjustPositionJob;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
+use Mockery;
 use Tests\TestCase;
 
 class BotControlTest extends TestCase
@@ -49,6 +53,46 @@ class BotControlTest extends TestCase
         Event::assertDispatched(BotStatusUpdated::class, function (BotStatusUpdated $event) {
             return $event->user->is($this->user) && $event->botActive === true;
         });
+    }
+
+    /**
+     * Reconciliación al activar en modo real: encola un ajuste hacia la señal
+     * vigente (aunque no haya habido un "cambio" de señal), para no quedarse en
+     * CLOSE tras un pausa→cierre cuando la señal sigue siendo SHORT/LONG.
+     */
+    public function test_activation_in_real_mode_reconciles_with_current_signal(): void
+    {
+        Event::fake([BotStatusUpdated::class]);
+        Queue::fake();
+
+        $provider = Mockery::mock(SignalProviderInterface::class);
+        $provider->shouldReceive('getCurrentSignal')
+            ->andReturn(['position' => 'SHORT', 'issued_at' => now()->toIso8601String(), 'signal_id' => 'sig-test']);
+        $this->app->instance(SignalProviderInterface::class, $provider);
+
+        $this->user->update(['bot_mode' => 'real', 'bot_active' => false, 'risk_level' => 'conservador']);
+
+        $response = $this->actingAs($this->user)->post(route('bot.toggle'));
+
+        $response->assertRedirect();
+        $this->user->refresh();
+        $this->assertTrue($this->user->bot_active);
+
+        Queue::assertPushed(AdjustPositionJob::class, fn (AdjustPositionJob $job) => $job->userId === $this->user->id && $job->newPosition === 'SHORT');
+    }
+
+    /**
+     * En modo simulación la activación no encola ajustes reales (no toca Binance).
+     */
+    public function test_activation_in_simulation_mode_does_not_dispatch_adjust(): void
+    {
+        Event::fake([BotStatusUpdated::class]);
+        Queue::fake();
+
+        // El usuario por defecto está en modo simulación.
+        $this->actingAs($this->user)->post(route('bot.toggle'))->assertRedirect();
+
+        Queue::assertNotPushed(AdjustPositionJob::class);
     }
 
     /**

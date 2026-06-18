@@ -36,7 +36,8 @@
       "Bash(curl -s https://api.ipify.org)",
       "Bash(sed -i '' 's/^updated: 2026-06-18/updated: 2026-06-18/' memory/binance-integration.md)",
       "Bash(./vendor/bin/pint app/Infrastructure/Binance/BinanceBroker.php tests/Unit/BinanceBrokerTest.php)",
-      "Bash(./vendor/bin/pint app/Http/Controllers/BalanceController.php tests/Feature/DashboardBalanceTest.php routes/web.php)"
+      "Bash(./vendor/bin/pint app/Http/Controllers/BalanceController.php tests/Feature/DashboardBalanceTest.php routes/web.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/DashboardController.php tests/Feature/BotControlTest.php)"
     ]
   }
 }
