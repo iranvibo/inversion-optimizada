@@ -6,6 +6,7 @@ use App\Core\Contracts\BinanceBrokerInterface;
 use App\Core\Exceptions\BinanceInvalidCredentialsException;
 use App\Infrastructure\Binance\BinanceBroker;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class BinanceBrokerTest extends TestCase
@@ -262,5 +263,113 @@ class BinanceBrokerTest extends TestCase
 
         $this->assertGreaterThan($balanced, $aggressive);
         $this->assertGreaterThan($conservative, $balanced);
+    }
+
+    // ─── Path real Cross Margin (construcción de peticiones, sin Binance real) ─
+
+    /**
+     * Configura el broker en modo Cross Margin real con respuestas HTTP simuladas.
+     *
+     * @param  array<int, array<string, string>>  $userAssets
+     */
+    private function fakeMarginMode(array $userAssets): void
+    {
+        config([
+            'services.binance.mock' => false,
+            'services.binance.trade_mode' => 'margin',
+            'services.binance.symbol' => 'BTCUSDC',
+            'services.binance.margin_asset' => 'USDC',
+            'services.binance.leverage' => 1,
+            'services.binance.api_url' => 'https://api.binance.com',
+        ]);
+
+        Http::fake([
+            '*/sapi/v1/margin/account*' => Http::response(['userAssets' => $userAssets]),
+            '*/api/v3/ticker/price*' => Http::response(['price' => '50000.00']),
+            '*/sapi/v1/margin/order*' => Http::response(['orderId' => 1, 'status' => 'FILLED']),
+            '*/sapi/v1/margin/openOrders*' => Http::response([]),
+        ]);
+    }
+
+    /**
+     * Mantener BTC neto positivo en Cross Margin se interpreta como LONG.
+     */
+    public function test_margin_net_btc_is_long(): void
+    {
+        $this->fakeMarginMode([['asset' => 'BTC', 'free' => '0.10', 'borrowed' => '0', 'netAsset' => '0.10']]);
+
+        $this->assertSame('LONG', $this->binanceBroker->getOpenPosition('k', 's'));
+    }
+
+    /**
+     * Tener BTC prestado en Cross Margin se interpreta como SHORT.
+     */
+    public function test_margin_borrowed_btc_is_short(): void
+    {
+        $this->fakeMarginMode([['asset' => 'BTC', 'free' => '0', 'borrowed' => '0.10', 'netAsset' => '-0.10']]);
+
+        $this->assertSame('SHORT', $this->binanceBroker->getOpenPosition('k', 's'));
+    }
+
+    /**
+     * Sin BTC neto ni prestado, no hay posición abierta (CLOSE).
+     */
+    public function test_margin_no_btc_is_close(): void
+    {
+        $this->fakeMarginMode([['asset' => 'BTC', 'free' => '0', 'borrowed' => '0', 'netAsset' => '0']]);
+
+        $this->assertSame('CLOSE', $this->binanceBroker->getOpenPosition('k', 's'));
+    }
+
+    /**
+     * Sin apalancamiento (leverage 1), abrir LONG compra BTC con colateral propio
+     * (NO_SIDE_EFFECT), sin pedir prestado.
+     */
+    public function test_margin_long_buys_without_borrowing_at_1x(): void
+    {
+        $this->fakeMarginMode([
+            ['asset' => 'BTC', 'free' => '0', 'borrowed' => '0', 'netAsset' => '0'],
+            ['asset' => 'USDC', 'free' => '1000', 'borrowed' => '0', 'netAsset' => '1000'],
+        ]);
+
+        $changed = $this->binanceBroker->adjustPosition('k', 's', 'LONG', 'balanceado');
+
+        $this->assertTrue($changed);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/sapi/v1/margin/order')
+            && str_contains($request->url(), 'side=BUY')
+            && str_contains($request->url(), 'sideEffectType=NO_SIDE_EFFECT'));
+    }
+
+    /**
+     * Abrir SHORT en Cross Margin pide prestado BTC y lo vende (SELL + MARGIN_BUY).
+     */
+    public function test_margin_short_borrows_and_sells(): void
+    {
+        $this->fakeMarginMode([
+            ['asset' => 'BTC', 'free' => '0', 'borrowed' => '0', 'netAsset' => '0'],
+            ['asset' => 'USDC', 'free' => '1000', 'borrowed' => '0', 'netAsset' => '1000'],
+        ]);
+
+        $changed = $this->binanceBroker->adjustPosition('k', 's', 'SHORT', 'balanceado');
+
+        $this->assertTrue($changed);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/sapi/v1/margin/order')
+            && str_contains($request->url(), 'side=SELL')
+            && str_contains($request->url(), 'sideEffectType=MARGIN_BUY'));
+    }
+
+    /**
+     * Cerrar un corto recompra el BTC prestado y lo devuelve (BUY + AUTO_REPAY).
+     */
+    public function test_margin_close_short_repays_borrowed_btc(): void
+    {
+        $this->fakeMarginMode([['asset' => 'BTC', 'free' => '0', 'borrowed' => '0.05', 'netAsset' => '-0.05']]);
+
+        $changed = $this->binanceBroker->adjustPosition('k', 's', 'CLOSE', 'balanceado');
+
+        $this->assertTrue($changed);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/sapi/v1/margin/order')
+            && str_contains($request->url(), 'side=BUY')
+            && str_contains($request->url(), 'sideEffectType=AUTO_REPAY'));
     }
 }

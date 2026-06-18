@@ -65,3 +65,15 @@ Este documento detalla las decisiones técnicas y de diseño adoptadas para la i
    - *Justificación*: con `BTCEUR` y el host de spot, los `/fapi/*` fallaban silenciosamente (excepción tragada en `AdjustPositionJob`) y nunca se abría posición. El path real queda íntegramente sobre futuros; los tests automatizados siguen cubriendo el comportamiento vía mock (el driver real no se ejercita en CI).
    - *Infra local (no es bug de código)*: en Docker, el servicio `queue-worker` (`php artisan queue:work redis`) debe estar levantado o los jobs encolados en Redis no se procesan. `redis` solo resuelve dentro de la red Docker; ejecutar artisan en el host falla con `getaddrinfo for redis failed`.
 
+10. **Selector de modo de trading real: Cross Margin vs Futuros (2026-06-18, España/EEE)**:
+    - *Contexto/Decisión*: Binance **restringe los derivados (Futuros) para retail del EEE** (España incluida) por MiCA/CNMV. Para poder ir **largo y corto** sin futuros, el único producto viable es **Cross Margin** (margen de spot con préstamo). Se añadió `services.binance.trade_mode` (`BINANCE_TRADE_MODE`): `'margin'` (default) o `'futures'`. El path real del broker despacha por modo; el mock es agnóstico al modo (no cambia y sigue cubriendo las reglas de posición/dimensionamiento).
+    - *Verdad sobre los cortos*: en spot, ponerse corto **exige pedir prestado** (eso es Margin). No existe corto sin préstamo; o Futuros o Margin. Spot puro es solo-largo.
+    - *Mecánica Cross Margin* (`/sapi/v1/margin/*`, host spot `api_url`):
+      - Posición inferida del **balance neto del activo base** (BTC) en `GET /sapi/v1/margin/account`: `borrowed>dust`→SHORT, `netAsset>dust`→LONG, ~0→CLOSE (umbral 1e-6). No hay objeto "posición" como en futuros.
+      - Capital disponible = `free` del activo de margen (USDC/USDT) de la cuenta de margen.
+      - Órdenes market vía `POST /sapi/v1/margin/order` con `sideEffectType`: **LONG** = `BUY` con `NO_SIDE_EFFECT` si leverage=1 (colateral propio) o `MARGIN_BUY` si >1 (préstamo del cotizado); **SHORT** = `SELL` con `MARGIN_BUY` (auto-préstamo de BTC); **CLOSE** = orden opuesta con `AUTO_REPAY` (recompra/devuelve lo prestado o vende el BTC mantenido). Cancela órdenes con `DELETE /sapi/v1/margin/openOrders`.
+      - Precio: en margin/spot se usa el ticker **spot** (`/api/v3/ticker/price`); en futuros el de `/fapi/`.
+    - *Apalancamiento*: Cross Margin BTC/USDC tope **5x** (no 10x). `BINANCE_LEVERAGE=1` = sin apalancamiento (no se pide prestado en LONG). El `.env` del usuario quedó en `trade_mode=margin`, `BTCUSDC`/`USDC`, `BINANCE_LEVERAGE=1`. Confirmado que su cuenta tiene Cross Margin habilitado (BTC/USDC, 5x).
+    - *Tests*: el path real de margin se cubre con `Http::fake()` verificando endpoints y `sideEffectType` (LONG→NO_SIDE_EFFECT, SHORT→MARGIN_BUY, CLOSE corto→AUTO_REPAY) e inferencia de posición desde el balance. OJO: múltiples `Http::fake()` en un mismo test **acumulan** stubs (gana el primero que casa) — usar un test por escenario.
+    - *Requisito operativo*: los fondos deben estar en el wallet **Cross Margin** (no Spot/Futures), y el nocional debe superar el mínimo de la orden de Binance.
+

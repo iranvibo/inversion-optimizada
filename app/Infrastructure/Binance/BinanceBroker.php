@@ -62,7 +62,24 @@ class BinanceBroker implements BinanceBrokerInterface
             return (float) (1000 + (crc32($apiKey) % 9000));
         }
 
-        return $this->handleRealAvailableBalance($apiKey, $secretKey);
+        return $this->isFuturesMode()
+            ? $this->handleRealAvailableBalanceFutures($apiKey, $secretKey)
+            : $this->handleRealAvailableBalanceMargin($apiKey, $secretKey);
+    }
+
+    /**
+     * Saldo libre del activo de margen (USDC/USDT) en la cuenta Cross Margin,
+     * utilizable como colateral para abrir posiciones largas o cortas.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function handleRealAvailableBalanceMargin(string $apiKey, string $secretKey): float
+    {
+        $marginAsset = config('services.binance.margin_asset', 'USDT');
+        $asset = $this->fetchMarginAsset($apiKey, $secretKey, $marginAsset);
+
+        return round((float) ($asset['free'] ?? 0), 2);
     }
 
     /**
@@ -72,7 +89,7 @@ class BinanceBroker implements BinanceBrokerInterface
      * @throws BinanceInvalidCredentialsException
      * @throws BinanceException
      */
-    protected function handleRealAvailableBalance(string $apiKey, string $secretKey): float
+    protected function handleRealAvailableBalanceFutures(string $apiKey, string $secretKey): float
     {
         $queryString = http_build_query([
             'timestamp' => now()->timestamp * 1000,
@@ -308,6 +325,19 @@ class BinanceBroker implements BinanceBrokerInterface
      */
     protected function handleRealClose(string $apiKey, string $secretKey): bool
     {
+        return $this->isFuturesMode()
+            ? $this->handleRealCloseFutures($apiKey, $secretKey)
+            : $this->handleRealCloseMargin($apiKey, $secretKey);
+    }
+
+    /**
+     * Cierre real en Futuros USDⓈ-M: cancela órdenes y aplana con market reduceOnly.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function handleRealCloseFutures(string $apiKey, string $secretKey): bool
+    {
         $symbol = config('services.binance.symbol', 'BTCUSDT');
         $futuresUrl = config('services.binance.futures_url', 'https://fapi.binance.com');
 
@@ -383,17 +413,49 @@ class BinanceBroker implements BinanceBrokerInterface
             return Cache::get(self::mockPositionCacheKey($apiKey), 'CLOSE');
         }
 
-        return $this->handleRealOpenPosition($apiKey, $secretKey);
+        return $this->realCurrentPosition($apiKey, $secretKey);
     }
 
     /**
-     * Consulta la posición abierta real vía Binance Futures y la traduce a
-     * 'LONG' (positionAmt > 0), 'SHORT' (< 0) o 'CLOSE' (= 0).
+     * Indica si el broker opera en modo Futuros (true) o Cross Margin (false) en real.
+     */
+    protected function isFuturesMode(): bool
+    {
+        return config('services.binance.trade_mode', 'margin') === 'futures';
+    }
+
+    /**
+     * Activo base del par operado (p.ej. 'BTC' para 'BTCUSDC'), derivado del
+     * símbolo eliminando el sufijo del activo de margen.
+     */
+    protected function baseAsset(): string
+    {
+        $symbol = config('services.binance.symbol', 'BTCUSDT');
+        $marginAsset = config('services.binance.margin_asset', 'USDT');
+
+        return (string) preg_replace('/'.preg_quote($marginAsset, '/').'$/', '', $symbol);
+    }
+
+    /**
+     * Consulta la posición abierta real según el modo de trading configurado.
      *
      * @throws BinanceInvalidCredentialsException
      * @throws BinanceException
      */
-    protected function handleRealOpenPosition(string $apiKey, string $secretKey): string
+    protected function realCurrentPosition(string $apiKey, string $secretKey): string
+    {
+        return $this->isFuturesMode()
+            ? $this->handleRealOpenPositionFutures($apiKey, $secretKey)
+            : $this->handleRealOpenPositionMargin($apiKey, $secretKey);
+    }
+
+    /**
+     * Posición en Futuros USDⓈ-M: 'LONG' (positionAmt > 0), 'SHORT' (< 0) o 'CLOSE' (= 0).
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function handleRealOpenPositionFutures(string $apiKey, string $secretKey): string
     {
         $positionAmt = $this->fetchRealPositionAmt($apiKey, $secretKey);
 
@@ -402,6 +464,89 @@ class BinanceBroker implements BinanceBrokerInterface
             $positionAmt < 0 => 'SHORT',
             default => 'CLOSE',
         };
+    }
+
+    /**
+     * Posición en Cross Margin inferida del balance neto del activo base (BTC):
+     * neto positivo → LONG (mantienes BTC), prestado → SHORT (debes BTC), ~0 → CLOSE.
+     * Se usa un umbral de polvo para ignorar saldos residuales.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function handleRealOpenPositionMargin(string $apiKey, string $secretKey): string
+    {
+        $asset = $this->fetchMarginAsset($apiKey, $secretKey, $this->baseAsset());
+
+        $borrowed = (float) ($asset['borrowed'] ?? 0);
+        $net = (float) ($asset['netAsset'] ?? 0);
+        $dust = 1e-6;
+
+        return match (true) {
+            $borrowed > $dust => 'SHORT',
+            $net > $dust => 'LONG',
+            default => 'CLOSE',
+        };
+    }
+
+    /**
+     * Devuelve los datos (free/borrowed/netAsset) de un activo en la cuenta Cross Margin.
+     *
+     * @return array{asset?: string, free?: string, borrowed?: string, netAsset?: string}
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function fetchMarginAsset(string $apiKey, string $secretKey, string $asset): array
+    {
+        foreach ($this->fetchMarginUserAssets($apiKey, $secretKey) as $entry) {
+            if (($entry['asset'] ?? null) === $asset) {
+                return $entry;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Consulta la cuenta Cross Margin (GET /sapi/v1/margin/account) y devuelve userAssets.
+     *
+     * @return array<int, array<string, mixed>>
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function fetchMarginUserAssets(string $apiKey, string $secretKey): array
+    {
+        $queryString = http_build_query(['timestamp' => now()->timestamp * 1000]);
+        $signature = hash_hmac('sha256', $queryString, $secretKey);
+        $apiUrl = config('services.binance.api_url', 'https://api.binance.com');
+
+        try {
+            $response = Http::withHeaders([
+                'X-MBX-APIKEY' => $apiKey,
+            ])->get("{$apiUrl}/sapi/v1/margin/account?{$queryString}&signature={$signature}");
+
+            if ($response->status() === 400 || $response->status() === 401) {
+                $data = $response->json();
+                if (isset($data['code']) && $data['code'] === -2015) {
+                    throw new BinanceInvalidCredentialsException;
+                }
+                throw new BinanceException($data['msg'] ?? 'Error de autenticación o permisos al consultar la cuenta de margen.');
+            }
+
+            if ($response->failed()) {
+                throw new BinanceException('No se pudo consultar la cuenta de margen en Binance: HTTP '.$response->status());
+            }
+
+            return $response->json('userAssets') ?? [];
+        } catch (\Exception $e) {
+            if ($e instanceof BinanceInvalidCredentialsException || $e instanceof BinanceException) {
+                throw $e;
+            }
+            Log::error('Binance margin account query failed: '.$e->getMessage());
+            throw new BinanceException('Error al conectar con la API de Binance para consultar la cuenta de margen: '.$e->getMessage());
+        }
     }
 
     /**
@@ -507,11 +652,13 @@ class BinanceBroker implements BinanceBrokerInterface
     }
 
     /**
-     * Ajusta la posición real en Binance Futures aplicando las reglas de US06.
+     * Ajusta la posición real aplicando las reglas de US06, independientemente del
+     * modo de trading (Futuros o Cross Margin). La apertura/cierre se delega a los
+     * primitivos específicos de cada modo.
      */
     protected function handleRealAdjustPosition(string $apiKey, string $secretKey, string $position, string $riskLevel): bool
     {
-        $current = $this->handleRealOpenPosition($apiKey, $secretKey);
+        $current = $this->realCurrentPosition($apiKey, $secretKey);
 
         if ($position === 'CLOSE') {
             if ($current === 'CLOSE') {
@@ -534,13 +681,27 @@ class BinanceBroker implements BinanceBrokerInterface
         }
 
         $context = $this->buildOrderContext($apiKey, $secretKey, $position, $riskLevel);
-
-        // Apalancamiento objetivo (10x por defecto) "de ser posible".
-        $this->setLeverage($apiKey, $secretKey, (int) $context['leverage']);
-
-        $this->placeMarketOrder($apiKey, $secretKey, $position, (float) $context['quantity']);
+        $this->openRealPosition($apiKey, $secretKey, $position, $context);
 
         return true;
+    }
+
+    /**
+     * Abre la posición en el exchange según el modo de trading configurado.
+     *
+     * @param  array{leverage: int, quantity: float}  $context
+     */
+    protected function openRealPosition(string $apiKey, string $secretKey, string $position, array $context): void
+    {
+        if ($this->isFuturesMode()) {
+            // Apalancamiento objetivo (hasta 10x en futuros) "de ser posible".
+            $this->setLeverage($apiKey, $secretKey, (int) $context['leverage']);
+            $this->placeMarketOrder($apiKey, $secretKey, $position, (float) $context['quantity']);
+
+            return;
+        }
+
+        $this->openMarginPosition($apiKey, $secretKey, $position, (float) $context['quantity'], (int) $context['leverage']);
     }
 
     /**
@@ -559,7 +720,11 @@ class BinanceBroker implements BinanceBrokerInterface
         $price = $this->getMarketPrice($apiKey, $secretKey);
 
         $notional = round($balance * $fraction * $leverage, 2);
-        $quantity = $price > 0 ? round($notional / $price, 3) : 0.0;
+
+        // Cantidad redondeada HACIA ABAJO al LOT_SIZE del par (para no exceder el saldo).
+        $precision = max(0, (int) config('services.binance.quantity_precision', 5));
+        $factor = 10 ** $precision;
+        $quantity = $price > 0 ? floor($notional / $price * $factor) / $factor : 0.0;
 
         return [
             'position' => $position,
@@ -584,10 +749,16 @@ class BinanceBroker implements BinanceBrokerInterface
         }
 
         $symbol = config('services.binance.symbol', 'BTCUSDT');
-        $futuresUrl = config('services.binance.futures_url', 'https://fapi.binance.com');
+
+        // Cross Margin opera sobre el libro de spot; Futuros tiene su propio ticker.
+        if ($this->isFuturesMode()) {
+            $url = config('services.binance.futures_url', 'https://fapi.binance.com').'/fapi/v1/ticker/price?symbol='.$symbol;
+        } else {
+            $url = config('services.binance.api_url', 'https://api.binance.com').'/api/v3/ticker/price?symbol='.$symbol;
+        }
 
         try {
-            $response = Http::get("{$futuresUrl}/fapi/v1/ticker/price?symbol={$symbol}");
+            $response = Http::get($url);
 
             if ($response->failed()) {
                 throw new BinanceException('No se pudo obtener el precio de Binance: HTTP '.$response->status());
@@ -691,6 +862,139 @@ class BinanceBroker implements BinanceBrokerInterface
             }
             Log::error('Binance order placement failed: '.$e->getMessage());
             throw new BinanceException('Error al conectar con la API de Binance para ajustar la posición: '.$e->getMessage());
+        }
+    }
+
+    // ─── Cross Margin (largo y corto sin futuros, viable en EEE/España) ──────
+
+    /**
+     * Cierre real en Cross Margin: cancela las órdenes abiertas del par y aplana
+     * la posición con una orden de mercado AUTO_REPAY (vende el BTC mantenido si
+     * estaba largo, o recompra y devuelve el BTC prestado si estaba corto).
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function handleRealCloseMargin(string $apiKey, string $secretKey): bool
+    {
+        $this->cancelMarginOpenOrders($apiKey, $secretKey);
+
+        $asset = $this->fetchMarginAsset($apiKey, $secretKey, $this->baseAsset());
+        $free = (float) ($asset['free'] ?? 0);
+        $borrowed = (float) ($asset['borrowed'] ?? 0);
+        $dust = 1e-6;
+
+        if ($borrowed > $dust) {
+            // Corto abierto: recomprar el BTC prestado y devolverlo.
+            $this->placeMarginOrder($apiKey, $secretKey, 'BUY', round($borrowed, 5), 'AUTO_REPAY');
+        } elseif ($free > $dust) {
+            // Largo abierto: vender el BTC mantenido.
+            $this->placeMarginOrder($apiKey, $secretKey, 'SELL', round($free, 5), 'AUTO_REPAY');
+        }
+
+        return true;
+    }
+
+    /**
+     * Abre una posición en Cross Margin:
+     *   - LONG: compra BTC. Sin apalancamiento (leverage = 1) gasta colateral propio
+     *     (NO_SIDE_EFFECT); con apalancamiento pide prestado el cotizado (MARGIN_BUY).
+     *   - SHORT: vende BTC prestado (MARGIN_BUY auto-préstamo del activo base).
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function openMarginPosition(string $apiKey, string $secretKey, string $position, float $quantity, int $leverage): void
+    {
+        if ($position === 'LONG') {
+            $sideEffect = $leverage > 1 ? 'MARGIN_BUY' : 'NO_SIDE_EFFECT';
+            $this->placeMarginOrder($apiKey, $secretKey, 'BUY', $quantity, $sideEffect);
+
+            return;
+        }
+
+        // SHORT: pedir prestado BTC y venderlo.
+        $this->placeMarginOrder($apiKey, $secretKey, 'SELL', $quantity, 'MARGIN_BUY');
+    }
+
+    /**
+     * Cancela todas las órdenes abiertas del par en la cuenta Cross Margin.
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function cancelMarginOpenOrders(string $apiKey, string $secretKey): void
+    {
+        $queryString = http_build_query([
+            'symbol' => config('services.binance.symbol', 'BTCUSDT'),
+            'isIsolated' => 'FALSE',
+            'timestamp' => now()->timestamp * 1000,
+        ]);
+        $signature = hash_hmac('sha256', $queryString, $secretKey);
+        $apiUrl = config('services.binance.api_url', 'https://api.binance.com');
+
+        try {
+            $response = Http::withHeaders([
+                'X-MBX-APIKEY' => $apiKey,
+            ])->delete("{$apiUrl}/sapi/v1/margin/openOrders?{$queryString}&signature={$signature}");
+
+            // Sin órdenes abiertas Binance responde error; no es bloqueante para el cierre.
+            if ($response->status() === 401) {
+                throw new BinanceInvalidCredentialsException;
+            }
+        } catch (\Exception $e) {
+            if ($e instanceof BinanceInvalidCredentialsException) {
+                throw $e;
+            }
+            Log::warning('Binance margin cancel orders warning: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Envía una orden de mercado a Cross Margin (POST /sapi/v1/margin/order) con el
+     * efecto de margen indicado (NO_SIDE_EFFECT, MARGIN_BUY o AUTO_REPAY).
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function placeMarginOrder(string $apiKey, string $secretKey, string $side, float $quantity, string $sideEffectType): bool
+    {
+        $queryString = http_build_query([
+            'symbol' => config('services.binance.symbol', 'BTCUSDT'),
+            'isIsolated' => 'FALSE',
+            'side' => $side,
+            'type' => 'MARKET',
+            'quantity' => $quantity,
+            'sideEffectType' => $sideEffectType,
+            'timestamp' => now()->timestamp * 1000,
+        ]);
+        $signature = hash_hmac('sha256', $queryString, $secretKey);
+        $apiUrl = config('services.binance.api_url', 'https://api.binance.com');
+
+        try {
+            $response = Http::withHeaders([
+                'X-MBX-APIKEY' => $apiKey,
+            ])->post("{$apiUrl}/sapi/v1/margin/order?{$queryString}&signature={$signature}");
+
+            if ($response->status() === 400 || $response->status() === 401) {
+                $data = $response->json();
+                if (isset($data['code']) && $data['code'] === -2015) {
+                    throw new BinanceInvalidCredentialsException;
+                }
+                throw new BinanceException($data['msg'] ?? 'Error de autenticación o permisos al colocar orden de margen en Binance.');
+            }
+
+            if ($response->failed()) {
+                throw new BinanceException('No se pudo colocar la orden de margen en Binance: HTTP '.$response->status());
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            if ($e instanceof BinanceInvalidCredentialsException || $e instanceof BinanceException) {
+                throw $e;
+            }
+            Log::error('Binance margin order placement failed: '.$e->getMessage());
+            throw new BinanceException('Error al conectar con la API de Binance para colocar la orden de margen: '.$e->getMessage());
         }
     }
 }

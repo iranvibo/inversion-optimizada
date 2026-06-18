@@ -31,7 +31,9 @@
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\),indent=2\\)\\); print\\('REQUIRE-DEV:',json.dumps\\(d.get\\('require-dev',{}\\),indent=2\\)\\)\")",
       "Bash(redis-cli llen *)",
       "Bash(awk '/scheduler-worker:|^  app:|command:|entrypoint:|^  queue/{print NR\": \"$0}' docker-compose.yml)",
-      "Bash(sed -n '/scheduler-worker:/,/^  [a-z]/p' docker-compose.yml)"
+      "Bash(sed -n '/scheduler-worker:/,/^  [a-z]/p' docker-compose.yml)",
+      "Bash(php -l app/Infrastructure/Binance/BinanceBroker.php)",
+      "Bash(curl -s https://api.ipify.org)"
     ]
   }
 }

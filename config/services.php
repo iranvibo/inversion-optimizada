@@ -41,10 +41,18 @@ return [
         'api_url' => env('BINANCE_API_URL', 'https://api.binance.com'),
         // USDⓈ-M Futures (apertura/cierre de posiciones con apalancamiento). Host distinto al de spot.
         'futures_url' => env('BINANCE_FUTURES_URL', 'https://fapi.binance.com'),
-        // Par de futuros operado, su activo de margen y apalancamiento objetivo (US06).
+        // Modo de ejecución del trading real (US06):
+        //   'margin'  → Cross Margin (largo y corto vía /sapi/v1/margin/*). Único viable en EEE/España si futuros está restringido.
+        //   'futures' → USDⓈ-M Futures (/fapi/*). Apalancamiento alto, restringido para retail en EEE.
+        'trade_mode' => env('BINANCE_TRADE_MODE', 'margin'),
+        // Par operado, su activo cotizado/margen y apalancamiento objetivo (US06).
+        // En Cross Margin sin apalancamiento usa BINANCE_LEVERAGE=1.
         'symbol' => env('BINANCE_SYMBOL', 'BTCUSDT'),
         'margin_asset' => env('BINANCE_MARGIN_ASSET', 'USDT'),
         'leverage' => (int) env('BINANCE_LEVERAGE', 10),
+        // Decimales de la cantidad (LOT_SIZE) del par. Spot/Margin de BTC usa 5 (0.00001);
+        // Futuros USDⓈ-M de BTC usa 3 (0.001). Ajusta según el modo/par.
+        'quantity_precision' => (int) env('BINANCE_QTY_PRECISION', 5),
     ],
 
     /*
