@@ -42,6 +42,12 @@ class BinanceConnectionController extends Controller
             return redirect()->route('login')->with('error', 'Debes iniciar sesión primero.');
         }
 
+        if ($user->email !== 'vicenteiran@gmail.com') {
+            return back()->withInput()->withErrors([
+                'binance_api_key' => 'No se ha podido conectar.',
+            ]);
+        }
+
         $apiKey = $request->input('binance_api_key');
         $secretKey = $request->input('binance_secret_key');
 

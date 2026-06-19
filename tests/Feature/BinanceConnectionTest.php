@@ -20,8 +20,9 @@ class BinanceConnectionTest extends TestCase
         // Forzamos el modo mock en la configuración para las pruebas
         config(['services.binance.mock' => true]);
 
-        // Crear un usuario de prueba
+        // Crear un usuario de prueba con el correo autorizado por defecto para simplificar los tests existentes
         $this->user = User::factory()->create([
+            'email' => 'vicenteiran@gmail.com',
             'binance_verified' => false,
             'bot_active' => false,
             'bot_mode' => 'simulation',
@@ -94,5 +95,33 @@ class BinanceConnectionTest extends TestCase
         $this->user->refresh();
         $this->assertFalse($this->user->bot_active);
         $this->assertTrue($this->user->binance_withdrawal_alert);
+    }
+
+    /**
+     * Escenario 4: Un usuario no autorizado intenta vincular su cuenta de Binance.
+     */
+    public function test_blocks_linking_for_unauthorized_emails(): void
+    {
+        $unauthorizedUser = User::factory()->create([
+            'email' => 'otheruser@example.com',
+            'binance_verified' => false,
+        ]);
+
+        $response = $this->actingAs($unauthorizedUser)
+            ->post(route('binance.store'), [
+                'binance_api_key' => 'my_secure_api_key',
+                'binance_secret_key' => 'my_secure_secret_key',
+            ]);
+
+        // Debe redirigir de vuelta con el error específico
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors([
+            'binance_api_key' => 'No se ha podido conectar.'
+        ]);
+
+        // El usuario no autorizado no debe quedar verificado ni tener las claves guardadas
+        $unauthorizedUser->refresh();
+        $this->assertFalse($unauthorizedUser->binance_verified);
+        $this->assertNull($unauthorizedUser->binance_api_key);
     }
 }
