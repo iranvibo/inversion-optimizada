@@ -9,9 +9,9 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 
 ### Modelo de Integración (Polling)
 * El scheduler consulta la API externa cada ~5 segundos (intervalo configurable; Laravel 11 soporta scheduling sub-minuto) pasando como parámetro el **nivel de riesgo** (Conservador, Balanceado, Agresivo):
-  * **Conservador**: Caída temporal máxima (*drawdown*) de hasta un **15%**.
-  * **Balanceado**: Caída temporal máxima (*drawdown*) de hasta un **30%**.
-  * **Agresivo**: Caída temporal máxima (*drawdown*) de hasta un **50%**.
+  * **Conservador**: Caída temporal máxima (*drawdown*) de hasta un **15%-20%**.
+  * **Balanceado**: Caída temporal máxima (*drawdown*) de hasta un **30%-50%**.
+  * **Agresivo**: Caída temporal máxima (*drawdown*) de hasta un **50%-90%**.
 * La API responde con la **posición objetivo actual**: `LONG`, `SHORT` o `CLOSE`.
 * Se sondea **una vez por nivel de riesgo activo** (máx. 3 consultas/ciclo), no por usuario; el resultado se propaga a todos los usuarios de ese nivel.
 * Solo se actúa si la posición difiere de la última conocida (idempotencia). Si la API falla, se mantiene la última posición conocida sin generar órdenes.

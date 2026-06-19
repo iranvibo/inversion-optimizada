@@ -294,11 +294,11 @@
 
                     <span id="risk-level-desc" class="text-xs text-slate-400 block mt-2">
                         @if($rl === 'conservador')
-                            Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas de hasta un 15%.
+                            Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas de hasta un 15%-20%.
                         @elseif($rl === 'balanceado')
-                            Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas de hasta un 30%.
+                            Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas de hasta un 30%-50%.
                         @else
-                            Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas de hasta un 50%.
+                            Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas de hasta un 50%-90%.
                         @endif
                     </span>
                 </div>
@@ -1083,11 +1083,11 @@
                 
                 let desc = '';
                 if (rLevel === 'conservador') {
-                    desc = 'Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas de hasta un 15%.';
+                    desc = 'Prioriza preservar tu capital. Crecimiento moderado con caídas temporales pequeñas de hasta un 15%-20%.';
                 } else if (rLevel === 'balanceado') {
-                    desc = 'Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas de hasta un 30%.';
+                    desc = 'Equilibrio entre crecimiento y estabilidad. Asume caídas temporales moderadas de hasta un 30%-50%.';
                 } else {
-                    desc = 'Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas de hasta un 50%.';
+                    desc = 'Busca el máximo crecimiento. Debes tolerar caídas temporales pronunciadas de hasta un 50%-90%.';
                 }
                 riskLevelDesc.textContent = desc;
                 updateRiskGauge(rLevel);
