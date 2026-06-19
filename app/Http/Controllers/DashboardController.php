@@ -88,10 +88,11 @@ class DashboardController extends Controller
         }
 
         // Limpiar actividades anteriores de simulación para tener un feed limpio
-        $user->botActivities()->delete();
+        $user->botActivities()->where('bot_mode', 'simulation')->delete();
 
         // 1. Compra de oportunidad (Escenario 1) -> LONG
         $user->botActivities()->create([
+            'bot_mode' => 'simulation',
             'type' => 'long',
             'action' => 'open_long',
             'risk_alert' => false,
@@ -100,6 +101,7 @@ class DashboardController extends Controller
 
         // 2. Cierre con beneficio de +1.5% (+15€) (Escenario 2) -> CLOSE
         $user->botActivities()->create([
+            'bot_mode' => 'simulation',
             'type' => 'close',
             'action' => 'close_profit',
             'profit_percentage' => 1.5,
@@ -110,6 +112,7 @@ class DashboardController extends Controller
 
         // 3. Cierre con pérdidas / Protección (Escenario 2) -> CLOSE
         $user->botActivities()->create([
+            'bot_mode' => 'simulation',
             'type' => 'close',
             'action' => 'close_loss',
             'profit_percentage' => -1.0,
@@ -120,6 +123,7 @@ class DashboardController extends Controller
 
         // 4. Protección diaria de riesgo (Escenario 3)
         $user->botActivities()->create([
+            'bot_mode' => 'simulation',
             'type' => 'risk_protection',
             'action' => 'stop_loss_trigger',
             'risk_alert' => true,
@@ -193,6 +197,7 @@ class DashboardController extends Controller
 
                         // Registrar la actividad
                         $user->botActivities()->create([
+                            'bot_mode' => 'real',
                             'type' => 'close',
                             'action' => $profitValue >= 0 ? 'close_profit' : 'close_loss',
                             'profit_percentage' => $profitPercentage,
@@ -219,6 +224,7 @@ class DashboardController extends Controller
                 $newBalance = round($currentBalance + $profitVal, 2);
 
                 $user->botActivities()->create([
+                    'bot_mode' => 'simulation',
                     'type' => 'close',
                     'action' => 'close_profit',
                     'profit_percentage' => $profitPercent,
@@ -338,19 +344,6 @@ class DashboardController extends Controller
             return back()->with('error', $errorMessage);
         }
 
-        $closeError = null;
-        if ($newMode === 'simulation' && $user->bot_active && $user->isBinanceLinked()) {
-            try {
-                $this->binanceBroker->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
-                Log::info("Cierre preventivo de posiciones ejecutado al cambiar a modo simulación para el usuario ID: {$user->id}");
-            } catch (\Exception $e) {
-                $closeError = 'Advertencia: El modo cambió a simulación, pero hubo un problema al cerrar posiciones en Binance: '.$e->getMessage();
-                Log::critical("Fallo al cerrar posiciones preventivamente al cambiar a simulación para el usuario ID: {$user->id}. Detalle: ".$e->getMessage());
-            }
-        }
-
-        Cache::put("user:{$user->id}:real_position", 'CLOSE');
-
         $user->update([
             'bot_mode' => $newMode,
         ]);
@@ -365,20 +358,6 @@ class DashboardController extends Controller
         }
 
         $statusMessage = 'Modo cambiado a: '.strtoupper($newMode);
-        if ($closeError) {
-            $statusMessage .= ' '.$closeError;
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'bot_mode' => $newMode,
-                    'current_position' => $user->current_position,
-                    'message' => $statusMessage,
-                    'warning' => $closeError,
-                ]);
-            }
-
-            return back()->with('error', $statusMessage);
-        }
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -462,12 +441,12 @@ class DashboardController extends Controller
     protected function getActivitiesForUser($user)
     {
         if ($user->bot_mode === 'real') {
-            $activities = $user->botActivities()->latest()->get();
+            $activities = $user->botActivities()->where('bot_mode', 'real')->latest()->get();
 
             return $this->sortActivities($activities);
         }
 
-        $dbActivities = $user->botActivities()->latest()->get();
+        $dbActivities = $user->botActivities()->where('bot_mode', 'simulation')->latest()->get();
         if ($dbActivities->isNotEmpty()) {
             return $this->sortActivities($dbActivities);
         }

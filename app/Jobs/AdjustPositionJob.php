@@ -148,6 +148,7 @@ class AdjustPositionJob implements ShouldQueue
                     \Illuminate\Support\Facades\Cache::put("user:{$user->id}:open_capital", $currentBalance);
 
                     $user->botActivities()->create([
+                        'bot_mode' => 'real',
                         'type' => $this->newPosition === 'LONG' ? 'long' : 'short',
                         'action' => $this->newPosition === 'LONG' ? 'open_long' : 'open_short',
                         'risk_alert' => false,
@@ -178,6 +179,7 @@ class AdjustPositionJob implements ShouldQueue
                 $profitVal = round($currentBalance * ($profitPercent / 100), 2);
 
                 $user->botActivities()->create([
+                    'bot_mode' => 'simulation',
                     'type' => 'close',
                     'action' => 'close_profit',
                     'profit_percentage' => $profitPercent,
@@ -198,6 +200,7 @@ class AdjustPositionJob implements ShouldQueue
                 event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
             } else {
                 $user->botActivities()->create([
+                    'bot_mode' => 'simulation',
                     'type' => $this->newPosition === 'LONG' ? 'long' : 'short',
                     'action' => $this->newPosition === 'LONG' ? 'open_long' : 'open_short',
                     'risk_alert' => false,
@@ -231,6 +234,7 @@ class AdjustPositionJob implements ShouldQueue
             : 0.0;
 
         $user->botActivities()->create([
+            'bot_mode' => 'real',
             'type' => 'close',
             'action' => $profitValue >= 0 ? 'close_profit' : 'close_loss',
             'profit_percentage' => $profitPercentage,
@@ -262,6 +266,7 @@ class AdjustPositionJob implements ShouldQueue
         }
 
         $user->botActivities()->create([
+            'bot_mode' => $user->bot_mode,
             'type' => 'risk_protection',
             'action' => $action,
             'description' => $description,

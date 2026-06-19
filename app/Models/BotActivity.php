@@ -16,6 +16,7 @@ class BotActivity extends Model
 
     protected $fillable = [
         'user_id',
+        'bot_mode',
         'type',
         'action',
         'description',
@@ -41,6 +42,16 @@ class BotActivity extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function ($activity) {
+            if (empty($activity->bot_mode)) {
+                $user = $activity->user ?: User::find($activity->user_id);
+                $activity->bot_mode = $user ? $user->bot_mode : 'simulation';
+            }
+        });
     }
 
     /**

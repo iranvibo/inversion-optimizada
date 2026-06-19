@@ -239,15 +239,22 @@ class BotControlTest extends TestCase
     }
 
     /**
-     * Test de la US07: Alternancia de modo real a simulación con bot activo y Binance conectado.
+     * Test de la US07: Alternancia de modo real a simulación sin tocar Binance ni alterar la posición real en caché.
      */
-    public function test_changes_mode_from_real_to_simulation_and_closes_positions(): void
+    public function test_changes_mode_from_real_to_simulation_without_touching_binance(): void
     {
+        $broker = Mockery::mock(BinanceBrokerInterface::class);
+        $broker->shouldNotReceive('closeOpenPositions');
+        $this->app->instance(BinanceBrokerInterface::class, $broker);
+
         // El usuario arranca en modo real con bot activo
         $this->user->update([
             'bot_mode' => 'real',
             'bot_active' => true,
         ]);
+
+        // Simular que el caché de posición real tiene LONG
+        \Illuminate\Support\Facades\Cache::put("user:{$this->user->id}:real_position", 'LONG');
 
         $response = $this->actingAs($this->user)
             ->post(route('bot.toggle-mode'));
@@ -260,30 +267,45 @@ class BotControlTest extends TestCase
         $this->assertSame('simulation', $this->user->bot_mode);
         // El bot sigue activo localmente pero operará solo en simulación
         $this->assertTrue($this->user->bot_active);
+
+        // La posición real en caché NO se debe haber alterado
+        $this->assertSame('LONG', \Illuminate\Support\Facades\Cache::get("user:{$this->user->id}:real_position"));
     }
 
     /**
-     * Test de la US07: Fail-Safe al cambiar a simulación cuando el broker de Binance falla.
+     * Test de la US07: Separación correcta de actividades reales y simuladas.
      */
-    public function test_changes_mode_from_real_to_simulation_even_if_broker_fails(): void
+    public function test_switching_to_simulation_mode_displays_simulation_activities_only(): void
     {
-        // Usamos una clave que cause fallo al cerrar
-        $this->user->update([
+        // Crear una actividad en modo real
+        $this->user->botActivities()->create([
             'bot_mode' => 'real',
-            'bot_active' => true,
-            'binance_api_key' => 'fail_close_key',
+            'type' => 'long',
+            'action' => 'open_long',
         ]);
 
-        $response = $this->actingAs($this->user)
-            ->post(route('bot.toggle-mode'));
+        // Crear una actividad en modo simulación
+        $this->user->botActivities()->create([
+            'bot_mode' => 'simulation',
+            'type' => 'close',
+            'action' => 'close_profit',
+            'profit_percentage' => 1.5,
+            'profit_value' => 15.00,
+        ]);
 
-        $response->assertRedirect();
-        $response->assertSessionHas('error');
-        $this->assertStringContainsString('El modo cambió a simulación, pero hubo un problema al cerrar posiciones', session('error'));
+        // Cuando el bot_mode es real, solo vemos la actividad real
+        $this->user->update(['bot_mode' => 'real']);
+        $response = $this->actingAs($this->user)->getJson(route('dashboard.activities'));
+        $response->assertOk();
+        $this->assertCount(1, $response->json('activities'));
+        $this->assertSame('long', $response->json('activities.0.type'));
 
-        $this->user->refresh();
-        $this->assertSame('simulation', $this->user->bot_mode);
-        $this->assertTrue($this->user->bot_active);
+        // Cuando el bot_mode es simulación, solo vemos la actividad simulada
+        $this->user->update(['bot_mode' => 'simulation']);
+        $response = $this->actingAs($this->user)->getJson(route('dashboard.activities'));
+        $response->assertOk();
+        $this->assertCount(1, $response->json('activities'));
+        $this->assertSame('close', $response->json('activities.0.type'));
     }
 
     /**
