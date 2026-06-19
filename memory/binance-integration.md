@@ -101,4 +101,8 @@ Este documento detalla las decisiones técnicas y de diseño adoptadas para la i
     - *Decisión*: Se eliminó la llamada a `getTotalBalance` al abrir posiciones. En su lugar, se almacena en la caché `open_capital` y en el snapshot de apertura el patrimonio neto pre-trade `$currentBalance` (cargado de la base de datos). Al no alterar el patrimonio total el simple hecho de entrar a una posición, este saldo inicial es la referencia exacta y evita toda latencia post-trade. Al cerrar posiciones (CLOSE), sí se lee `getTotalBalance` en vivo (con un retardo `sleep(2)` y hasta 3 reintentos si cae >5%) para registrar el saldo final real liquidado.
     - *Limpieza*: Se creó una migración de datos para escalar los snapshots históricos que guardaban saldo libre (~48 EUR) al patrimonio neto real (~55.8 EUR) y eliminar picos transitorios anteriores.
 
+14. **Conexión Obligatoria a Binance para Activar el Bot (Cualquier Modo) (2026-06-19)**:
+    - *Decisión*: Se exige que el usuario tenga una cuenta de Binance vinculada y validada (`isBinanceLinked()`) para poder activar el bot (`bot_active = true`), tanto en modo Simulación como en modo Real.
+    - *Justificación*: Protege al usuario garantizando que exista una API key segura y verificada antes de arrancar cualquier operación del bot, unificando los flujos de activación.
+
 

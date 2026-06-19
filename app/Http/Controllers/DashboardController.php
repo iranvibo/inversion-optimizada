@@ -150,13 +150,14 @@ class DashboardController extends Controller
             return back()->with('error', 'Sesión no válida.');
         }
 
-        // Si intenta encender el bot en modo Real sin Binance vinculado, lo bloquea (US07 Escenario 3)
-        if (! $user->bot_active && $user->bot_mode === 'real' && ! $user->isBinanceLinked()) {
+        // Si intenta encender el bot sin Binance vinculado, lo bloquea
+        if (! $user->bot_active && ! $user->isBinanceLinked()) {
+            $errorMessage = 'Operación Bloqueada: Para activar el bot debes vincular una cuenta de Binance autorizada.';
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Operación Bloqueada: Para activar el bot en modo REAL debes vincular una cuenta de Binance autorizada.'], 403);
+                return response()->json(['success' => false, 'message' => $errorMessage], 403);
             }
 
-            return back()->with('error', 'Operación Bloqueada: Para activar el bot en modo REAL debes vincular una cuenta de Binance autorizada.');
+            return back()->with('error', $errorMessage);
         }
 
         $closeError = null;

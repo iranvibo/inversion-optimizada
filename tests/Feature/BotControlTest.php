@@ -180,7 +180,7 @@ class BotControlTest extends TestCase
     }
 
     /**
-     * Requisito de seguridad al activar en modo REAL
+     * Requisito de seguridad al activar en modo REAL sin Binance vinculado
      */
     public function test_prevents_activation_in_real_mode_without_binance_linked(): void
     {
@@ -196,7 +196,32 @@ class BotControlTest extends TestCase
             ->post(route('bot.toggle'));
 
         $response->assertSessionHas('error');
-        $this->assertStringContainsString('Para activar el bot en modo REAL debes vincular', session('error'));
+        $this->assertStringContainsString('Para activar el bot debes vincular una cuenta de Binance autorizada', session('error'));
+
+        $unlinkedUser->refresh();
+        $this->assertFalse($unlinkedUser->bot_active);
+
+        Event::assertNotDispatched(BotStatusUpdated::class);
+    }
+
+    /**
+     * Requisito de seguridad al activar en modo SIMULATION sin Binance vinculado
+     */
+    public function test_prevents_activation_in_simulation_mode_without_binance_linked(): void
+    {
+        Event::fake([BotStatusUpdated::class]);
+
+        $unlinkedUser = User::factory()->create([
+            'binance_verified' => false,
+            'bot_active' => false,
+            'bot_mode' => 'simulation',
+        ]);
+
+        $response = $this->actingAs($unlinkedUser)
+            ->post(route('bot.toggle'));
+
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('Para activar el bot debes vincular una cuenta de Binance autorizada', session('error'));
 
         $unlinkedUser->refresh();
         $this->assertFalse($unlinkedUser->bot_active);
