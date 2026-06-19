@@ -479,4 +479,47 @@ class BotControlTest extends TestCase
             'type' => 'close',
         ]);
     }
+
+    /**
+     * Al activar el bot, se deben limpiar/desactivar las alertas de riesgo previas.
+     */
+    public function test_activating_bot_clears_previous_risk_alerts(): void
+    {
+        $this->user->update([
+            'bot_active' => false,
+            'bot_mode' => 'real',
+        ]);
+
+        // Crear una actividad con una alerta de riesgo activa
+        $this->user->botActivities()->create([
+            'bot_mode' => 'real',
+            'type' => 'risk_protection',
+            'action' => 'stop_loss_trigger',
+            'risk_alert' => true,
+        ]);
+
+        // Asegurarnos que existe en base de datos con risk_alert = true
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $this->user->id,
+            'risk_alert' => true,
+        ]);
+
+        // Activar el bot
+        $response = $this->actingAs($this->user)
+            ->post(route('bot.toggle'));
+
+        $response->assertRedirect();
+        $this->user->refresh();
+        $this->assertTrue($this->user->bot_active);
+
+        // La alerta de riesgo debe haberse desactivado (risk_alert = false)
+        $this->assertDatabaseMissing('bot_activities', [
+            'user_id' => $this->user->id,
+            'risk_alert' => true,
+        ]);
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $this->user->id,
+            'risk_alert' => false,
+        ]);
+    }
 }

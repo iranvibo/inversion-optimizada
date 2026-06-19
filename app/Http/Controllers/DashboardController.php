@@ -256,13 +256,19 @@ class DashboardController extends Controller
         if (! $newStatus) {
             Cache::put("user:{$user->id}:real_position", 'CLOSE');
             Cache::put("user:{$user->id}:simulation_position", 'CLOSE');
-        } elseif ($user->bot_mode === 'real' && $user->isBinanceLinked()) {
-            // Reconciliación al activar: el motor solo reacciona a CAMBIOS de señal,
-            // así que tras un pausa→cierre la posición real queda en CLOSE mientras la
-            // señal vigente puede seguir siendo SHORT/LONG. Al encender, alineamos la
-            // posición con la señal actual encolando un ajuste idempotente (no reabre
-            // si ya coincide), en lugar de esperar a que la señal cambie.
-            $this->reconcilePositionWithCurrentSignal($user);
+        } else {
+            // Al reactivar el bot, desactivamos las alertas de riesgo previas (risk_alert = false)
+            // para que no se destaquen arriba en el feed, ya que la pausa por riesgo ha sido resuelta.
+            $user->botActivities()->where('risk_alert', true)->update(['risk_alert' => false]);
+
+            if ($user->bot_mode === 'real' && $user->isBinanceLinked()) {
+                // Reconciliación al activar: el motor solo reacciona a CAMBIOS de señal,
+                // así que tras un pausa→cierre la posición real queda en CLOSE mientras la
+                // señal vigente puede seguir siendo SHORT/LONG. Al encender, alineamos la
+                // posición con la señal actual encolando un ajuste idempotente (no reabre
+                // si ya coincide), en lugar de esperar a que la señal cambie.
+                $this->reconcilePositionWithCurrentSignal($user);
+            }
         }
 
         // Disparar evento de WebSocket en tiempo real
