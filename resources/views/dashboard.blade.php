@@ -590,6 +590,7 @@
     let originalChangeMessage = null;
     let chartHovering = false;
     let liveBalance = null;
+    let currentSeries = [];
 
     const formatEuro = (value) =>
         new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
@@ -839,6 +840,23 @@
         overlay.addEventListener('touchend', handleLeave);
     }
 
+    function updateChartWithLive(balance) {
+        if (!currentSeries || currentSeries.length === 0) return;
+
+        const lastIndex = currentSeries.length - 1;
+        if (currentSeries[lastIndex].isLive) {
+            currentSeries[lastIndex].value = balance;
+            currentSeries[lastIndex].t = new Date().toISOString();
+        } else {
+            currentSeries.push({
+                t: new Date().toISOString(),
+                value: balance,
+                isLive: true
+            });
+        }
+        drawChart(currentSeries);
+    }
+
     async function refreshHistory(pulse = false) {
         errorEl.classList.add('hidden');
 
@@ -858,7 +876,13 @@
             originalBalance = data.current_balance;
             originalChangeMessage = data.change_message;
 
-            drawChart(data.series);
+            currentSeries = data.series || [];
+
+            if (liveBalance !== null && currentSeries.length > 0) {
+                updateChartWithLive(liveBalance);
+            } else {
+                drawChart(currentSeries);
+            }
             changeEl.textContent = data.change_message;
 
             if (data.current_balance !== null) {
@@ -1222,7 +1246,7 @@
         }
     }
 
-@if($user->bot_mode === 'real' && $user->isBinanceLinked())
+@if($user->isBinanceLinked())
     // Sondeo del patrimonio neto en vivo: la cabecera se mueve con el P/L de la
     // posición abierta sin esperar al snapshot programado (cada 15 min). No toca
     // el histórico del gráfico; solo refresca el número grande.
@@ -1250,6 +1274,8 @@
                 if (changed) pulseBalance();
             }
 
+            updateChartWithLive(data.balance);
+
             if (data.current_position) {
                 updateBotPositionUi(data.current_position);
             }
@@ -1268,6 +1294,10 @@
             .listen('.balance.updated', (event) => {
                 renderBalance(event.balance);
                 pulseBalance();
+                
+                liveBalance = event.balance;
+                originalBalance = event.balance;
+                
                 refreshHistory();
                 if (event.current_position) {
                     updateBotPositionUi(event.current_position);
