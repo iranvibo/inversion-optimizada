@@ -104,27 +104,26 @@ class AdjustPositionJob implements ShouldQueue
                     return;
                 }
 
-                // Esperar a que el exchange liquide las órdenes y actualice los balances
-                if (! app()->runningUnitTests()) {
-                    sleep(2);
-                }
-
-                // Patrimonio neto real (equity) tras ejecutar el cambio en el exchange.
-                $newBalance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
-
-                // Si el balance muestra una caída sospechosa de más del 5% comparado con el anterior,
-                // reintentamos hasta 3 veces con una pausa pequeña, ya que puede ser una discrepancia temporal de Binance.
-                if (! app()->runningUnitTests()) {
-                    $attempts = 0;
-                    while ($attempts < 3 && $currentBalance > 0 && ($currentBalance - $newBalance) / $currentBalance > 0.05) {
-                        sleep(1);
-                        $newBalance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
-                        $attempts++;
-                    }
-                }
-
-                // Registrar actividad en base de datos en lenguaje humano
                 if ($this->newPosition === 'CLOSE') {
+                    // Esperar a que el exchange liquide las órdenes y actualice los balances
+                    if (! app()->runningUnitTests()) {
+                        sleep(2);
+                    }
+
+                    // Patrimonio neto real (equity) tras ejecutar el cambio en el exchange.
+                    $newBalance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+
+                    // Si el balance muestra una caída sospechosa de más del 5% comparado con el anterior,
+                    // reintentamos hasta 3 veces con una pausa pequeña, ya que puede ser una discrepancia temporal de Binance.
+                    if (! app()->runningUnitTests()) {
+                        $attempts = 0;
+                        while ($attempts < 3 && $currentBalance > 0 && ($currentBalance - $newBalance) / $currentBalance > 0.05) {
+                            sleep(1);
+                            $newBalance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+                            $attempts++;
+                        }
+                    }
+
                     // Capital con el que se abrió la posición que se acaba de cerrar.
                     // Si no se registró (p.ej. bot reiniciado, posición abierta fuera
                     // del bot), se usa el último balance conocido como referencia.
@@ -134,10 +133,19 @@ class AdjustPositionJob implements ShouldQueue
                     );
 
                     $this->recordCloseActivity($user, $openCapital, $newBalance);
+
+                    // Sincronizar el nuevo balance
+                    $now = now()->toImmutable();
+                    $user->balanceSnapshots()->create([
+                        'balance' => $newBalance,
+                        'captured_at' => $now,
+                    ]);
+
+                    // Emitir evento WebSocket para actualizar en tiempo real
+                    event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
                 } else {
-                    // Al abrir, se guarda el capital de partida (equity real) para
-                    // calcular el beneficio/pérdida real cuando la posición se cierre.
-                    \Illuminate\Support\Facades\Cache::put("user:{$user->id}:open_capital", $newBalance);
+                    // Al abrir, el capital de apertura es exactamente el currentBalance (evitando latencia).
+                    \Illuminate\Support\Facades\Cache::put("user:{$user->id}:open_capital", $currentBalance);
 
                     $user->botActivities()->create([
                         'type' => $this->newPosition === 'LONG' ? 'long' : 'short',
@@ -147,17 +155,17 @@ class AdjustPositionJob implements ShouldQueue
                             ? 'Se inició una inversión al alza (LONG) esperando una subida del precio.'
                             : 'Se inició una inversión a la baja (SHORT) esperando una caída del precio.',
                     ]);
+
+                    // Sincronizar el balance de apertura (que coincide con currentBalance al no cambiar la equidad, evitando latencia)
+                    $now = now()->toImmutable();
+                    $user->balanceSnapshots()->create([
+                        'balance' => $currentBalance,
+                        'captured_at' => $now,
+                    ]);
+
+                    // Emitir evento WebSocket para actualizar en tiempo real
+                    event(new \App\Events\BalanceUpdated($user, $currentBalance, $now));
                 }
-
-                // Sincronizar el nuevo balance
-                $now = now()->toImmutable();
-                $user->balanceSnapshots()->create([
-                    'balance' => $newBalance,
-                    'captured_at' => $now,
-                ]);
-
-                // Emitir evento WebSocket para actualizar en tiempo real
-                event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
 
             } catch (\Exception $e) {
                 Log::error("Fallo al ajustar posición real en Binance para el usuario ID: {$user->id}. Detalle: " . $e->getMessage());

@@ -158,14 +158,84 @@ class DashboardController extends Controller
         $closeError = null;
         if ($user->bot_active) {
             // Transición a PAUSADO (Escenario 3: Cierre preventivo al pausar)
+            $previousPosition = $user->current_position;
+            $hasOpenPosition = ($previousPosition === 'LONG' || $previousPosition === 'SHORT');
+
+            // Cierre preventivo en Binance si la cuenta está vinculada (para cualquier modo, como salvaguarda)
             if ($user->isBinanceLinked()) {
                 try {
                     $this->binanceBroker->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
                     Log::info("Cierre preventivo de posiciones ejecutado para el usuario ID: {$user->id}");
+
+                    if ($user->bot_mode === 'real' && $hasOpenPosition) {
+                        $latestSnapshot = $user->balanceSnapshots()->latest('captured_at')->first();
+                        $currentBalance = $latestSnapshot ? (float) $latestSnapshot->balance : (float) ($user->estimated_capital ?? 100.0);
+
+                        if (! app()->runningUnitTests()) {
+                            sleep(2);
+                        }
+
+                        $newBalance = $this->binanceBroker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+
+                        // Sincronizar el nuevo balance
+                        $now = now()->toImmutable();
+                        $user->balanceSnapshots()->create([
+                            'balance' => $newBalance,
+                            'captured_at' => $now,
+                        ]);
+
+                        // Recuperar el capital de apertura
+                        $openCapital = (float) Cache::pull("user:{$user->id}:open_capital", $currentBalance);
+
+                        // Calcular el profit/loss
+                        $profitValue = round($newBalance - $openCapital, 2);
+                        $profitPercentage = $openCapital > 0 ? round(($profitValue / $openCapital) * 100, 2) : 0.0;
+
+                        // Registrar la actividad
+                        $user->botActivities()->create([
+                            'type' => 'close',
+                            'action' => $profitValue >= 0 ? 'close_profit' : 'close_loss',
+                            'profit_percentage' => $profitPercentage,
+                            'profit_value' => $profitValue,
+                            'risk_alert' => false,
+                        ]);
+
+                        // Emitir evento para balance
+                        event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
+                    }
                 } catch (\Exception $e) {
                     $closeError = 'Advertencia: El bot se pausó localmente, pero hubo un problema al cerrar posiciones en Binance: '.$e->getMessage();
                     Log::critical("Fallo al cerrar posiciones preventivamente para el usuario ID: {$user->id}. Detalle: ".$e->getMessage());
                 }
+            }
+
+            // Si es simulación y tiene posición abierta, registramos el cierre simulado
+            if ($user->bot_mode === 'simulation' && $hasOpenPosition) {
+                $latestSnapshot = $user->balanceSnapshots()->latest('captured_at')->first();
+                $currentBalance = $latestSnapshot ? (float) $latestSnapshot->balance : (float) ($user->estimated_capital ?? 100.0);
+
+                $profitPercent = 1.5;
+                $profitVal = round($currentBalance * ($profitPercent / 100), 2);
+                $newBalance = round($currentBalance + $profitVal, 2);
+
+                $user->botActivities()->create([
+                    'type' => 'close',
+                    'action' => 'close_profit',
+                    'profit_percentage' => $profitPercent,
+                    'profit_value' => $profitVal,
+                    'risk_alert' => false,
+                    'description' => "Inversión finalizada: posición cerrada con un +{$profitPercent}% de beneficio (+{$profitVal}€).",
+                ]);
+
+                // Registrar un nuevo balance snapshot simulado
+                $now = now()->toImmutable();
+                $user->balanceSnapshots()->create([
+                    'balance' => $newBalance,
+                    'captured_at' => $now,
+                ]);
+
+                // Emitir evento WebSocket para actualizar balance en tiempo real
+                event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
             }
         } else {
             // Transición a ACTIVO: enviar señal al motor de ejecución de órdenes (Escenario 1)

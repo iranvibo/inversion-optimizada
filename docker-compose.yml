@@ -65,6 +65,7 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
       target: dev
+    restart: always
     command: php artisan queue:work redis --sleep=1 --tries=3 --max-time=3600
     volumes:
       - ./:/var/www/html
@@ -82,6 +83,7 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
       target: dev
+    restart: always
     command: php artisan schedule:work
     volumes:
       - ./:/var/www/html

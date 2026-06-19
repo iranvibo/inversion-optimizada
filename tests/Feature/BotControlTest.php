@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Core\Contracts\BinanceBrokerInterface;
 use App\Core\Contracts\SignalProviderInterface;
 use App\Events\BotStatusUpdated;
 use App\Jobs\AdjustPositionJob;
@@ -336,5 +337,124 @@ class BotControlTest extends TestCase
 
         $unlinkedUser->refresh();
         $this->assertSame('simulation', $unlinkedUser->bot_mode);
+    }
+
+    /**
+     * Al pausar el bot manualmente en modo simulación con una posición activa (LONG/SHORT),
+     * se debe registrar el cierre con un 1.5% de beneficio en la tabla bot_activities.
+     */
+    public function test_manual_pause_in_simulation_mode_records_close_activity(): void
+    {
+        $this->user->update([
+            'bot_active' => true,
+            'bot_mode' => 'simulation',
+            'risk_level' => 'balanceado',
+        ]);
+
+        // Simular que el balance actual es 1000 y que hay una posición activa en caché
+        $this->user->balanceSnapshots()->create(['balance' => 1000.00, 'captured_at' => now()]);
+        \Illuminate\Support\Facades\Cache::put("signal:last_known_position:balanceado", 'LONG');
+
+        $response = $this->actingAs($this->user)
+            ->post(route('bot.toggle'));
+
+        $response->assertRedirect();
+        $this->user->refresh();
+        $this->assertFalse($this->user->bot_active);
+
+        // Se debe haber registrado la actividad de cierre
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $this->user->id,
+            'type' => 'close',
+            'action' => 'close_profit',
+            'profit_percentage' => 1.50,
+            'profit_value' => 15.00,
+        ]);
+
+        // Se debe haber actualizado el balance snapshot a 1015 (1000 + 1.5%)
+        $this->assertDatabaseHas('balance_snapshots', [
+            'user_id' => $this->user->id,
+            'balance' => 1015.00,
+        ]);
+    }
+
+    /**
+     * Al pausar el bot manualmente en modo real con una posición activa (LONG/SHORT),
+     * se interactúa con el broker para cerrar, calcular profit real y registrarlo.
+     */
+    public function test_manual_pause_in_real_mode_records_close_activity_with_real_profit(): void
+    {
+        $this->user->update([
+            'bot_active' => true,
+            'bot_mode' => 'real',
+            'risk_level' => 'balanceado',
+        ]);
+
+        // Guardar capital de apertura de 1000 y posición real actual en caché
+        \Illuminate\Support\Facades\Cache::put("user:{$this->user->id}:open_capital", 1000.00);
+        \Illuminate\Support\Facades\Cache::put("user:{$this->user->id}:real_position", 'SHORT');
+
+        // Mock del Broker de Binance
+        $broker = Mockery::mock(BinanceBrokerInterface::class);
+        $broker->shouldReceive('closeOpenPositions')
+            ->once()
+            ->with($this->user->binance_api_key, $this->user->binance_secret_key)
+            ->andReturn(true);
+        $broker->shouldReceive('getTotalBalance')
+            ->once()
+            ->with($this->user->binance_api_key, $this->user->binance_secret_key)
+            ->andReturn(1050.00); // Beneficio de +50 (+5%)
+
+        $this->app->instance(BinanceBrokerInterface::class, $broker);
+
+        $response = $this->actingAs($this->user)
+            ->post(route('bot.toggle'));
+
+        $response->assertRedirect();
+        $this->user->refresh();
+        $this->assertFalse($this->user->bot_active);
+
+        // Se debe haber registrado la actividad de cierre real
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $this->user->id,
+            'type' => 'close',
+            'action' => 'close_profit',
+            'profit_percentage' => 5.00,
+            'profit_value' => 50.00,
+        ]);
+
+        // Sincronizar el nuevo balance
+        $this->assertDatabaseHas('balance_snapshots', [
+            'user_id' => $this->user->id,
+            'balance' => 1050.00,
+        ]);
+    }
+
+    /**
+     * Si no hay posición abierta al pausar (CLOSE), no debe registrar ninguna actividad de cierre.
+     */
+    public function test_manual_pause_with_no_open_position_does_not_record_activity(): void
+    {
+        $this->user->update([
+            'bot_active' => true,
+            'bot_mode' => 'simulation',
+            'risk_level' => 'balanceado',
+        ]);
+
+        // Simular que la posición ya era CLOSE
+        \Illuminate\Support\Facades\Cache::put("signal:last_known_position:balanceado", 'CLOSE');
+
+        $response = $this->actingAs($this->user)
+            ->post(route('bot.toggle'));
+
+        $response->assertRedirect();
+        $this->user->refresh();
+        $this->assertFalse($this->user->bot_active);
+
+        // No se debe registrar actividad tipo close
+        $this->assertDatabaseMissing('bot_activities', [
+            'user_id' => $this->user->id,
+            'type' => 'close',
+        ]);
     }
 }

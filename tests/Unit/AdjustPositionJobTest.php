@@ -281,10 +281,6 @@ class AdjustPositionJobTest extends TestCase
             ->once()
             ->with($user->binance_api_key, $user->binance_secret_key, 'LONG', 'balanceado')
             ->andReturn(true);
-        $this->broker->shouldReceive('getTotalBalance')
-            ->once()
-            ->with($user->binance_api_key, $user->binance_secret_key)
-            ->andReturn(1050.00);
 
         $this->runJob($user->id, 'LONG');
 
@@ -295,7 +291,7 @@ class AdjustPositionJobTest extends TestCase
         ]);
         $this->assertDatabaseHas('balance_snapshots', [
             'user_id' => $user->id,
-            'balance' => 1050.00,
+            'balance' => 1000.00,
         ]);
         $this->assertSame('LONG', Cache::get("user:{$user->id}:real_position"));
         Event::assertDispatched(BalanceUpdated::class);
@@ -319,7 +315,6 @@ class AdjustPositionJobTest extends TestCase
             ->once()
             ->with($user->binance_api_key, $user->binance_secret_key, 'SHORT', 'agresivo')
             ->andReturn(true);
-        $this->broker->shouldReceive('getTotalBalance')->once()->andReturn(1000.00);
 
         $this->runJob($user->id, 'SHORT');
 
@@ -458,12 +453,11 @@ class AdjustPositionJobTest extends TestCase
             ->once()
             ->with($user->binance_api_key, $user->binance_secret_key, 'LONG', 'balanceado')
             ->andReturn(true);
-        $this->broker->shouldReceive('getTotalBalance')->once()->andReturn(1200.00);
 
         $this->runJob($user->id, 'LONG');
 
         // Al abrir, el equity real queda guardado como capital de apertura.
-        $this->assertSame(1200.00, Cache::get("user:{$user->id}:open_capital"));
+        $this->assertSame(1000.00, Cache::get("user:{$user->id}:open_capital"));
     }
 
     public function test_real_mode_aborts_when_binance_not_linked(): void

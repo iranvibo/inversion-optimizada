@@ -137,9 +137,6 @@ class SignalSyncTest extends TestCase
             ->once()
             ->with($this->user->binance_api_key, $this->user->binance_secret_key, 'LONG', 'balanceado')
             ->andReturn(true);
-        $this->brokerMock->shouldReceive('getTotalBalance')
-            ->once()
-            ->andReturn(1020.00);
 
         $this->artisan('signals:poll')->assertExitCode(0);
 
