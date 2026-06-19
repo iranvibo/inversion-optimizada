@@ -261,12 +261,11 @@ class DashboardController extends Controller
             // para que no se destaquen arriba en el feed, ya que la pausa por riesgo ha sido resuelta.
             $user->botActivities()->where('risk_alert', true)->update(['risk_alert' => false]);
 
-            if ($user->bot_mode === 'real' && $user->isBinanceLinked()) {
+            if ($user->bot_mode === 'simulation' || ($user->bot_mode === 'real' && $user->isBinanceLinked())) {
                 // Reconciliación al activar: el motor solo reacciona a CAMBIOS de señal,
-                // así que tras un pausa→cierre la posición real queda en CLOSE mientras la
-                // señal vigente puede seguir siendo SHORT/LONG. Al encender, alineamos la
-                // posición con la señal actual encolando un ajuste idempotente (no reabre
-                // si ya coincide), en lugar de esperar a que la señal cambie.
+                // así que tras un pausa→cierre la posición real o simulada queda en CLOSE
+                // mientras la señal vigente puede seguir siendo SHORT/LONG. Al encender,
+                // alineamos la posición con la señal actual encolando un ajuste idempotente.
                 $this->reconcilePositionWithCurrentSignal($user);
             }
         }
@@ -311,9 +310,14 @@ class DashboardController extends Controller
     private function reconcilePositionWithCurrentSignal(User $user): void
     {
         try {
+            $riskLevel = strtolower($user->risk_level ?? 'balanceado');
             $signal = app(SignalProviderInterface::class)
-                ->getCurrentSignal($user->risk_level ?? 'balanceado');
+                ->getCurrentSignal($riskLevel);
             $position = strtoupper($signal['position'] ?? 'CLOSE');
+
+            // Actualizar la última posición conocida en caché para evitar disparadores duplicados del scheduler
+            // y asegurar que el accessor del modelo User devuelva el estado correcto de inmediato.
+            Cache::put("signal:last_known_position:{$riskLevel}", $position);
 
             AdjustPositionJob::dispatch($user->id, $position);
             Log::info("Reconciliación al activar: encolado ajuste a '{$position}' para el usuario ID: {$user->id}.");
@@ -354,13 +358,13 @@ class DashboardController extends Controller
             'bot_mode' => $newMode,
         ]);
 
-        // Al pasar a modo real con el bot ya activo, la posición real se acaba de
-        // forzar a CLOSE; el sondeo solo reacciona a CAMBIOS de señal, así que
-        // reconciliamos de inmediato con la señal vigente para no quedarnos en
-        // CLOSE mientras la señal sigue siendo LONG/SHORT (mismo criterio que la
-        // activación del bot).
-        if ($newMode === 'real' && $user->bot_active && $user->isBinanceLinked()) {
-            $this->reconcilePositionWithCurrentSignal($user);
+        // Al alternar modo con el bot activo, la posición puede haber cambiado
+        // o requerir alineación inmediata con la señal vigente para no quedarnos en
+        // CLOSE (mismo criterio que la activación del bot).
+        if ($user->bot_active) {
+            if ($newMode === 'simulation' || ($newMode === 'real' && $user->isBinanceLinked())) {
+                $this->reconcilePositionWithCurrentSignal($user);
+            }
         }
 
         $statusMessage = 'Modo cambiado a: '.strtoupper($newMode);
@@ -399,6 +403,12 @@ class DashboardController extends Controller
         $user->update([
             'risk_level' => $riskLevel,
         ]);
+
+        if ($user->bot_active) {
+            if ($user->bot_mode === 'simulation' || ($user->bot_mode === 'real' && $user->isBinanceLinked())) {
+                $this->reconcilePositionWithCurrentSignal($user);
+            }
+        }
 
         $statusMessage = 'Nivel de riesgo actualizado a: '.ucfirst($riskLevel);
 

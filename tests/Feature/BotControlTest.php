@@ -83,17 +83,28 @@ class BotControlTest extends TestCase
     }
 
     /**
-     * En modo simulación la activación no encola ajustes reales (no toca Binance).
+     * En modo simulación la activación reconcilia con la señal vigente encolando el ajuste.
      */
-    public function test_activation_in_simulation_mode_does_not_dispatch_adjust(): void
+    public function test_activation_in_simulation_mode_reconciles_with_current_signal(): void
     {
         Event::fake([BotStatusUpdated::class]);
         Queue::fake();
 
+        $provider = Mockery::mock(SignalProviderInterface::class);
+        $provider->shouldReceive('getCurrentSignal')
+            ->andReturn(['position' => 'LONG', 'issued_at' => now()->toIso8601String(), 'signal_id' => 'sig-test']);
+        $this->app->instance(SignalProviderInterface::class, $provider);
+
         // El usuario por defecto está en modo simulación.
+        $this->user->update(['risk_level' => 'agresivo']);
+
         $this->actingAs($this->user)->post(route('bot.toggle'))->assertRedirect();
 
-        Queue::assertNotPushed(AdjustPositionJob::class);
+        Queue::assertPushed(
+            AdjustPositionJob::class,
+            fn (AdjustPositionJob $job) => $job->userId === $this->user->id && $job->newPosition === 'LONG'
+        );
+        $this->assertSame('LONG', \Illuminate\Support\Facades\Cache::get('signal:last_known_position:agresivo'));
     }
 
     /**
@@ -206,6 +217,38 @@ class BotControlTest extends TestCase
 
         $this->user->refresh();
         $this->assertSame('agresivo', $this->user->risk_level);
+    }
+
+    /**
+     * Al actualizar el nivel de riesgo con el bot activo, se reconcilia con la señal del nuevo nivel.
+     */
+    public function test_updates_risk_level_reconciles_when_bot_is_active(): void
+    {
+        Queue::fake();
+
+        $provider = Mockery::mock(SignalProviderInterface::class);
+        $provider->shouldReceive('getCurrentSignal')
+            ->with('conservador')
+            ->andReturn(['position' => 'SHORT', 'issued_at' => now()->toIso8601String(), 'signal_id' => 'sig-test']);
+        $this->app->instance(SignalProviderInterface::class, $provider);
+
+        $this->user->update([
+            'bot_active' => true,
+            'risk_level' => 'balanceado',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->post(route('bot.update-risk'), ['risk_level' => 'conservador']);
+
+        $response->assertRedirect();
+        $this->user->refresh();
+        $this->assertSame('conservador', $this->user->risk_level);
+
+        Queue::assertPushed(
+            AdjustPositionJob::class,
+            fn (AdjustPositionJob $job) => $job->userId === $this->user->id && $job->newPosition === 'SHORT'
+        );
+        $this->assertSame('SHORT', \Illuminate\Support\Facades\Cache::get('signal:last_known_position:conservador'));
     }
 
     /**

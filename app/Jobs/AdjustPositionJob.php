@@ -168,6 +168,14 @@ class AdjustPositionJob implements ShouldQueue
                     event(new \App\Events\BalanceUpdated($user, $currentBalance, $now));
                 }
 
+            } catch (\App\Core\Exceptions\BinanceInvalidCredentialsException $e) {
+                $user->update([
+                    'bot_active' => false,
+                ]);
+                \Illuminate\Support\Facades\Cache::put("user:{$user->id}:real_position", 'CLOSE');
+                \Illuminate\Support\Facades\Cache::put("user:{$user->id}:simulation_position", 'CLOSE');
+                Log::warning("AdjustPositionJob: Bot pausado para el usuario ID: {$user->id} debido a credenciales inválidas.");
+                event(new \App\Events\BotStatusUpdated($user, false));
             } catch (\Exception $e) {
                 Log::error("Fallo al ajustar posición real en Binance para el usuario ID: {$user->id}. Detalle: " . $e->getMessage());
             }
@@ -208,6 +216,10 @@ class AdjustPositionJob implements ShouldQueue
                         ? 'Se inició una inversión al alza (LONG) esperando una subida del precio.'
                         : 'Se inició una inversión a la baja (SHORT) esperando una caída del precio.',
                 ]);
+
+                // Emitir evento WebSocket para actualizar en tiempo real
+                $now = now()->toImmutable();
+                event(new \App\Events\BalanceUpdated($user, $currentBalance, $now));
             }
 
             // Registrar la posición simulada ajustada en caché

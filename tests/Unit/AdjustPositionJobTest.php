@@ -255,10 +255,37 @@ class AdjustPositionJobTest extends TestCase
             'risk_alert' => false,
         ]);
 
-        // Abrir posición no genera snapshot de balance ni evento.
+        // Abrir posición no genera snapshot de balance pero sí despacha el evento para actualizar la UI.
         $this->assertSame(0, $user->balanceSnapshots()->count());
         $this->assertSame('LONG', Cache::get("user:{$user->id}:simulation_position"));
-        Event::assertNotDispatched(BalanceUpdated::class);
+        Event::assertDispatched(BalanceUpdated::class);
+    }
+
+    public function test_real_mode_pauses_bot_on_invalid_credentials(): void
+    {
+        Event::fake([BotStatusUpdated::class]);
+
+        $user = User::factory()->create([
+            'bot_active' => true,
+            'bot_mode' => 'real',
+            'binance_api_key' => 'key',
+            'binance_secret_key' => 'secret',
+            'binance_verified' => true,
+            'risk_level' => 'balanceado',
+            'estimated_capital' => 1000,
+        ]);
+
+        $this->broker->shouldReceive('adjustPosition')
+            ->once()
+            ->andThrow(new \App\Core\Exceptions\BinanceInvalidCredentialsException());
+
+        $this->runJob($user->id, 'LONG');
+
+        $user->refresh();
+        $this->assertFalse($user->bot_active, 'El bot debe pausarse si las credenciales son inválidas.');
+        $this->assertSame('CLOSE', Cache::get("user:{$user->id}:real_position"));
+        $this->assertSame('CLOSE', Cache::get("user:{$user->id}:simulation_position"));
+        Event::assertDispatched(BotStatusUpdated::class);
     }
 
     // ─── Ejecución en modo real ──────────────────────────────────────────
