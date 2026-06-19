@@ -1,8 +1,9 @@
 ---
 created: 2026-06-11
-updated: 2026-06-18
+updated: 2026-06-19
 ---
 
+> **13. Mitigación de saltos y caídas de balance transitorias (2026-06-19)**: Al ejecutar órdenes, `AdjustPositionJob` ahora espera `sleep(2)` y reintenta la lectura de balance hasta 3 veces si detecta una caída sospechosa (>5%) por latencia de propagación del API de Binance, evitando snapshots con caídas artificiales en el gráfico. Se creó una migración de datos para escalar los snapshots antiguos que registraban saldo libre (~48 EUR) al patrimonio neto real (~55.8 EUR) y eliminar picos transitorios anteriores.
 > **12. Profit real al cerrar posición (2026-06-18)**: `AdjustPositionJob` (modo real) ya **no** registra el cierre con un beneficio hardcodeado (+1,5%/+15€). Ahora: al abrir LONG/SHORT guarda el equity real (`getTotalBalance`) en `Cache user:{id}:open_capital`; al cerrar (señal CLOSE) hace `Cache::pull` de ese capital (fallback al último snapshot) y calcula `profit = equity_cierre − capital_apertura` y `% = profit/apertura×100` en el helper `recordCloseActivity()`, eligiendo `close_profit`/`close_loss` por el signo. El formateador `BotActivityFormatter` para `close_loss` ahora muestra `% y -valor€` con texto neutro ("posición cerrada con una pérdida del X% (-Y€)") en vez del antiguo "protección de pérdida activada". **Limitación**: un flip directo LONG↔SHORT en un mismo job solo registra la apertura nueva, no el cierre del anterior (adjustPosition no expone qué cerró). Simulación sigue con su +1,5% sintético. `getTotalBalance` se sigue llamando 1 sola vez por job.
 
 # Integración y Seguridad de Binance en ViBo Invest
@@ -89,4 +90,14 @@ Este documento detalla las decisiones técnicas y de diseño adoptadas para la i
       - **Margin** (`handleRealEquityMargin`): `netAsset(margen) + netAsset(base) × precio_mercado` a partir de `GET /sapi/v1/margin/account` (`userAssets`) y `getMarketPrice` (ticker spot del símbolo). El `netAsset` del base (BTC) es +en LONG / −en SHORT; valorarlo a mercado incorpora el **P/L latente**, así abrir posición no hace caer el balance (solo lo mueve con la ganancia/pérdida). El precio solo se consulta si hay exposición al base (`baseNet !== 0`).
       - **Futuros** (`handleRealEquityFutures`): `totalMarginBalance` de `GET /fapi/v2/account` (= wallet + unrealized PnL = equity), que tampoco decae al bloquear margen.
     - *Implicación de unidades*: el equity queda en el activo de margen (USDC≈USD) sin conversión a EUR; el endpoint anterior sí convertía a EUR (`quoteAsset=EUR`), por lo que el nivel mostrado puede dar un pequeño escalón (~8%, USD vs EUR) una sola vez en la transición, pero ya no hay caída artificial al operar. Mock (`handleMockBalance`) sin cambios; tests `test_margin_total_balance_*` cubren el cálculo con `Http::fake`.
+
+12. **Profit real al cerrar posición (2026-06-18)**:
+    - *Decisión*: Al cerrar una posición, la ganancia/pérdida se calcula de forma dinámica comparando el capital de apertura de la posición (guardado en caché al abrir) y el de cierre actual.
+    - *Justificación*: Reemplaza el profit estático/hardcodeado de simulación por un cálculo real basado en el patrimonio neto de la cuenta.
+
+13. **Mitigación de saltos y caídas transitorias de balance (2026-06-19)**:
+    - *Problema*: Al ejecutar operaciones (abrir LONG/SHORT), la llamada inmediata a `getTotalBalance` puede retornar balances desactualizados (caídas a ~45€ en vez de ~55.8€) debido a la latencia de propagación de saldos del API de Binance.
+    - *Decisión*: Se introdujo un `sleep(2)` tras la ejecución de las órdenes y un bucle de hasta 3 reintentos si el balance obtenido decae sospechosamente más del 5%. Estos retardos y reintentos se omiten durante las pruebas unitarias para no ralentizar la suite.
+    - *Limpieza*: Se creó una migración de datos para escalar los snapshots históricos que guardaban saldo libre (~48 EUR) al patrimonio neto real (~55.8 EUR) y eliminar picos transitorios anteriores.
+
 

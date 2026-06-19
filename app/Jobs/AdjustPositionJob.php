@@ -104,8 +104,24 @@ class AdjustPositionJob implements ShouldQueue
                     return;
                 }
 
+                // Esperar a que el exchange liquide las órdenes y actualice los balances
+                if (! app()->runningUnitTests()) {
+                    sleep(2);
+                }
+
                 // Patrimonio neto real (equity) tras ejecutar el cambio en el exchange.
                 $newBalance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+
+                // Si el balance muestra una caída sospechosa de más del 5% comparado con el anterior,
+                // reintentamos hasta 3 veces con una pausa pequeña, ya que puede ser una discrepancia temporal de Binance.
+                if (! app()->runningUnitTests()) {
+                    $attempts = 0;
+                    while ($attempts < 3 && $currentBalance > 0 && ($currentBalance - $newBalance) / $currentBalance > 0.05) {
+                        sleep(1);
+                        $newBalance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+                        $attempts++;
+                    }
+                }
 
                 // Registrar actividad en base de datos en lenguaje humano
                 if ($this->newPosition === 'CLOSE') {
