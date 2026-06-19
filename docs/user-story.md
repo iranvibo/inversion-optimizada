@@ -48,7 +48,7 @@ Este documento define las 7 User Stories principales para el MVP de **ViBo Inves
 * **Criterios de Aceptación (BDD):**
   * **Escenario 1: Generación de proyección dinámica según parámetros del usuario**
     * **Dado que** he completado mi registro e iniciado el onboarding,
-    * **cuando** selecciono un perfil de riesgo (Conservador, Balanceado, Agresivo) y ajusto el slider de capital estimado a un valor específico (ej. 1000€),
+    * **cuando** selecciono un perfil de riesgo (Conservador, Balanceado, Agresivo) y ajusto el slider de capital estimado a un valor específico (ej. 1000$),
     * **entonces** el sistema debe proyectar dinámicamente un gráfico histórico con la evolución de la inversión basado en esos parámetros.
   * **Escenario 2: Transparencia en la visualización de caídas temporales (Drawdowns)**
     * **Dado que** estoy interactuando con el gráfico de simulación en el onboarding,
@@ -143,7 +143,7 @@ Este documento define las 7 User Stories principales para el MVP de **ViBo Inves
   * **Escenario 2: Visualización amigable de rendimientos individuales**
     * **Dado que** una posición se ha cerrado con beneficio o pérdida,
     * **cuando** se lista en el historial de actividad,
-    * **entonces** debe mostrarse de forma explícita el resultado neto (ej. "Posición cerrada con un +1.5% de beneficio (+15€)" o "Protección de pérdida activada para asegurar tu capital").
+    * **entonces** debe mostrarse de forma explícita el resultado neto (ej. "Posición cerrada con un +1.5% de beneficio (+15$)" o "Protección de pérdida activada para asegurar tu capital").
   * **Escenario 3: Resaltado visual de eventos de protección de riesgo**
     * **Dado que** el bot activa una protección automática de riesgo (como el stop-loss diario),
     * **cuando** este evento se registra en el feed de actividad,

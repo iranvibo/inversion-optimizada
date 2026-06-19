@@ -34,9 +34,9 @@
         <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">2 · Tu capital estimado</h2>
         <div class="mb-8">
             <div class="flex items-baseline justify-between mb-3">
-                <span class="text-slate-400 text-sm">{{ number_format($minCapital, 0, ',', '.') }}€</span>
-                <span id="capital-display" class="text-3xl font-bold text-violet-400">{{ number_format($defaultCapital, 0, ',', '.') }}€</span>
-                <span class="text-slate-400 text-sm">{{ number_format($maxCapital, 0, ',', '.') }}€</span>
+                <span class="text-slate-400 text-sm">{{ number_format($minCapital, 0, ',', '.') }}$</span>
+                <span id="capital-display" class="text-3xl font-bold text-violet-400">{{ number_format($defaultCapital, 0, ',', '.') }}$</span>
+                <span class="text-slate-400 text-sm">{{ number_format($maxCapital, 0, ',', '.') }}$</span>
             </div>
             <input type="range" name="capital" id="capital-slider"
                    min="{{ $minCapital }}" max="{{ $maxCapital }}" step="100" value="{{ $defaultCapital }}"
@@ -85,7 +85,7 @@
     const errorEl = document.getElementById('simulation-error');
     const riskCards = document.querySelectorAll('.risk-card');
 
-    const formatEuro = (value) => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(value) + '€';
+    const formatDollar = (value) => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(value) + '$';
 
     function selectedProfile() {
         return document.querySelector('input[name="risk_profile"]:checked').value;
@@ -147,7 +147,7 @@
 
             const data = await response.json();
             drawChart(data.series);
-            totalReturnEl.textContent = (data.total_return_percent >= 0 ? '+' : '') + data.total_return_percent.toFixed(1) + '%  ·  ' + formatEuro(data.final_value);
+            totalReturnEl.textContent = (data.total_return_percent >= 0 ? '+' : '') + data.total_return_percent.toFixed(1) + '%  ·  ' + formatDollar(data.final_value);
             drawdownEl.textContent = data.drawdown_message;
         } catch (err) {
             errorEl.textContent = err.message;
@@ -161,7 +161,7 @@
     }
 
     slider.addEventListener('input', () => {
-        capitalDisplay.textContent = formatEuro(Number(slider.value));
+        capitalDisplay.textContent = formatDollar(Number(slider.value));
         scheduleRefresh();
     });
 

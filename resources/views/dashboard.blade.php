@@ -131,7 +131,7 @@
                      class="text-5xl md:text-6xl font-extrabold tracking-tight text-white my-2 transition-all duration-500"
                      data-balance="{{ $latestSnapshot?->balance ?? '' }}">
                     @if($latestSnapshot)
-                        {{ number_format($latestSnapshot->balance, 2, ',', '.') }}<span class="text-3xl text-slate-400 font-semibold">€</span>
+                        {{ number_format($latestSnapshot->balance, 2, ',', '.') }}<span class="text-3xl text-slate-400 font-semibold">$</span>
                     @else
                         <span class="text-3xl text-slate-500 font-semibold">Sin datos todavía</span>
                     @endif
@@ -592,11 +592,11 @@
     let liveBalance = null;
     let currentSeries = [];
 
-    const formatEuro = (value) =>
+    const formatDollar = (value) =>
         new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
-    const formatEuroShort = (val) =>
-        new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(val) + '€';
+    const formatDollarShort = (val) =>
+        new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(val) + '$';
 
     function formatDateXAxis(dateStr, range) {
         const date = new Date(dateStr);
@@ -639,7 +639,7 @@
     }
 
     function renderBalance(value) {
-        amountEl.innerHTML = formatEuro(value) + '<span class="text-3xl text-slate-400 font-semibold">€</span>';
+        amountEl.innerHTML = formatDollar(value) + '<span class="text-3xl text-slate-400 font-semibold">$</span>';
     }
 
     // Transición sutil para denotar "cuenta viva" (Escenario 3)
@@ -698,7 +698,7 @@
             const yVal = y(val);
             yAxisHtml += `
                 <line x1="${PAD_LEFT}" y1="${yVal}" x2="${W - PAD_RIGHT}" y2="${yVal}" stroke="rgba(255, 255, 255, 0.06)" stroke-width="1" stroke-dasharray="4 4" />
-                <text x="${W - PAD_RIGHT + 8}" y="${yVal}" fill="#94a3b8" font-size="10" font-family="system-ui, -apple-system, sans-serif" alignment-baseline="middle" text-anchor="start">${formatEuroShort(val)}</text>
+                <text x="${W - PAD_RIGHT + 8}" y="${yVal}" fill="#94a3b8" font-size="10" font-family="system-ui, -apple-system, sans-serif" alignment-baseline="middle" text-anchor="start">${formatDollarShort(val)}</text>
             `;
         });
 
@@ -790,7 +790,7 @@
 
             // Actualizar Tooltip
             tooltipDate.textContent = formatDateTooltip(point.t, currentRange);
-            tooltipValue.textContent = formatEuro(point.value) + ' €';
+            tooltipValue.textContent = formatDollar(point.value) + ' $';
             tooltip.style.display = 'block';
 
             const tooltipWidth = tooltip.offsetWidth || 140;

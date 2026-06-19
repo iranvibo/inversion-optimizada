@@ -44,8 +44,8 @@ class OnboardingSimulationRequest extends FormRequest
             'risk_profile.in' => 'El perfil de riesgo seleccionado no es válido.',
             'capital.required' => 'Debes indicar tu capital estimado.',
             'capital.numeric' => 'El capital debe ser un valor numérico.',
-            'capital.min' => 'El capital mínimo de simulación es de ' . self::MIN_CAPITAL . '€.',
-            'capital.max' => 'El capital máximo de simulación es de ' . number_format(self::MAX_CAPITAL, 0, ',', '.') . '€.',
+            'capital.min' => 'El capital mínimo de simulación es de ' . self::MIN_CAPITAL . '$.',
+            'capital.max' => 'El capital máximo de simulación es de ' . number_format(self::MAX_CAPITAL, 0, ',', '.') . '$.',
         ];
     }
 

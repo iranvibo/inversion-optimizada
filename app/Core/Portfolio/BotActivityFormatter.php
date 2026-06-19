@@ -29,16 +29,16 @@ class BotActivityFormatter
 
             case 'close_profit':
                 if ($percentage !== null && $value !== null) {
-                    return "Inversión finalizada: posición cerrada con un +{$percentage}% de beneficio (+{$value}€).";
+                    return "Inversión finalizada: posición cerrada con un +{$percentage}% de beneficio (+{$value}$).";
                 }
                 return 'Inversión finalizada: posición cerrada con beneficio.';
 
             case 'close_loss':
                 if ($percentage !== null && $value !== null) {
-                    return "Inversión finalizada: posición cerrada con una pérdida del {$percentage}% (-{$value}€).";
+                    return "Inversión finalizada: posición cerrada con una pérdida del {$percentage}% (-{$value}$).";
                 }
                 if ($value !== null) {
-                    return "Inversión finalizada: posición cerrada con una pérdida de -{$value}€.";
+                    return "Inversión finalizada: posición cerrada con una pérdida de -{$value}$.";
                 }
                 return 'Inversión finalizada: posición cerrada con pérdida.';
 

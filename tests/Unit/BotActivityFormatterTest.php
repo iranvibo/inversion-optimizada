@@ -49,7 +49,7 @@ class BotActivityFormatterTest extends TestCase
         ]);
 
         $message = BotActivityFormatter::format($activity);
-        $this->assertSame('Inversión finalizada: posición cerrada con un +1,55% de beneficio (+15,50€).', $message);
+        $this->assertSame('Inversión finalizada: posición cerrada con un +1,55% de beneficio (+15,50$).', $message);
     }
 
     /**
@@ -65,7 +65,7 @@ class BotActivityFormatterTest extends TestCase
         ]);
 
         $message = BotActivityFormatter::format($activity);
-        $this->assertSame('Inversión finalizada: posición cerrada con una pérdida del 1,00% (-10,00€).', $message);
+        $this->assertSame('Inversión finalizada: posición cerrada con una pérdida del 1,00% (-10,00$).', $message);
     }
 
     /**

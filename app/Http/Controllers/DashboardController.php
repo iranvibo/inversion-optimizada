@@ -99,7 +99,7 @@ class DashboardController extends Controller
             'created_at' => now()->subMinutes(15),
         ]);
 
-        // 2. Cierre con beneficio de +1.5% (+15€) (Escenario 2) -> CLOSE
+        // 2. Cierre con beneficio de +1.5% (+15$) (Escenario 2) -> CLOSE
         $user->botActivities()->create([
             'bot_mode' => 'simulation',
             'type' => 'close',
@@ -230,7 +230,7 @@ class DashboardController extends Controller
                     'profit_percentage' => $profitPercent,
                     'profit_value' => $profitVal,
                     'risk_alert' => false,
-                    'description' => "Inversión finalizada: posición cerrada con un +{$profitPercent}% de beneficio (+{$profitVal}€).",
+                    'description' => "Inversión finalizada: posición cerrada con un +{$profitPercent}% de beneficio (+{$profitVal}$).",
                 ]);
 
                 // Registrar un nuevo balance snapshot simulado

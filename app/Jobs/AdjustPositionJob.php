@@ -185,7 +185,7 @@ class AdjustPositionJob implements ShouldQueue
                     'profit_percentage' => $profitPercent,
                     'profit_value' => $profitVal,
                     'risk_alert' => false,
-                    'description' => "Inversión finalizada: posición cerrada con un +{$profitPercent}% de beneficio (+{$profitVal}€).",
+                    'description' => "Inversión finalizada: posición cerrada con un +{$profitPercent}% de beneficio (+{$profitVal}$).",
                 ]);
 
                 // Registrar un nuevo balance snapshot simulado

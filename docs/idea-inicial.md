@@ -191,10 +191,10 @@ Pantalla 3 — Capital estimado
 
 Slider:
 
-* 100€
-* 500€
-* 1000€
-* 5000€
+* 100$
+* 500$
+* 1000$
+* 5000$
 
 Para personalizar simulación.
 

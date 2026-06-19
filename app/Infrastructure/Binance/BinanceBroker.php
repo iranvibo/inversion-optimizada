@@ -29,7 +29,7 @@ class BinanceBroker implements BinanceBrokerInterface
     }
 
     /**
-     * Obtiene el balance total consolidado de la cuenta en EUR (US03).
+     * Obtiene el balance total consolidado de la cuenta en USD (US03).
      *
      *
      * @throws BinanceInvalidCredentialsException
@@ -159,7 +159,7 @@ class BinanceBroker implements BinanceBrokerInterface
 
     /**
      * Patrimonio neto real de la cuenta Cross Margin, denominado en el activo de
-     * margen (USDC/USDT, que la UI muestra como €). Se calcula como:
+     * margen (USDC/USDT, que la UI muestra como $). Se calcula como:
      *
      *     equity = netAsset(margen) + netAsset(base) × precio_mercado
      *

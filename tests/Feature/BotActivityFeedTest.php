@@ -77,7 +77,7 @@ class BotActivityFeedTest extends TestCase
         $data = $response->json('activities');
         $this->assertCount(2, $data);
         $this->assertSame('Se inició una inversión al alza (LONG) esperando una subida del precio.', $data[1]['human_description']);
-        $this->assertSame('Inversión finalizada: posición cerrada con un +1,50% de beneficio (+15,00€).', $data[0]['human_description']);
+        $this->assertSame('Inversión finalizada: posición cerrada con un +1,50% de beneficio (+15,00$).', $data[0]['human_description']);
     }
 
     /**
@@ -104,11 +104,11 @@ class BotActivityFeedTest extends TestCase
 
         // Tercer evento: close_loss
         $this->assertSame('close_loss', $activities[1]->action);
-        $this->assertSame('Inversión finalizada: posición cerrada con una pérdida del 1,00% (-10,00€).', $activities[1]->human_description);
+        $this->assertSame('Inversión finalizada: posición cerrada con una pérdida del 1,00% (-10,00$).', $activities[1]->human_description);
 
         // Segundo evento: close_profit
         $this->assertSame('close_profit', $activities[2]->action);
-        $this->assertSame('Inversión finalizada: posición cerrada con un +1,50% de beneficio (+15,00€).', $activities[2]->human_description);
+        $this->assertSame('Inversión finalizada: posición cerrada con un +1,50% de beneficio (+15,00$).', $activities[2]->human_description);
 
         // Primer evento: open_long
         $this->assertSame('open_long', $activities[3]->action);
