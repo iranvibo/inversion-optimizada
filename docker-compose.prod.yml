@@ -37,7 +37,7 @@ services:
       target: web
     image: vibo-invest/web:latest
     ports:
-      - "80:80"
+      - "127.0.0.1:8091:80"
       # TLS (443) se termina aquí o en un balanceador/CDN por delante
     volumes:
       - app-storage:/var/www/html/storage
@@ -63,7 +63,7 @@ services:
     <<: *app-image
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8092:8080"
     depends_on:
       redis:
         condition: service_healthy

@@ -31,19 +31,22 @@ Este archivo detalla las decisiones fundamentales de arquitectura tomadas para *
 
 ## Conexiones e Integración de Red en Docker
 
-El sistema se ejecuta en una red interna puente (`vibo-network`) donde los contenedores se comunican de forma aislada:
-* El contenedor `web` (Nginx) y `websocket` (Reverb) son los únicos expuestos al tráfico de red pública.
+El sistema se ejecuta en una red interna puente (`vibo-network`):
+* **Producción (Coexistencia)**: Dado que el host VPS comparte puertos con otros sitios web, los contenedores de producción exponen sus puertos mapeados únicamente a localhost (`127.0.0.1`), protegiendo los servicios:
+  - `web` (Nginx Docker) mapeado a `127.0.0.1:8091`.
+  - `websocket` (Laravel Reverb) mapeado a `127.0.0.1:8092`.
+  - El Nginx nativo del host VPS actúa como el Proxy Inverso principal, escuchando en el puerto público `80/443` y redirigiendo el tráfico del dominio a estos puertos.
 * La base de datos `db` (MySQL) y el broker de colas `redis` permanecen ocultos y protegidos dentro de la red Docker, accesibles solo por los contenedores PHP.
 
-## Infraestructura Implementada (2026-06-11) — detalles no obvios
+## Infraestructura Implementada — detalles no obvios
 
-* **Archivos**: `docker/php/Dockerfile` (targets: `base`, `assets`, `vendor`, `production`, `web`, `dev`), `docker/nginx/default.conf`, `docker-compose.yml` (dev, código bind-mounted), `docker-compose.prod.yml` (imágenes inmutables), `config/signals.php` (wiring de `SIGNALS_PROVIDER`).
+* **Archivos**: `docker/php/Dockerfile` (targets: `base`, `assets`, `vendor`, `production`, `web`, `dev`), `docker/nginx/default.conf`, `docker-compose.yml` (dev, código bind-mounted), `docker-compose.prod.yml` (imágenes inmutables), `config/signals.php`.
 * **Cliente Redis = `predis`** (no phpredis/pecl): evita compilar extensiones en las imágenes; configurado vía `REDIS_CLIENT=predis`.
-* **Reverb hosts duales**: el backend publica eventos hacia `REVERB_HOST=websocket` (DNS interno de Docker); el navegador usa `VITE_REVERB_HOST=localhost:8080`. No unificar — son rutas de red distintas.
+* **Reverb hosts duales**: en dev el backend publica hacia `REVERB_HOST=websocket` (DNS interno de Docker) y el navegador usa `VITE_REVERB_HOST=localhost:8080`. En prod, el backend publica hacia `REVERB_HOST=websocket`, pero el navegador se conecta al dominio público de producción sobre HTTPS (puerto `443`), el cual es redirigido por el Nginx del host hacia el puerto local `8092`.
 * **MySQL dev expuesto en `127.0.0.1:33060`** (no 3306): el 3306 del host lo ocupa otro contenedor de otro proyecto.
 * **Nginx cachea la IP del upstream `app`**: tras `docker compose build && up` que recrea `app`, el `web` devuelve 502 hasta hacer `docker compose restart web`.
-* **`php artisan install:broadcasting` falla sin TTY** (en shells no interactivas): completar a mano con `vendor:publish --tag=reverb-config`, variables `REVERB_*` en `.env` y `npm i -D laravel-echo pusher-js`.
-* **Assets en dev**: Vite corre en el host (`npm run dev` / `npm run build`), no en contenedor, para evitar conflictos de binarios nativos (esbuild/rollup) en `node_modules` bind-mounted entre macOS y Alpine.
+* **`php artisan install:broadcasting` falla sin TTY** (en la CI): completar a mano con variables `REVERB_*` en `.env` y dependencias en frontend.
+* **Assets en dev**: Vite corre en el host (`npm run dev`), no en contenedor, para evitar conflictos de binarios nativos (esbuild) en `node_modules` bind-mounted entre macOS y Alpine.
 * Verificado el 2026-06-11: HTTP 200 vía Nginx, handshake WS 101 en Reverb (`pusher:connection_established`), cache y colas Redis funcionando (worker consumió job de prueba), migraciones aplicadas en MySQL 8.0.44.
 
 ## Despliegue y CI/CD (IONOS VPS)
