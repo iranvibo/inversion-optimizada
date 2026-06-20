@@ -14,26 +14,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install npm dependencies & build assets
-        run: |
-          npm install
-          npm run build
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          coverage: none
-
-      - name: Install Composer dependencies
-        run: |
-          composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
-
       - name: Configure SSH Key & Known Hosts
         run: |
           mkdir -p ~/.ssh
@@ -65,35 +45,30 @@ jobs:
             --exclude='prompts.md' \
             --exclude='memory/' \
             --exclude='docs/' \
-            --exclude='docker/' \
-            --exclude='docker-compose*.yml' \
+            --exclude='vendor/' \
             -e "ssh -p ${{ secrets.VPS_PORT || 22 }}" \
             ./ \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/vibo-invest/
 
-      - name: Run post-deploy commands
+      - name: Run post-deploy commands (Docker Compose)
         run: |
           ssh -p ${{ secrets.VPS_PORT || 22 }} \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'ENDSSH'
             cd /var/www/vibo-invest
 
-            # Run migrations
-            php artisan migrate --force
+            # Levantar y reconstruir los contenedores Docker
+            docker compose -f docker-compose.prod.yml up -d --build
 
-            # Cache config, routes, and views for performance
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
+            # Ejecutar migraciones dentro de la app
+            docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force
 
-            # Create storage symlink if missing
-            php artisan storage:link 2>/dev/null || true
+            # Optimizar caché de Laravel
+            docker compose -f docker-compose.prod.yml exec -T app php artisan config:cache
+            docker compose -f docker-compose.prod.yml exec -T app php artisan route:cache
+            docker compose -f docker-compose.prod.yml exec -T app php artisan view:cache
 
-            # Fix permissions
-            chown -R www-data:www-data storage bootstrap/cache database
-            chmod -R 775 storage bootstrap/cache database
-
-            # Restart PHP-FPM to pick up changes
-            sudo systemctl reload php8.4-fpm 2>/dev/null || sudo service php8.4-fpm reload 2>/dev/null || true
+            # Crear enlace simbólico de storage
+            docker compose -f docker-compose.prod.yml exec -T app php artisan storage:link 2>/dev/null || true
 
             echo "Deploy complete!"
           ENDSSH
