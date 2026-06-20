@@ -37,7 +37,10 @@
       "Bash(sed -i '' 's/^updated: 2026-06-18/updated: 2026-06-18/' memory/binance-integration.md)",
       "Bash(./vendor/bin/pint app/Infrastructure/Binance/BinanceBroker.php tests/Unit/BinanceBrokerTest.php)",
       "Bash(./vendor/bin/pint app/Http/Controllers/BalanceController.php tests/Feature/DashboardBalanceTest.php routes/web.php)",
-      "Bash(./vendor/bin/pint app/Http/Controllers/DashboardController.php tests/Feature/BotControlTest.php)"
+      "Bash(./vendor/bin/pint app/Http/Controllers/DashboardController.php tests/Feature/BotControlTest.php)",
+      "Bash(python3 -c \"import yaml,sys; d=yaml.safe_load\\(open\\('docker-compose.prod.yml'\\)\\); print\\('web args keys:', sorted\\(d['services']['web']['build']['args'].keys\\(\\)\\)\\); print\\('app args keys:', sorted\\(d['services']['app']['build']['args'].keys\\(\\)\\)\\)\")",
+      "Bash(DB_ROOT_PASSWORD=x docker compose --env-file .env -f docker-compose.prod.yml config)",
+      "Read(//tmp/**)"
     ]
   }
 }
