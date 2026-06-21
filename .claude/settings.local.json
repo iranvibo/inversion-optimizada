@@ -45,7 +45,9 @@
       "Bash(python3 -c ' *)",
       "Bash(gh run *)",
       "Bash(curl -sI https://invest.vibo-solutions.com/)",
-      "Bash(curl -sI https://invest.vibo-solutions.com/dashboard/activities)"
+      "Bash(curl -sI https://invest.vibo-solutions.com/dashboard/activities)",
+      "Bash(grep -iE \"\\\\.\\(vue|jsx?|tsx?\\)$\")",
+      "Bash(grep -iE \"\\\\.\\(vue|jsx|tsx\\)$\")"
     ]
   }
 }

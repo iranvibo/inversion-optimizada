@@ -1021,6 +1021,14 @@
                     updateBotPositionUi(data.current_position);
                 }
 
+                // En simulación no existe patrimonio "en vivo": el último punto del
+                // gráfico es el último snapshot histórico, no un equity en tiempo real.
+                // Sin esto, el liveBalance heredado del modo real (p. ej. 58$) se
+                // añadiría como último punto de la curva simulada.
+                if (!isReal) {
+                    liveBalance = null;
+                }
+
                 showToast(data.message);
                 refreshHistory(true);
                 refreshActivities();
