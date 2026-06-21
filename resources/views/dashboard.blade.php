@@ -591,6 +591,11 @@
     let chartHovering = false;
     let liveBalance = null;
     let currentSeries = [];
+    // Modo actual del bot en el cliente: solo el modo real tiene patrimonio "en
+    // vivo". Sirve para descartar respuestas del sondeo en vivo que lleguen tarde,
+    // después de cambiar a simulación, y que de otro modo añadirían el valor real
+    // como último punto de la curva simulada.
+    let currentBotMode = @json($user->bot_mode);
 
     const formatDollar = (value) =>
         new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
@@ -841,6 +846,10 @@
     }
 
     function updateChartWithLive(balance) {
+        // En simulación no hay valor en vivo: nunca se añade un punto "live" a la
+        // curva. Esto bloquea también las respuestas del sondeo en vivo que lleguen
+        // tarde tras cambiar de real a simulación (condición de carrera).
+        if (currentBotMode !== 'real') return;
         if (!currentSeries || currentSeries.length === 0) return;
 
         const lastIndex = currentSeries.length - 1;
@@ -878,7 +887,7 @@
 
             currentSeries = data.series || [];
 
-            if (liveBalance !== null && currentSeries.length > 0) {
+            if (currentBotMode === 'real' && liveBalance !== null && currentSeries.length > 0) {
                 updateChartWithLive(liveBalance);
             } else {
                 drawChart(currentSeries);
@@ -1010,6 +1019,7 @@
                 }
 
                 const isReal = data.bot_mode === 'real';
+                currentBotMode = data.bot_mode;
                 botModeText.textContent = isReal ? 'Dinero Real' : 'Simulación';
                 botModeDesc.textContent = isReal 
                     ? 'Operando directamente en tu cartera de Binance.' 
