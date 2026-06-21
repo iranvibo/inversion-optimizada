@@ -568,6 +568,35 @@
 
     </div>
 
+    <!-- Modal de Confirmación Premium para Activar/Pausar Bot -->
+    <div id="bot-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 shadow-2xl max-w-sm w-full relative transform scale-95 transition-transform duration-300 ease-out">
+            <!-- Glow decorativo superior -->
+            <div class="absolute -top-10 left-1/2 -translate-x-1/2 w-32 h-32 bg-violet-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div class="flex flex-col items-center text-center">
+                <!-- Icono Dinámico -->
+                <div id="modal-icon-container" class="w-12 h-12 rounded-full flex items-center justify-center mb-4 border">
+                    <svg id="modal-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <!-- Se llena dinámicamente -->
+                    </svg>
+                </div>
+                
+                <h3 id="modal-title" class="text-lg font-bold text-white mb-2"></h3>
+                <p id="modal-description" class="text-xs text-slate-400 leading-relaxed mb-6"></p>
+                
+                <div class="flex gap-3 w-full">
+                    <button type="button" id="modal-cancel-btn" class="flex-1 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 transition duration-200">
+                        Cancelar
+                    </button>
+                    <button type="button" id="modal-confirm-btn" class="flex-1 text-xs font-bold py-2.5 px-4 rounded-xl text-white transition duration-200">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 <script>
 (function () {
     const amountEl = document.getElementById('balance-amount');
@@ -953,42 +982,122 @@
         setTimeout(() => alertContainer.remove(), 4000);
     }
 
+    function showModal(title, description, isPauseAction, onConfirm) {
+        const modal = document.getElementById('bot-confirm-modal');
+        const modalBox = modal.querySelector('div');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDesc = document.getElementById('modal-description');
+        const confirmBtn = document.getElementById('modal-confirm-btn');
+        const cancelBtn = document.getElementById('modal-cancel-btn');
+        const iconContainer = document.getElementById('modal-icon-container');
+        const iconSvg = document.getElementById('modal-icon');
+
+        modalTitle.textContent = title;
+        modalDesc.textContent = description;
+
+        if (isPauseAction) {
+            iconContainer.className = 'w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-amber-500/10 text-amber-400 border border-amber-500/20';
+            confirmBtn.className = 'flex-1 text-xs font-bold py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white transition duration-200';
+            confirmBtn.textContent = 'Pausar Bot';
+            iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />';
+        } else {
+            iconContainer.className = 'w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            confirmBtn.className = 'flex-1 text-xs font-bold py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition duration-200';
+            confirmBtn.textContent = 'Activar Bot';
+            iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />';
+        }
+
+        modal.classList.remove('hidden');
+        modal.offsetHeight; // force reflow
+        modal.classList.remove('opacity-0');
+        modalBox.classList.remove('scale-95');
+        modalBox.classList.add('scale-100');
+
+        const closeModal = () => {
+            modal.classList.add('opacity-0');
+            modalBox.classList.remove('scale-100');
+            modalBox.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+            confirmBtn.onclick = null;
+            cancelBtn.onclick = null;
+            modal.onclick = null;
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        };
+
+        confirmBtn.onclick = () => {
+            closeModal();
+            onConfirm();
+        };
+
+        cancelBtn.onclick = closeModal;
+        
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+    }
+
     if (botToggleForm) {
-        botToggleForm.addEventListener('submit', async (e) => {
+        botToggleForm.addEventListener('submit', (e) => {
             e.preventDefault();
 
-            botToggleBtn.disabled = true;
-            botToggleBtn.classList.add('opacity-50');
+            const isCurrentlyActive = botStatusText.textContent.trim().toLowerCase() === 'activo';
+            const isReal = currentBotMode === 'real';
 
-            try {
-                const formData = new FormData(botToggleForm);
-                const response = await fetch(botToggleForm.action, {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': formData.get('_token')
-                    },
-                    body: formData
-                });
+            const title = isCurrentlyActive ? '¿Pausar la automatización?' : '¿Activar la automatización?';
+            const description = isCurrentlyActive 
+                ? (isReal 
+                    ? 'El bot dejará de seguir las señales del mercado de forma inmediata. Tus posiciones abiertas en Binance se cerrarán por seguridad.' 
+                    : 'El bot dejará de seguir las señales del mercado en modo simulación y se cerrará tu posición de prueba.') 
+                : (isReal
+                    ? 'El bot comenzará a ejecutar operaciones en tu cuenta real de Binance siguiendo la señal vigente del mercado.'
+                    : 'El bot comenzará a ejecutar operaciones simuladas siguiendo la señal vigente en el mercado.');
 
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    throw new Error(data.message || 'Error al cambiar el estado del bot.');
+            showModal(title, description, isCurrentlyActive, async () => {
+                botToggleBtn.disabled = true;
+                botToggleBtn.classList.add('opacity-50');
+
+                try {
+                    const formData = new FormData(botToggleForm);
+                    const response = await fetch(botToggleForm.action, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': formData.get('_token')
+                        },
+                        body: formData
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Error al cambiar el estado del bot.');
+                    }
+
+                    updateBotUi(data.bot_active);
+                    if (data.current_position) {
+                        updateBotPositionUi(data.current_position);
+                    }
+                    showToast(data.message);
+                    refreshActivities();
+
+                } catch (err) {
+                    showToast(err.message, true);
+                } finally {
+                    botToggleBtn.disabled = false;
+                    botToggleBtn.classList.remove('opacity-50');
                 }
-
-                updateBotUi(data.bot_active);
-                if (data.current_position) {
-                    updateBotPositionUi(data.current_position);
-                }
-                showToast(data.message);
-                refreshActivities();
-
-            } catch (err) {
-                showToast(err.message, true);
-            } finally {
-                botToggleBtn.disabled = false;
-                botToggleBtn.classList.remove('opacity-50');
-            }
+            });
         });
     }
 
