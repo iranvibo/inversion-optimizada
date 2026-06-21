@@ -8,7 +8,6 @@ use App\Events\BotStatusUpdated;
 use App\Jobs\AdjustPositionJob;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Mockery;
@@ -17,8 +16,9 @@ use Tests\TestCase;
 /**
  * Pruebas unitarias del trabajo de ajuste de posición (US06).
  *
- * Cubre el gatekeeper de riesgo local (stop-loss diario y capital protegido),
- * y la ejecución del ajuste tanto en modo simulación como en modo real.
+ * Cubre la ejecución del ajuste tanto en modo simulación como en modo real.
+ * El bot no toma decisiones de trading: solo replica la señal externa, por lo
+ * que no existe ningún gatekeeper de riesgo local que lo pause por su cuenta.
  */
 class AdjustPositionJobTest extends TestCase
 {
@@ -30,12 +30,6 @@ class AdjustPositionJobTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        // Reglas de riesgo deterministas para las pruebas.
-        config([
-            'signals.risk.daily_stop_loss' => 0.05,
-            'signals.risk.protected_capital' => 0.80,
-        ]);
 
         // Contexto real: el broker se intercepta con un doble (sin red), así que
         // mock=false permite ejercitar la persistencia del histórico real.
@@ -80,9 +74,9 @@ class AdjustPositionJobTest extends TestCase
         $this->assertSame(0, $user->botActivities()->count());
     }
 
-    // ─── Gatekeeper A: Stop-loss diario ──────────────────────────────────
+    // ─── El bot no se autopausa por riesgo ───────────────────────────────
 
-    public function test_daily_stop_loss_pauses_bot_and_forces_close(): void
+    public function test_does_not_pause_bot_when_balance_falls(): void
     {
         Event::fake([BotStatusUpdated::class, BalanceUpdated::class]);
 
@@ -93,116 +87,28 @@ class AdjustPositionJobTest extends TestCase
             'estimated_capital' => 1000,
         ]);
 
-        // Primer snapshot del día y caída posterior del 6% (> 5% permitido).
+        // Aunque el balance caiga fuertemente respecto al capital estimado y al
+        // primer snapshot del día, el bot NO debe pausarse ni registrar ninguna
+        // protección de riesgo: este proyecto no toma decisiones de trading.
         $user->balanceSnapshots()->create(['balance' => 1000, 'captured_at' => now()->startOfDay()->addHours(1)]);
-        $user->balanceSnapshots()->create(['balance' => 940, 'captured_at' => now()->startOfDay()->addHours(4)]);
+        $user->balanceSnapshots()->create(['balance' => 400, 'captured_at' => now()->startOfDay()->addHours(4)]);
 
         $this->runJob($user->id, 'LONG');
 
         $user->refresh();
-        $this->assertFalse($user->bot_active, 'El bot debe pausarse al superar el stop-loss diario.');
-
-        $this->assertDatabaseHas('bot_activities', [
-            'user_id' => $user->id,
-            'type' => 'risk_protection',
-            'action' => 'stop_loss_trigger',
-            'risk_alert' => true,
-        ]);
-
-        $this->assertSame('CLOSE', Cache::get("user:{$user->id}:simulation_position"));
-        $this->assertSame('CLOSE', Cache::get("user:{$user->id}:real_position"));
-
-        Event::assertDispatched(BotStatusUpdated::class);
-        // No debe ejecutarse el ajuste normal tras la protección.
-        Event::assertNotDispatched(BalanceUpdated::class);
-    }
-
-    public function test_daily_stop_loss_not_triggered_within_limit(): void
-    {
-        $user = User::factory()->create([
-            'bot_active' => true,
-            'bot_mode' => 'simulation',
-            'risk_level' => 'balanceado',
-            'estimated_capital' => 1000,
-        ]);
-
-        // Caída del 3% (dentro del 5% permitido) → no debe pausar.
-        $user->balanceSnapshots()->create(['balance' => 1000, 'captured_at' => now()->startOfDay()->addHours(1)]);
-        $user->balanceSnapshots()->create(['balance' => 970, 'captured_at' => now()->startOfDay()->addHours(4)]);
-
-        $this->runJob($user->id, 'LONG');
-
-        $user->refresh();
-        $this->assertTrue($user->bot_active);
+        $this->assertTrue($user->bot_active, 'El bot no debe pausarse por reglas de riesgo locales.');
         $this->assertDatabaseMissing('bot_activities', [
             'user_id' => $user->id,
             'type' => 'risk_protection',
         ]);
-    }
 
-    // ─── Gatekeeper B: Capital protegido ─────────────────────────────────
-
-    public function test_protected_capital_pauses_bot(): void
-    {
-        Event::fake([BotStatusUpdated::class]);
-
-        $user = User::factory()->create([
-            'bot_active' => true,
-            'bot_mode' => 'simulation',
-            'risk_level' => 'balanceado',
-            'estimated_capital' => 1000,
-        ]);
-
-        // Snapshot de ayer por debajo del 80% del capital protegido (700 < 800).
-        // Al ser de ayer, no dispara el gatekeeper de stop-loss diario.
-        $user->balanceSnapshots()->create([
-            'balance' => 700,
-            'captured_at' => Carbon::yesterday()->setHour(12),
-        ]);
-
-        $this->runJob($user->id, 'LONG');
-
-        $user->refresh();
-        $this->assertFalse($user->bot_active);
+        // El ajuste normal sí se ejecuta (se abre la posición solicitada).
         $this->assertDatabaseHas('bot_activities', [
             'user_id' => $user->id,
-            'type' => 'risk_protection',
-            'action' => 'stop_loss_trigger',
-            'risk_alert' => true,
+            'type' => 'long',
+            'action' => 'open_long',
         ]);
-
-        Event::assertDispatched(BotStatusUpdated::class);
-    }
-
-    public function test_real_mode_risk_protection_closes_binance_positions(): void
-    {
-        Event::fake([BotStatusUpdated::class]);
-
-        $user = User::factory()->create([
-            'bot_active' => true,
-            'bot_mode' => 'real',
-            'binance_api_key' => 'key',
-            'binance_secret_key' => 'secret',
-            'binance_verified' => true,
-            'risk_level' => 'balanceado',
-            'estimated_capital' => 1000,
-        ]);
-
-        $user->balanceSnapshots()->create([
-            'balance' => 700,
-            'captured_at' => Carbon::yesterday()->setHour(12),
-        ]);
-
-        // La protección de emergencia debe cerrar posiciones en Binance.
-        $this->broker->shouldReceive('closeOpenPositions')
-            ->once()
-            ->with($user->binance_api_key, $user->binance_secret_key)
-            ->andReturn(true);
-
-        $this->runJob($user->id, 'LONG');
-
-        $user->refresh();
-        $this->assertFalse($user->bot_active);
+        $this->assertSame('LONG', Cache::get("user:{$user->id}:simulation_position"));
     }
 
     // ─── Ejecución en modo simulación ────────────────────────────────────

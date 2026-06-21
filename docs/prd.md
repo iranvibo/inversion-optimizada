@@ -29,7 +29,7 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
 
 ### Objetivos de Experiencia de Usuario (UX)
 1.  **Simplicidad**: Ocultar la complejidad algorítmica. El usuario no configura estrategias, solo define límites de riesgo y capital.
-2.  **Tranquilidad Mental (Paz Mental)**: Visualizar constantemente el estado de las protecciones (Stop Loss diario, capital protegido) para reforzar la sensación de control.
+2.  **Tranquilidad Mental (Paz Mental)**: Visualizar constantemente el estado del bot (activo/pausado, modo y posición actual) y poder pausarlo al instante para reforzar la sensación de control. *(Actualizado 2026-06-21: ViBo no toma decisiones de trading; la lógica de riesgo de entrada/salida reside en el proveedor externo de señales.)*
 
 ---
 
@@ -85,8 +85,8 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
     **quiero** poder activar y pausar el bot con un solo botón simple en cualquier momento,  
     **para** detener la actividad del bot si el mercado me genera intranquilidad.
 11. **Como** usuario preocupado por pérdidas catastróficas,  
-    **quiero** ver el valor exacto de mi stop-loss diario y de mi capital protegido,  
-    **para** tener la seguridad de que el bot nunca perderá más de lo que he autorizado.
+    **quiero** poder pausar el bot al instante y entender en lenguaje claro cada acción que ejecuta,  
+    **para** poder detener yo mismo la actividad cuando lo considere. *(Actualizado 2026-06-21: la plataforma no aplica stop-loss/capital protegido propios; replica la señal del proveedor externo, que es quien decide cuándo cerrar para limitar pérdidas.)*
 
 ### E. Historial de Actividad
 12. **Como** usuario curioso,  
@@ -96,7 +96,7 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
 ### F. Gestión de Señales desde la API Externa
 13. **Como** usuario con el bot activo,  
     **quiero** que la plataforma consulte en tiempo real la API externa de señales con mi nivel de riesgo y ajuste mi posición en Binance solo cuando la señal cambie (`LONG`, `SHORT`, `CLOSE`),  
-    **para** que mis operaciones sigan la estrategia automáticamente y siempre dentro de mis límites de protección.
+    **para** que mis operaciones sigan la estrategia del proveedor automáticamente, pudiendo pausar el bot cuando quiera.
 14. **Como** usuario en modo simulación,  
     **quiero** ver un gráfico de progreso del capital simulado calculado a partir del histórico de señales del proveedor (fecha, hora, posición y profit) según mi nivel de riesgo,  
     **para** evaluar el rendimiento de la estrategia sin arriesgar dinero real.
@@ -120,7 +120,7 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
     *   Validación estricta en tiempo de conexión de que la API Key **NO** tiene permisos de retiro (IP/Withdrawal restrictions checking).
     *   Consulta de balance de cuenta en tiempo real.
     *   Ejecución de órdenes de compra/venta y configuración de Stop Loss/Take Profit.
-*   **Integración con API Externa de Señales (Polling) y Aislamiento de Credenciales**: El bot obtiene la información de trading consultando periódicamente (polling en tiempo casi real, intervalo configurable de ~5 segundos) una API externa al proyecto, pasándole como parámetro el **nivel de riesgo** configurado. La API responde con la posición objetivo actual (`LONG`, `SHORT` o `CLOSE`); el backend la compara con la última posición conocida y solo actúa ante un cambio. Se eligió polling sobre webhook porque la respuesta depende del nivel de riesgo, el contrato basado en estado es resiliente (un sondeo nunca "pierde" una señal), no expone endpoints públicos entrantes y simplifica el mockeo. Las API Keys de Binance **bajo ninguna circunstancia** se transmiten, comparten o procesan a través de dicha API externa. El backend de ViBo Invest actúa como el único ejecutor y gatekeeper: procesa localmente la ejecución de órdenes en Binance usando las credenciales cifradas (AES-256) de los usuarios, garantizando que se apliquen siempre las validaciones de riesgo (como el Stop Loss diario) antes de enviar la orden al exchange.
+*   **Integración con API Externa de Señales (Polling) y Aislamiento de Credenciales**: El bot obtiene la información de trading consultando periódicamente (polling en tiempo casi real, intervalo configurable de ~5 segundos) una API externa al proyecto, pasándole como parámetro el **nivel de riesgo** configurado. La API responde con la posición objetivo actual (`LONG`, `SHORT` o `CLOSE`); el backend la compara con la última posición conocida y solo actúa ante un cambio. Se eligió polling sobre webhook porque la respuesta depende del nivel de riesgo, el contrato basado en estado es resiliente (un sondeo nunca "pierde" una señal), no expone endpoints públicos entrantes y simplifica el mockeo. Las API Keys de Binance **bajo ninguna circunstancia** se transmiten, comparten o procesan a través de dicha API externa. El backend de ViBo Invest actúa como el único ejecutor y gatekeeper de seguridad: procesa localmente la ejecución de órdenes en Binance usando las credenciales cifradas (AES-256) de los usuarios, comprobando que el bot siga activo y que la cuenta supere las verificaciones de seguridad (sin permisos de retiro, credenciales válidas) antes de enviar la orden al exchange. No aplica reglas de riesgo de trading propias: replica la señal del proveedor externo.
 *   **Proveedor de Señales Mock (por defecto)**: Implementación interna en Laravel (patrón contract/driver) que replica el contrato de la API externa: señal actual por nivel de riesgo e histórico de señales. Se selecciona por configuración (`SIGNALS_PROVIDER=mock|http`, por defecto `mock`) y es la base de los tests automatizados y del entorno de desarrollo.
 *   **Motor de Simulación (Shadow Mode, modelo híbrido)**:
     *   La API externa de señales (o su mock) suministra el histórico de señales con fecha, hora, posición y profit según el nivel de riesgo.
@@ -149,7 +149,7 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
 
 ### R1: Pérdidas en cuentas reales debido a caídas abruptas del mercado (Drawdowns)
 *   *Severidad*: Alta | *Probabilidad*: Alta
-*   *Mitigación*: Implementar de forma nativa e ineludible un **Stop Loss diario** y un **Capital Protegido** configurable. Detener la ejecución del bot de inmediato si el drawdown diario del usuario supera el límite establecido.
+*   *Mitigación*: ViBo no toma decisiones de trading propias; replica la posición del proveedor externo de señales, cuya estrategia incorpora su propia lógica de salida ante caídas. El usuario puede **pausar el bot al instante** en cualquier momento, lo que cierra de forma preventiva las posiciones abiertas en Binance. *(Actualizado 2026-06-21: se retiró el gatekeeper de riesgo local —Stop Loss diario y Capital Protegido— porque su suelo se calculaba sobre el capital declarado en el onboarding, sin relación con el balance real, lo que pausaba el bot de forma permanente en producción.)*
 
 ### R2: Desconfianza del usuario al ingresar sus API Keys de Binance
 *   *Severidad*: Alta | *Probabilidad*: Media-Alta
@@ -195,7 +195,7 @@ Las plataformas de trading automatizado actuales parecen "cabinas de avión": es
 ### 5. Sincronización de Señales y Nivel de Riesgo
 *   **Dado que** el bot está activo con un nivel de riesgo configurado,  
     **cuando** el ciclo de sondeo a la API de señales (real o mock) devuelve una posición distinta a la última conocida,  
-    **entonces** el sistema debe validar las reglas de riesgo locales y ajustar la posición en Binance (o registrarla en el simulador, según el modo), reflejando el cambio en el dashboard en tiempo real.
+    **entonces** el sistema debe comprobar que el bot siga activo y ajustar la posición en Binance (o registrarla en el simulador, según el modo), reflejando el cambio en el dashboard en tiempo real.
 *   **Dado que** el usuario cambia su nivel de riesgo desde el dashboard,  
     **cuando** se ejecuta el siguiente ciclo de sondeo,  
     **entonces** la consulta a la API de señales debe realizarse con el nuevo nivel de riesgo como parámetro.

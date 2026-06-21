@@ -144,16 +144,16 @@ sequenceDiagram
 
     loop Consumir Cola (por cada usuario con bot Activo en ese nivel)
         Worker->>Redis: Extraer Trabajo
-        Worker->>Worker: Validar Reglas de Riesgo del Usuario (Stop Loss diario, Capital Protegido)
-        alt Modo real y validación de riesgo exitosa
+        Worker->>Worker: Comprobar que el bot siga Activo
+        alt Modo real y bot activo
             Worker->>Worker: Descifrar API Keys del Usuario (AES-256)
             Worker->>Binance: POST /api/v3/order (ajustar posición a la señal)
             Binance-->>Worker: Confirmación de orden ejecutada
             Worker->>Worker: Registrar actividad en lenguaje humano ("Compra ejecutada...")
         else Modo simulación
             Worker->>DB: Registrar operación simulada (sin tocar Binance)
-        else Límite de riesgo superado / Bot Pausado
-            Worker->>Worker: Registrar descarte de señal por protección de riesgo o pausa
+        else Bot Pausado / credenciales inválidas
+            Worker->>Worker: Descartar la señal (sin reglas de riesgo de trading locales)
         end
     end
 ```

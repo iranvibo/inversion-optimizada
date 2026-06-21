@@ -39,45 +39,13 @@ class AdjustPositionJob implements ShouldQueue
         $latestSnapshot = $user->balanceSnapshots()->latest('captured_at')->first();
         $currentBalance = $latestSnapshot ? (float) $latestSnapshot->balance : (float) ($user->estimated_capital ?? 100.0);
 
-        // 1. VALIDACIÓN DE REGLAS DE RIESGO LOCALES (GATEKEEPER)
-
-        // A. Stop Loss Diario (Drawdown diario máximo configurable)
-        $todayStart = now()->startOfDay();
-        $firstSnapshotToday = $user->balanceSnapshots()
-            ->where('captured_at', '>=', $todayStart)
-            ->orderBy('captured_at', 'asc')
-            ->first();
-
-        $dailyStopLossLimit = (float) config('signals.risk.daily_stop_loss', 0.05);
-
-        if ($firstSnapshotToday && $dailyStopLossLimit < 1.0) {
-            $firstBalance = (float) $firstSnapshotToday->balance;
-            if ($firstBalance > 0 && ($firstBalance - $currentBalance) / $firstBalance >= $dailyStopLossLimit) {
-                $limitPct = $dailyStopLossLimit * 100;
-                $this->triggerRiskProtection(
-                    $user,
-                    'stop_loss_trigger',
-                    "Protección diaria activada: El drawdown diario superó el {$limitPct}%. El bot se pausó automáticamente para proteger tu capital."
-                );
-                return;
-            }
-        }
-
-        // B. Capital Protegido (Límite inferior configurable)
-        $protectedCapitalLimit = (float) config('signals.risk.protected_capital', 0.80);
-        $limit = (float) ($user->estimated_capital ?? 100.0) * $protectedCapitalLimit;
-
-        if ($protectedCapitalLimit > 0.0 && $currentBalance < $limit) {
-            $limitPct = $protectedCapitalLimit * 100;
-            $this->triggerRiskProtection(
-                $user,
-                'stop_loss_trigger',
-                "Protección diaria activada: El capital disponible cayó por debajo del {$limitPct}% de tu capital protegido configurado."
-            );
-            return;
-        }
-
-        // 2. EJECUCIÓN DEL AJUSTE SEGÚN EL MODO DEL BOT
+        // EJECUCIÓN DEL AJUSTE SEGÚN EL MODO DEL BOT.
+        //
+        // Este proyecto NO toma decisiones de trading: se limita a replicar la
+        // señal externa vigente. Por eso no existe ningún gatekeeper de riesgo
+        // local (stop-loss diario ni suelo de "capital protegido") que pause el
+        // bot por su cuenta. La única pausa automática admitida es por motivos
+        // de seguridad (credenciales inválidas o permisos de retiro indebidos).
 
         if ($user->bot_mode === 'real') {
             if (!$user->isBinanceLinked()) {
@@ -260,39 +228,5 @@ class AdjustPositionJob implements ShouldQueue
             'profit_value' => $profitValue,
             'risk_alert' => false,
         ]);
-    }
-
-    /**
-     * Pausa el bot y registra el evento de protección de riesgo (Stop Loss).
-     */
-    private function triggerRiskProtection(User $user, string $action, string $description): void
-    {
-        $user->update([
-            'bot_active' => false,
-        ]);
-
-        // Al pausarse el bot por riesgo, forzar las posiciones a CLOSE
-        \Illuminate\Support\Facades\Cache::put("user:{$user->id}:real_position", 'CLOSE');
-        \Illuminate\Support\Facades\Cache::put("user:{$user->id}:simulation_position", 'CLOSE');
-
-        if ($user->bot_mode === 'real' && $user->isBinanceLinked()) {
-            try {
-                $broker = app(BinanceBrokerInterface::class);
-                $broker->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
-            } catch (\Exception $e) {
-                Log::critical("Fallo al cerrar posiciones de emergencia para el usuario ID: {$user->id}. Detalle: " . $e->getMessage());
-            }
-        }
-
-        $user->botActivities()->create([
-            'bot_mode' => $user->bot_mode,
-            'type' => 'risk_protection',
-            'action' => $action,
-            'description' => $description,
-            'risk_alert' => true,
-        ]);
-
-        // Notificar cambio al dashboard en tiempo real
-        event(new \App\Events\BotStatusUpdated($user, false));
     }
 }
