@@ -43,6 +43,14 @@ class SyncBinanceBalances extends Command
     {
         $this->info('Iniciando sincronización de balances de Binance...');
 
+        // El histórico real solo se persiste con datos reales: si Binance está
+        // en modo mock, no se guarda nada para no contaminar la curva real.
+        if (config('services.binance.mock')) {
+            $this->info('Binance en modo mock: se omite la persistencia de snapshots reales.');
+
+            return self::SUCCESS;
+        }
+
         $users = User::where('binance_verified', true)
             ->whereNotNull('binance_api_key')
             ->whereNotNull('binance_secret_key')

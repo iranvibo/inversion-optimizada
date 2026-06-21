@@ -28,7 +28,9 @@ class SignalSyncTest extends TestCase
     {
         parent::setUp();
 
-        config(['services.binance.mock' => true]);
+        // Contexto real: el broker se intercepta con un doble (sin red), por lo
+        // que mock=false permite probar la persistencia del histórico real.
+        config(['services.binance.mock' => false]);
 
         // Crear usuario por defecto
         $this->user = User::factory()->create([

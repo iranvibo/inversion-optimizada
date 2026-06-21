@@ -136,10 +136,14 @@ class AdjustPositionJob implements ShouldQueue
 
                     // Sincronizar el nuevo balance
                     $now = now()->toImmutable();
-                    $user->balanceSnapshots()->create([
-                        'balance' => $newBalance,
-                        'captured_at' => $now,
-                    ]);
+                    // En real solo se persiste el histórico con datos reales de Binance,
+                    // nunca valores del broker mock (evita contaminar la curva real).
+                    if (! config('services.binance.mock')) {
+                        $user->balanceSnapshots()->create([
+                            'balance' => $newBalance,
+                            'captured_at' => $now,
+                        ]);
+                    }
 
                     // Emitir evento WebSocket para actualizar en tiempo real
                     event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
@@ -159,10 +163,13 @@ class AdjustPositionJob implements ShouldQueue
 
                     // Sincronizar el balance de apertura (que coincide con currentBalance al no cambiar la equidad, evitando latencia)
                     $now = now()->toImmutable();
-                    $user->balanceSnapshots()->create([
-                        'balance' => $currentBalance,
-                        'captured_at' => $now,
-                    ]);
+                    // Solo se persiste el histórico real cuando Binance no está en mock.
+                    if (! config('services.binance.mock')) {
+                        $user->balanceSnapshots()->create([
+                            'balance' => $currentBalance,
+                            'captured_at' => $now,
+                        ]);
+                    }
 
                     // Emitir evento WebSocket para actualizar en tiempo real
                     event(new \App\Events\BalanceUpdated($user, $currentBalance, $now));

@@ -518,6 +518,10 @@ class BotControlTest extends TestCase
 
         $this->app->instance(BinanceBrokerInterface::class, $broker);
 
+        // Contexto real (broker interceptado por doble): permite persistir el
+        // snapshot del histórico real al pausar.
+        config(['services.binance.mock' => false]);
+
         $response = $this->actingAs($this->user)
             ->post(route('bot.toggle'));
 

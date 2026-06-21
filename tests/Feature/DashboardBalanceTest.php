@@ -46,6 +46,20 @@ class DashboardBalanceTest extends TestCase
         ]);
     }
 
+    /**
+     * Configura un contexto Binance "real" (mock=false) con el broker
+     * interceptado por un doble, para poder probar la persistencia del
+     * histórico real sin realizar llamadas de red.
+     */
+    private function fakeRealBroker(float $balance): void
+    {
+        config(['services.binance.mock' => false]);
+
+        $broker = \Mockery::mock(\App\Core\Contracts\BinanceBrokerInterface::class);
+        $broker->shouldReceive('getTotalBalance')->andReturn($balance);
+        $this->app->instance(\App\Core\Contracts\BinanceBrokerInterface::class, $broker);
+    }
+
     // ─── Acceso ──────────────────────────────────────────────────────────
 
     public function test_guest_is_redirected_to_login(): void
@@ -151,6 +165,9 @@ class DashboardBalanceTest extends TestCase
     {
         Event::fake([BalanceUpdated::class]);
 
+        // El histórico real solo se persiste con datos reales de Binance (no mock).
+        $this->fakeRealBroker(1234.56);
+
         $this->artisan('binance:sync-balances')->assertExitCode(0);
 
         $this->assertDatabaseCount('balance_snapshots', 1);
@@ -164,9 +181,23 @@ class DashboardBalanceTest extends TestCase
         });
     }
 
+    public function test_sync_command_does_not_persist_when_binance_is_mock(): void
+    {
+        Event::fake([BalanceUpdated::class]);
+
+        // mock=true (de setUp): no se debe contaminar el histórico real con
+        // valores del broker mock.
+        $this->artisan('binance:sync-balances')->assertExitCode(0);
+
+        $this->assertDatabaseCount('balance_snapshots', 0);
+        Event::assertNotDispatched(BalanceUpdated::class);
+    }
+
     public function test_sync_command_skips_users_without_linked_binance(): void
     {
         Event::fake([BalanceUpdated::class]);
+
+        $this->fakeRealBroker(1234.56);
 
         $unlinked = User::factory()->create(['binance_verified' => false]);
 

@@ -129,7 +129,7 @@ class BalanceController extends Controller
             return response()->json($report->toArray());
         }
 
-        if ($user->isBinanceLinked() && ! $user->balanceSnapshots()->exists() && ! app()->environment('testing')) {
+        if ($user->isBinanceLinked() && ! $user->balanceSnapshots()->exists() && ! app()->environment('testing') && ! config('services.binance.mock')) {
             try {
                 $broker = app(BinanceBrokerInterface::class);
                 $balance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
@@ -171,6 +171,12 @@ class BalanceController extends Controller
 
         if (! $user->isBinanceLinked()) {
             return back()->with('error', 'Debes conectar tu cuenta de Binance antes de poder simular la sincronización de balance.');
+        }
+
+        // Herramienta de prueba: solo en simulación, para no contaminar el
+        // histórico real con datos demo (la curva real refleja solo Binance).
+        if ($user->bot_mode === 'real') {
+            return back()->with('error', 'La sincronización simulada solo está disponible en modo simulación.');
         }
 
         $now = now()->toImmutable();

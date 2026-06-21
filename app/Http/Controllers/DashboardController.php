@@ -184,10 +184,13 @@ class DashboardController extends Controller
 
                         // Sincronizar el nuevo balance
                         $now = now()->toImmutable();
-                        $user->balanceSnapshots()->create([
-                            'balance' => $newBalance,
-                            'captured_at' => $now,
-                        ]);
+                        // En real solo se persiste con datos reales de Binance, nunca en mock.
+                        if (! config('services.binance.mock')) {
+                            $user->balanceSnapshots()->create([
+                                'balance' => $newBalance,
+                                'captured_at' => $now,
+                            ]);
+                        }
 
                         // Recuperar el capital de apertura
                         $openCapital = (float) Cache::pull("user:{$user->id}:open_capital", $currentBalance);

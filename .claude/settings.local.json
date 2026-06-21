@@ -42,7 +42,10 @@
       "Bash(DB_ROOT_PASSWORD=x docker compose --env-file .env -f docker-compose.prod.yml config)",
       "Read(//tmp/**)",
       "Bash(curl -sL -H \"Authorization: Bearer mi_token_secreto\" \"https://trading.vibo-solutions.com/api/v1/signals/history?risk_level=balanceado\")",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(gh run *)",
+      "Bash(curl -sI https://invest.vibo-solutions.com/)",
+      "Bash(curl -sI https://invest.vibo-solutions.com/dashboard/activities)"
     ]
   }
 }

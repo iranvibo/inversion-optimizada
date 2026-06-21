@@ -37,6 +37,10 @@ class AdjustPositionJobTest extends TestCase
             'signals.risk.protected_capital' => 0.80,
         ]);
 
+        // Contexto real: el broker se intercepta con un doble (sin red), así que
+        // mock=false permite ejercitar la persistencia del histórico real.
+        config(['services.binance.mock' => false]);
+
         $this->broker = Mockery::mock(BinanceBrokerInterface::class);
         $this->app->instance(BinanceBrokerInterface::class, $this->broker);
     }
