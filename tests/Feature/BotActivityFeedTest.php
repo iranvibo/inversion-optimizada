@@ -38,6 +38,9 @@ class BotActivityFeedTest extends TestCase
      */
     public function test_activities_endpoint_returns_json_feed(): void
     {
+        // El feed basado en actividades persistidas corresponde al modo real.
+        $this->user->update(['bot_mode' => 'real']);
+
         // Creamos actividades de prueba con tiempos distintos para evitar colisiones de segundo
         $act1 = $this->user->botActivities()->create([
             'type' => 'long',
@@ -120,6 +123,9 @@ class BotActivityFeedTest extends TestCase
      */
     public function test_dashboard_renders_activities_and_risk_alerts(): void
     {
+        // El feed basado en actividades persistidas corresponde al modo real.
+        $this->user->update(['bot_mode' => 'real']);
+
         // Crear una alerta de riesgo y una compra
         $this->user->botActivities()->create([
             'type' => 'risk_protection',
@@ -147,6 +153,9 @@ class BotActivityFeedTest extends TestCase
      */
     public function test_activities_with_same_timestamp_are_sorted_correctly(): void
     {
+        // El orden del feed basado en actividades persistidas corresponde al modo real.
+        $this->user->update(['bot_mode' => 'real']);
+
         $timestamp = now();
 
         // Creamos una actividad de cierre

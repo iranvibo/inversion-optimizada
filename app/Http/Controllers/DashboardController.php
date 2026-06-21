@@ -458,16 +458,14 @@ class DashboardController extends Controller
     protected function getActivitiesForUser($user)
     {
         if ($user->bot_mode === 'real') {
+            // En modo real solo se muestran las operaciones ejecutadas realmente.
             $activities = $user->botActivities()->where('bot_mode', 'real')->latest()->get();
 
             return $this->sortActivities($activities);
         }
 
-        $dbActivities = $user->botActivities()->where('bot_mode', 'simulation')->latest()->get();
-        if ($dbActivities->isNotEmpty()) {
-            return $this->sortActivities($dbActivities);
-        }
-
+        // En modo simulación el feed se deriva siempre del historial de señales de
+        // la API externa (no de las filas simuladas persistidas en bot_activities).
         try {
             $signalProvider = app(SignalProviderInterface::class);
             $history = $signalProvider->getSignalHistory($user->risk_level ?? 'balanceado');

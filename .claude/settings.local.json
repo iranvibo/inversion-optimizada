@@ -40,7 +40,9 @@
       "Bash(./vendor/bin/pint app/Http/Controllers/DashboardController.php tests/Feature/BotControlTest.php)",
       "Bash(python3 -c \"import yaml,sys; d=yaml.safe_load\\(open\\('docker-compose.prod.yml'\\)\\); print\\('web args keys:', sorted\\(d['services']['web']['build']['args'].keys\\(\\)\\)\\); print\\('app args keys:', sorted\\(d['services']['app']['build']['args'].keys\\(\\)\\)\\)\")",
       "Bash(DB_ROOT_PASSWORD=x docker compose --env-file .env -f docker-compose.prod.yml config)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(curl -sL -H \"Authorization: Bearer mi_token_secreto\" \"https://trading.vibo-solutions.com/api/v1/signals/history?risk_level=balanceado\")",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

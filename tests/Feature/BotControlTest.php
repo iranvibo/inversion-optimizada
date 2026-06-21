@@ -368,11 +368,32 @@ class BotControlTest extends TestCase
         $this->assertCount(1, $response->json('activities'));
         $this->assertSame('long', $response->json('activities.0.type'));
 
-        // Cuando el bot_mode es simulación, solo vemos la actividad simulada
+        // Cuando el bot_mode es simulación, el feed se deriva del historial de la
+        // API externa (no de las filas simuladas persistidas en bot_activities).
+        $mockProvider = $this->createMock(\App\Core\Contracts\SignalProviderInterface::class);
+        $mockProvider->method('getSignalHistory')
+            ->willReturn([
+                [
+                    'date' => '2026-06-10',
+                    'time' => '10:00:00',
+                    'position' => 'SHORT',
+                    'profit' => 0.0,
+                ],
+                [
+                    'date' => '2026-06-10',
+                    'time' => '12:00:00',
+                    'position' => 'CLOSE',
+                    'profit' => 0.02,
+                ],
+            ]);
+        $this->app->instance(\App\Core\Contracts\SignalProviderInterface::class, $mockProvider);
+
         $this->user->update(['bot_mode' => 'simulation']);
         $response = $this->actingAs($this->user)->getJson(route('dashboard.activities'));
         $response->assertOk();
-        $this->assertCount(1, $response->json('activities'));
+        // Refleja las 2 señales de la API, no la única fila simulada en BD.
+        $this->assertCount(2, $response->json('activities'));
+        $this->assertSame('short', $response->json('activities.1.type'));
         $this->assertSame('close', $response->json('activities.0.type'));
     }
 
