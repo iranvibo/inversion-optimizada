@@ -371,7 +371,7 @@ class DashboardController extends Controller
             }
         }
 
-        $statusMessage = 'Modo cambiado a: '.strtoupper($newMode);
+        $statusMessage = 'Modo cambiado a: '.($newMode === 'real' ? 'Real' : 'Simulación');
 
         if ($request->wantsJson()) {
             return response()->json([

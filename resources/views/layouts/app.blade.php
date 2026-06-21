@@ -90,20 +90,35 @@
 
     <!-- Barra de Navegación -->
     <nav class="border-b border-[rgba(255,255,255,0.06)] bg-[hsl(223,47%,12%)] backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
-        <div class="flex items-center space-x-3">
+        <a href="{{ route('dashboard') }}" class="flex items-center space-x-3 hover:opacity-90 transition duration-200">
             <span class="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
                 ViBo <span class="font-light">Invest</span>
             </span>
             <span class="text-[10px] font-semibold bg-violet-500/10 text-violet-400 px-2 py-0.5 rounded-full border border-violet-500/20 uppercase tracking-wider">
                 MVP v1.0
             </span>
-        </div>
+        </a>
         
         @auth
             <div class="flex items-center space-x-6">
-                <a href="{{ route('dashboard') }}" class="text-sm font-medium transition duration-200 text-slate-300 hover:text-white">
-                    Dashboard
-                </a>
+                <form id="nav-mode-form" action="{{ route('bot.toggle-mode') }}" method="POST" class="m-0 p-0">
+                    @csrf
+                    <select id="nav-mode-select" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-violet-500 cursor-pointer hover:border-slate-700 transition duration-200">
+                        <option value="simulation" {{ Auth::user()->bot_mode === 'simulation' ? 'selected' : '' }}>Simulación</option>
+                        <option value="real" {{ Auth::user()->bot_mode === 'real' ? 'selected' : '' }}>Real</option>
+                    </select>
+                </form>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const select = document.getElementById('nav-mode-select');
+                        const form = document.getElementById('nav-mode-form');
+                        if (select && form) {
+                            select.addEventListener('change', function() {
+                                form.submit();
+                            });
+                        }
+                    });
+                </script>
                 <div class="h-4 w-px bg-slate-800"></div>
                 <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center font-bold text-sm text-white">

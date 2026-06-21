@@ -329,7 +329,7 @@ class BotControlTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
-        $this->assertStringContainsString('Modo cambiado a: SIMULATION', session('success'));
+        $this->assertStringContainsString('Modo cambiado a: Simulación', session('success'));
 
         $this->user->refresh();
         $this->assertSame('simulation', $this->user->bot_mode);

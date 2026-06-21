@@ -117,18 +117,6 @@
         </div>
     @endif
 
-    @if(session('success'))
-        <div class="p-4 rounded-2xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
-            {{ session('success') }}
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
-            {{ session('error') }}
-        </div>
-    @endif
-
     <!-- BALANCE TOTAL Y EVOLUCIÓN (US03) -->
     <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md relative overflow-hidden">
         <div class="absolute -left-20 -top-20 w-60 h-60 bg-violet-500/5 rounded-full blur-3xl pointer-events-none"></div>
@@ -1053,12 +1041,23 @@
                     liveBalance = null;
                 }
 
+                // Sync navbar select value
+                const navSelect = document.getElementById('nav-mode-select');
+                if (navSelect) {
+                    navSelect.value = data.bot_mode;
+                }
+
                 showToast(data.message);
                 refreshHistory(true);
                 refreshActivities();
 
             } catch (err) {
                 showToast(err.message, true);
+                // Revert navbar select to actual mode
+                const navSelect = document.getElementById('nav-mode-select');
+                if (navSelect) {
+                    navSelect.value = currentBotMode;
+                }
             } finally {
                 botToggleModeBtn.disabled = false;
                 botToggleModeBtn.classList.remove('opacity-50');
@@ -1380,6 +1379,13 @@
 
     @if(session('active_tab') === 'activity')
         switchTab('activity');
+    @endif
+
+    @if(session('success'))
+        showToast("{{ session('success') }}");
+    @endif
+    @if(session('error'))
+        showToast("{{ session('error') }}", true);
     @endif
 
     // Primera carga del gráfico con el filtro por defecto (Mes)
