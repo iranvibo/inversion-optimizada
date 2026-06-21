@@ -397,6 +397,92 @@ class AdjustPositionJobTest extends TestCase
         $this->assertSame(1000.00, Cache::get("user:{$user->id}:open_capital"));
     }
 
+    public function test_real_mode_flip_books_close_of_previous_position_then_opens_new(): void
+    {
+        Event::fake([BalanceUpdated::class]);
+
+        $user = User::factory()->create([
+            'bot_active' => true,
+            'bot_mode' => 'real',
+            'binance_api_key' => 'key',
+            'binance_secret_key' => 'secret',
+            'binance_verified' => true,
+            'risk_level' => 'balanceado',
+            'estimated_capital' => 1000,
+        ]);
+
+        // Veníamos de una posición LONG abierta con un capital (equity) de 1000.
+        Cache::put("user:{$user->id}:real_position", 'LONG');
+        Cache::put("user:{$user->id}:open_capital", 1000.00);
+
+        // La señal cambia directamente a SHORT: adjustPosition cierra el LONG y abre el SHORT.
+        $this->broker->shouldReceive('adjustPosition')
+            ->once()
+            ->with($user->binance_api_key, $user->binance_secret_key, 'SHORT', 'balanceado')
+            ->andReturn(true);
+        // Equity tras cerrar el LONG: 1080 → beneficio real de +80 (+8%).
+        $this->broker->shouldReceive('getTotalBalance')
+            ->once()
+            ->andReturn(1080.00);
+
+        $this->runJob($user->id, 'SHORT');
+
+        // Se registra el cierre del LONG con su P/L real.
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $user->id,
+            'type' => 'close',
+            'action' => 'close_profit',
+            'profit_percentage' => 8.00,
+            'profit_value' => 80.00,
+        ]);
+        // Y la apertura del nuevo SHORT.
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $user->id,
+            'type' => 'short',
+            'action' => 'open_short',
+        ]);
+        // El capital de apertura del SHORT es el equity tras el cierre.
+        $this->assertSame(1080.00, Cache::get("user:{$user->id}:open_capital"));
+        $this->assertSame('SHORT', Cache::get("user:{$user->id}:real_position"));
+    }
+
+    public function test_real_mode_open_from_close_does_not_book_a_phantom_close(): void
+    {
+        Event::fake([BalanceUpdated::class]);
+
+        $user = User::factory()->create([
+            'bot_active' => true,
+            'bot_mode' => 'real',
+            'binance_api_key' => 'key',
+            'binance_secret_key' => 'secret',
+            'binance_verified' => true,
+            'risk_level' => 'balanceado',
+            'estimated_capital' => 1000,
+        ]);
+
+        // Sin posición previa (CLOSE): abrir no debe generar ningún cierre.
+        Cache::put("user:{$user->id}:real_position", 'CLOSE');
+
+        $this->broker->shouldReceive('adjustPosition')
+            ->once()
+            ->with($user->binance_api_key, $user->binance_secret_key, 'LONG', 'balanceado')
+            ->andReturn(true);
+        // No debe consultarse el balance liquidado: no hay cierre que valorar.
+        $this->broker->shouldNotReceive('getTotalBalance');
+
+        $this->runJob($user->id, 'LONG');
+
+        $this->assertDatabaseMissing('bot_activities', [
+            'user_id' => $user->id,
+            'type' => 'close',
+        ]);
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $user->id,
+            'type' => 'long',
+            'action' => 'open_long',
+        ]);
+    }
+
     public function test_real_mode_aborts_when_binance_not_linked(): void
     {
         $user = User::factory()->create([
