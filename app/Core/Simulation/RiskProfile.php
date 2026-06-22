@@ -39,6 +39,35 @@ enum RiskProfile: string
     }
 
     /**
+     * Peor caída temporal (drawdown) que el usuario debe estar dispuesto a
+     * tolerar con este perfil, como cifra única "de honestidad" para el
+     * onboarding. Es un dato de transparencia, no un cálculo sobre la serie.
+     *
+     *   Conservador → 15%
+     *   Balanceado  → 30%
+     *   Agresivo    → 50%
+     */
+    public function honestyDrawdownPercent(): int
+    {
+        return match ($this) {
+            self::Conservador => 15,
+            self::Balanceado => 30,
+            self::Agresivo => 50,
+        };
+    }
+
+    /**
+     * Mensaje de transparencia en lenguaje natural sobre la peor caída esperable.
+     */
+    public function honestyDrawdownMessage(): string
+    {
+        return sprintf(
+            'La cuenta ha tenido caídas temporales de hasta un %d%%.',
+            $this->honestyDrawdownPercent(),
+        );
+    }
+
+    /**
      * Fracción del capital disponible que se compromete al abrir una posición
      * en modo real (US06). Cuanto más agresivo el perfil, mayor exposición.
      *

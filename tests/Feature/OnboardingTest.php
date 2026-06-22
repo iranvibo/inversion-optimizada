@@ -80,7 +80,7 @@ class OnboardingTest extends TestCase
         $response->assertJsonStructure([
             'profile',
             'initial_capital',
-            'series' => [['period', 'value']],
+            'series' => [['t', 'value']],
             'final_value',
             'total_return_percent',
             'max_drawdown_percent',
@@ -91,9 +91,13 @@ class OnboardingTest extends TestCase
         $this->assertSame('balanceado', $data['profile']);
         // JSON serializa floats enteros como int, por eso se compara valor y no tipo
         $this->assertEquals(1000.0, $data['initial_capital']);
-        // La serie arranca en el capital indicado y tiene 24 meses + punto inicial
+        // La serie arranca en el capital indicado (primera señal con rendimiento 0)
+        // y tiene un punto por cada señal del historial (misma fuente que el simulador).
         $this->assertEquals(1000.0, $data['series'][0]['value']);
-        $this->assertCount(25, $data['series']);
+        $this->assertCount(8, $data['series']);
+        // El rendimiento acumulado es el real al final de la curva.
+        $finalValue = end($data['series'])['value'];
+        $this->assertEquals($finalValue, $data['final_value']);
     }
 
     public function test_projection_changes_when_parameters_change(): void

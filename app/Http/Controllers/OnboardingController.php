@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Core\Simulation\HistoricalSimulationService;
 use App\Core\Simulation\RiskProfile;
+use App\Core\Simulation\SimulatedBalanceProjector;
 use App\Http\Requests\OnboardingSimulationRequest;
 use Illuminate\Support\Facades\Auth;
-use InvalidArgumentException;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Adaptador de interfaz (US02): orquesta el onboarding interactivo
- * delegando toda la lógica de simulación al caso de uso del Core.
+ * delegando la proyección de la curva al caso de uso del Core.
  */
 class OnboardingController extends Controller
 {
     public function __construct(
-        private readonly HistoricalSimulationService $simulationService,
+        private readonly SimulatedBalanceProjector $projector,
     ) {
     }
 
@@ -41,22 +41,46 @@ class OnboardingController extends Controller
     }
 
     /**
-     * Escenarios 1 y 2: proyección dinámica (JSON) según perfil y capital,
-     * incluyendo rendimiento acumulado y peor drawdown en lenguaje natural.
+     * Escenarios 1 y 2: proyección dinámica (JSON) según perfil y capital.
+     *
+     * Usa exactamente la misma fuente de datos que el dashboard en modo
+     * simulación (historial de señales), de modo que los valores coinciden y
+     * solo escalan con el capital estimado. El rendimiento acumulado es el real
+     * al final de la curva y la caída temporal es la cifra honesta del perfil.
      */
     public function simulate(OnboardingSimulationRequest $request)
     {
+        $profile = $request->riskProfile();
+        $capital = $request->capital();
+
         try {
-            $result = $this->simulationService->simulate(
-                $request->riskProfile(),
-                $request->capital(),
-            );
-        } catch (InvalidArgumentException $e) {
-            // Mensaje claro sin exponer trazas internas
-            return response()->json(['message' => $e->getMessage()], 422);
+            $snapshots = $this->projector->project($profile->value, $capital);
+        } catch (\Throwable $e) {
+            Log::error('Error al proyectar la simulación de onboarding: '.$e->getMessage());
+
+            return response()->json(['message' => 'No se pudo calcular la simulación en este momento.'], 422);
         }
 
-        return response()->json($result->toArray());
+        $series = array_map(
+            fn (array $point) => [
+                't' => $point['captured_at']->format(DATE_ATOM),
+                'value' => round($point['balance'], 2),
+            ],
+            $snapshots,
+        );
+
+        $finalValue = $snapshots === [] ? $capital : end($snapshots)['balance'];
+        $totalReturn = ($finalValue - $capital) / $capital * 100;
+
+        return response()->json([
+            'profile' => $profile->value,
+            'initial_capital' => round($capital, 2),
+            'series' => $series,
+            'final_value' => round($finalValue, 2),
+            'total_return_percent' => round($totalReturn, 2),
+            'max_drawdown_percent' => $profile->honestyDrawdownPercent(),
+            'drawdown_message' => $profile->honestyDrawdownMessage(),
+        ]);
     }
 
     /**

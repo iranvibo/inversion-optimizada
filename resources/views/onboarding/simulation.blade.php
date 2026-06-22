@@ -46,7 +46,7 @@
         <!-- Paso 3: Simulación interactiva -->
         <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">3 · Así se habría comportado tu inversión</h2>
         <div class="rounded-xl bg-[hsl(222,47%,10%)] border border-[rgba(255,255,255,0.06)] p-5 mb-6">
-            <svg id="simulation-chart" viewBox="0 0 600 240" class="w-full h-auto" preserveAspectRatio="none" aria-label="Gráfico de simulación histórica"></svg>
+            <svg id="simulation-chart" viewBox="0 0 600 240" class="w-full h-auto" aria-label="Gráfico de simulación histórica"></svg>
 
             <!-- Transparencia: rendimiento acumulado y peor caída (Escenario 2) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
@@ -101,16 +101,68 @@
         });
     }
 
+    const formatDollarAxis = (val) =>
+        new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(val) + '$';
+
+    function formatDateAxis(dateStr) {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return '';
+        // Misma fuente que la gráfica principal: "12 jun"
+        return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    }
+
+    // Gráfica con ejes de precio (Y) y tiempo (X), igual que la del dashboard.
     function drawChart(series) {
-        const W = 600, H = 240, PAD = 10;
+        if (!series || series.length < 2) { chart.innerHTML = ''; return; }
+
+        const W = 600, H = 240;
+        const PAD_TOP = 15, PAD_BOTTOM = 25, PAD_LEFT = 15, PAD_RIGHT = 75;
+
         const values = series.map((p) => p.value);
-        const min = Math.min(...values), max = Math.max(...values);
+        let min = Math.min(...values), max = Math.max(...values);
+
+        // Atenúa el ruido forzando una amplitud mínima del 5% (como el dashboard)
+        const avg = (min + max) / 2 || 1;
+        const minRange = avg * 0.05;
+        if ((max - min) < minRange) {
+            const padding = (minRange - (max - min)) / 2;
+            min -= padding;
+            max += padding;
+        }
+
         const range = max - min || 1;
-        const x = (i) => PAD + (i / (series.length - 1)) * (W - 2 * PAD);
-        const y = (v) => H - PAD - ((v - min) / range) * (H - 2 * PAD);
+        const x = (i) => PAD_LEFT + (i / (series.length - 1)) * (W - PAD_LEFT - PAD_RIGHT);
+        const y = (v) => H - PAD_BOTTOM - ((v - min) / range) * (H - PAD_TOP - PAD_BOTTOM);
 
         const linePoints = series.map((p, i) => `${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
-        const areaPoints = `${PAD},${H - PAD} ${linePoints} ${(W - PAD)},${H - PAD}`;
+        const areaPoints = `${PAD_LEFT},${H - PAD_BOTTOM} ${linePoints} ${(W - PAD_RIGHT)},${H - PAD_BOTTOM}`;
+
+        // Eje Y: líneas de cuadrícula y etiquetas de precio
+        const gridValues = [max, (min + max) / 2, min];
+        let yAxisHtml = '';
+        gridValues.forEach((val) => {
+            const yVal = y(val);
+            yAxisHtml += `
+                <line x1="${PAD_LEFT}" y1="${yVal}" x2="${W - PAD_RIGHT}" y2="${yVal}" stroke="rgba(255, 255, 255, 0.06)" stroke-width="1" stroke-dasharray="4 4" />
+                <text x="${W - PAD_RIGHT + 8}" y="${yVal}" fill="#94a3b8" font-size="10" font-family="system-ui, -apple-system, sans-serif" alignment-baseline="middle" text-anchor="start">${formatDollarAxis(val)}</text>
+            `;
+        });
+
+        // Eje X: etiquetas temporales (inicio, medio, fin)
+        const midIndex = Math.floor((series.length - 1) / 2);
+        const xAxisIndices = [0, midIndex, series.length - 1].filter((val, i, self) => self.indexOf(val) === i);
+        let xAxisHtml = '';
+        xAxisIndices.forEach((idx, i) => {
+            const xVal = x(idx);
+            let anchor = 'middle';
+            if (xAxisIndices.length > 1) {
+                if (i === 0) anchor = 'start';
+                else if (i === xAxisIndices.length - 1) anchor = 'end';
+            }
+            xAxisHtml += `
+                <text x="${xVal}" y="${H - 5}" fill="#94a3b8" font-size="10" font-family="system-ui, -apple-system, sans-serif" text-anchor="${anchor}">${formatDateAxis(series[idx].t)}</text>
+            `;
+        });
 
         chart.innerHTML = `
             <defs>
@@ -119,8 +171,10 @@
                     <stop offset="100%" stop-color="rgba(139, 92, 246, 0)"/>
                 </linearGradient>
             </defs>
+            ${yAxisHtml}
             <polygon points="${areaPoints}" fill="url(#area-fill)"/>
             <polyline points="${linePoints}" fill="none" stroke="hsl(263, 70%, 62%)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+            ${xAxisHtml}
         `;
     }
 

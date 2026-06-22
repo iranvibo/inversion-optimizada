@@ -47,7 +47,14 @@
       "Bash(curl -sI https://invest.vibo-solutions.com/)",
       "Bash(curl -sI https://invest.vibo-solutions.com/dashboard/activities)",
       "Bash(grep -iE \"\\\\.\\(vue|jsx?|tsx?\\)$\")",
-      "Bash(grep -iE \"\\\\.\\(vue|jsx|tsx\\)$\")"
+      "Bash(grep -iE \"\\\\.\\(vue|jsx|tsx\\)$\")",
+      "Bash(grep -n 'bot_mode\\\\|attributes\\\\|protected $casts\\\\|risk_level' /Users/bdado/VSCode/inversion-optimizada/app/Models/User.php)",
+      "Bash(git rm *)",
+      "Bash(php -l app/Core/Simulation/SimulatedBalanceProjector.php)",
+      "Bash(php -l app/Http/Controllers/OnboardingController.php)",
+      "Bash(php -l app/Http/Controllers/BalanceController.php)",
+      "Bash(echo \"grep-exit:$?\")",
+      "Bash(php -l app/Core/Simulation/RiskProfile.php)"
     ]
   }
 }

@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-06-19
+updated: 2026-06-22
 ---
 
 # Origen de las Señales del Bot
@@ -82,6 +82,14 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 ### Diferenciación de Curva de Capital (Junio 2026)
 * **Incidencia de Equidades Idénticas**: Se detectó que los niveles agresivo y balanceado devolvían la misma curva de capital en modo simulación (con el proveedor HTTP). La causa raíz es que la API externa (`btc-signals`) devolvía el profit calculado sobre el margen (importe invertido en el trade) en lugar del capital total. Al usar las mismas señales de entrada/salida, los profits porcentuales sobre margen eran idénticos y anulaban el efecto del tamaño de posición (90% vs 50% vs 20%), provocando curvas duplicadas al calcular `$capital *= 1 + profit` en la app Laravel.
 * **Solución**: Se modificó `BtcStrategy.php` en la API externa para calcular un nuevo campo `account_profit` (`$tradeNetPnl / $activePosition['capitalBeforeEntry']`), que refleja la variación porcentual real sobre la cuenta total. El endpoint `/api/v1/signals/history` mapea este `account_profit` al campo `profit` de la respuesta JSON para preservar la compatibilidad con la app Laravel y sus cálculos del gráfico sin requerir cambios en este repositorio.
+
+### Fuente Única de la Simulación: Onboarding == Dashboard (Decisión 2026-06-22)
+* **Problema**: El onboarding (US02) proyectaba su gráfico desde un dataset fijo de 24 meses propio (`HistoricalSimulationService` + `StaticHistoricalDataProvider` + `SimulationResult` + interfaz `HistoricalDataProviderInterface`), distinto del que usa el dashboard en modo simulación (historial de señales de la API externa escalado por `estimated_capital`). Resultado: el onboarding mostraba números que **no** coincidían con el simulador real.
+* **Solución**: Se extrajo `App\Core\Simulation\SimulatedBalanceProjector::project(string $riskLevel, float $capital, ?DateTimeImmutable $startAt = null)` como **única fuente de verdad** de la curva simulada (parte del `getSignalHistory` ordenado cronológicamente con desempate CLOSE-antes-de-apertura, aplicando `capital *= 1 + profit`). Lo usan tanto `OnboardingController::simulate` (sin `$startAt`: la primera señal con profit 0 ya parte del capital) como `BalanceController::history` en la rama `bot_mode === 'simulation'` (con `$startAt = now()->modify('-1 month')` para anclar el inicio de la ventana). Así ambas pantallas muestran exactamente los mismos valores, solo escalados por el capital del deslizador.
+* **Cluster eliminado**: Se borraron `HistoricalSimulationService`, `SimulationResult`, `StaticHistoricalDataProvider`, `HistoricalDataProviderInterface`, sus tests unitarios y el binding en `AppServiceProvider` (eran dead code tras el cambio). `BalanceController` ya no inyecta `SignalProviderInterface` (lo encapsula el projector).
+* **Rendimiento acumulado real**: el onboarding calcula `total_return_percent` desde el valor final de la propia serie (`(final - capital) / capital`), por lo que el % coincide con el último punto de la gráfica.
+* **"Honestidad ante todo" = cifra fija por perfil**: ya no es el drawdown calculado sobre la serie. `RiskProfile::honestyDrawdownPercent()` devuelve **15% (Conservador), 30% (Balanceado), 50% (Agresivo)** y `honestyDrawdownMessage()` arma el texto. La respuesta JSON del onboarding mantiene la clave `max_drawdown_percent` con esa cifra.
+* **Gráfico del onboarding con ejes**: `resources/views/onboarding/simulation.blade.php` ahora dibuja eje Y de precios ($) con cuadrícula y eje X temporal (etiquetas inicio/medio/fin, formato "12 jun"), replicando el estilo del gráfico principal del dashboard. La serie usa la clave `t` (ISO) en vez de `period`; se quitó `preserveAspectRatio="none"` del SVG para no deformar el texto de los ejes.
 
 ### Evolución del Gráfico con Valor en Vivo (Junio 2026)
 * **Visualización del Saldo en Vivo en la Gráfica**: Para evitar discrepancias entre el balance numérico de la cabecera (que fluctúa en vivo en modo real cada 5 segundos mediante sondeo de la API o eventos de WebSocket) y la curva de la gráfica de rendimiento, el valor en vivo se inyecta dinámicamente en el cliente como el último punto de la serie de datos (`isLive: true`).

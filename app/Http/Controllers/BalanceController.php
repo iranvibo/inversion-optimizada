@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Core\Contracts\BinanceBrokerInterface;
-use App\Core\Contracts\SignalProviderInterface;
 use App\Core\Portfolio\PortfolioPerformanceService;
+use App\Core\Simulation\SimulatedBalanceProjector;
 use App\Events\BalanceUpdated;
 use App\Http\Requests\BalanceHistoryRequest;
 use App\Infrastructure\Demo\FakeBalanceHistoryGenerator;
@@ -21,8 +21,8 @@ class BalanceController extends Controller
 {
     public function __construct(
         private readonly PortfolioPerformanceService $performanceService,
-        private readonly SignalProviderInterface $signalProvider,
         private readonly BinanceBrokerInterface $binanceBroker,
+        private readonly SimulatedBalanceProjector $balanceProjector,
     ) {}
 
     /**
@@ -77,51 +77,19 @@ class BalanceController extends Controller
 
         if ($user->bot_mode === 'simulation') {
             $capital = (float) ($user->estimated_capital ?? 100.0);
-            $snapshots = [];
-
-            // Punto de partida inicial
-            $snapshots[] = [
-                'captured_at' => $now->modify('-1 month'),
-                'balance' => $capital,
-            ];
 
             try {
-                $history = $this->signalProvider->getSignalHistory($user->risk_level);
-                // Ordenar cronológicamente
-                usort($history, function ($a, $b) {
-                    $timeComparison = strcmp($a['date'].' '.$a['time'], $b['date'].' '.$b['time']);
-                    if ($timeComparison !== 0) {
-                        return $timeComparison;
-                    }
-
-                    $aPos = strtoupper($a['position'] ?? '');
-                    $bPos = strtoupper($b['position'] ?? '');
-
-                    if ($aPos === 'CLOSE' && $bPos !== 'CLOSE') {
-                        return -1;
-                    }
-                    if ($bPos === 'CLOSE' && $aPos !== 'CLOSE') {
-                        return 1;
-                    }
-
-                    return 0;
-                });
-
-                foreach ($history as $signal) {
-                    $dateTimeStr = $signal['date'].' '.$signal['time'];
-                    $capturedAt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $dateTimeStr);
-                    if (! $capturedAt) {
-                        continue;
-                    }
-                    $capital *= (1 + (float) $signal['profit']);
-                    $snapshots[] = [
-                        'captured_at' => $capturedAt,
-                        'balance' => $capital,
-                    ];
-                }
-            } catch (\Exception $e) {
-                // Si falla el proveedor, mostramos el punto inicial o logeamos
+                // Misma proyección que el onboarding (única fuente de verdad),
+                // anclada con un punto de partida al inicio de la ventana.
+                $snapshots = $this->balanceProjector->project(
+                    $user->risk_level,
+                    $capital,
+                    $now->modify('-1 month'),
+                );
+            } catch (\Throwable $e) {
                 Log::error('Error loading signal history for balance chart: '.$e->getMessage());
+                // Si falla el proveedor, mostramos al menos el punto inicial.
+                $snapshots = [['captured_at' => $now->modify('-1 month'), 'balance' => $capital]];
             }
 
             $report = $this->performanceService->report($snapshots, $range, $now);
