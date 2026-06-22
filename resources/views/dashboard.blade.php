@@ -24,11 +24,11 @@
 
             <span id="top-bot-position-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg {{ $user->current_position === 'LONG' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : ($user->current_position === 'SHORT' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-500/10 text-slate-400 border border-slate-500/20') }}">
                 @if($user->current_position === 'LONG')
-                    Comprado (LONG)
+                    Comprando-BTC
                 @elseif($user->current_position === 'SHORT')
-                    Vendido (SHORT)
+                    Vendiendo-BTC
                 @else
-                    Fuera de mercado (CLOSE)
+                    Fuera de mercado
                 @endif
             </span>
         </div>
@@ -211,11 +211,11 @@
                     <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Posición Actual</span>
                     <span id="bot-position-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg {{ $user->current_position === 'LONG' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : ($user->current_position === 'SHORT' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-500/10 text-slate-400 border border-slate-500/20') }}">
                         @if($user->current_position === 'LONG')
-                            Comprado (LONG)
+                            Comprando-BTC
                         @elseif($user->current_position === 'SHORT')
-                            Vendido (SHORT)
+                            Vendiendo-BTC
                         @else
-                            Fuera de mercado (CLOSE)
+                            Fuera de mercado
                         @endif
                     </span>
                 </div>
@@ -941,13 +941,13 @@
             badge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-lg';
             if (position === 'LONG') {
                 badge.classList.add('bg-emerald-500/10', 'text-emerald-400', 'border', 'border-emerald-500/20');
-                badge.textContent = 'Comprado (LONG)';
+                badge.textContent = 'Comprando-BTC';
             } else if (position === 'SHORT') {
                 badge.classList.add('bg-rose-500/10', 'text-rose-400', 'border', 'border-rose-500/20');
-                badge.textContent = 'Vendido (SHORT)';
+                badge.textContent = 'Vendiendo-BTC';
             } else {
                 badge.classList.add('bg-slate-500/10', 'text-slate-400', 'border', 'border-slate-500/20');
-                badge.textContent = 'Fuera de mercado (CLOSE)';
+                badge.textContent = 'Fuera de mercado';
             }
         });
     }

@@ -94,9 +94,6 @@
             <span class="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
                 ViBo <span class="font-light">Invest</span>
             </span>
-            <span class="text-[10px] font-semibold bg-violet-500/10 text-violet-400 px-2 py-0.5 rounded-full border border-violet-500/20 uppercase tracking-wider">
-                MVP v1.0
-            </span>
         </a>
         
         @auth
