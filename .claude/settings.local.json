@@ -54,7 +54,10 @@
       "Bash(php -l app/Http/Controllers/OnboardingController.php)",
       "Bash(php -l app/Http/Controllers/BalanceController.php)",
       "Bash(echo \"grep-exit:$?\")",
-      "Bash(php -l app/Core/Simulation/RiskProfile.php)"
+      "Bash(php -l app/Core/Simulation/RiskProfile.php)",
+      "Bash(awk 'NR>=1 && NR<=40')",
+      "Bash(DEMO_TOOLS_ENABLED=false php artisan route:list)",
+      "Bash(grep -iA3 \"POST.*login\")"
     ]
   }
 }

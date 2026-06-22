@@ -72,6 +72,7 @@ class AuthRegistrationTest extends TestCase
         $this->mockVerifier([
             'sub' => 'firebase-uid-123',
             'email' => 'nuevo@gmail.com',
+            'email_verified' => true,
             'name' => 'Nuevo Usuario',
             'picture' => 'https://example.com/photo.png',
         ]);
@@ -96,6 +97,7 @@ class AuthRegistrationTest extends TestCase
         $this->mockVerifier([
             'sub' => 'firebase-uid-456',
             'email' => 'existente@gmail.com',
+            'email_verified' => true,
             'name' => 'Existente',
         ]);
 
@@ -103,6 +105,28 @@ class AuthRegistrationTest extends TestCase
 
         $this->assertEquals('firebase-uid-456', $existing->fresh()->firebase_uid);
         $this->assertSame($existing->id, Auth::id());
+    }
+
+    public function test_google_login_does_not_link_account_when_email_unverified(): void
+    {
+        $existing = User::factory()->create([
+            'email' => 'victima@gmail.com',
+            'firebase_uid' => null,
+        ]);
+
+        // Token con un email NO verificado por Google: no debe poder apropiarse
+        // de la cuenta de correo existente vinculándose a ella.
+        $this->mockVerifier([
+            'sub' => 'firebase-uid-789',
+            'email' => 'victima@gmail.com',
+            'email_verified' => false,
+            'name' => 'Atacante',
+        ]);
+
+        $this->postJson(route('auth.google'), ['id_token' => 'fake-token']);
+
+        // La cuenta original sigue sin identidad de Google vinculada.
+        $this->assertNull($existing->fresh()->firebase_uid);
     }
 
     public function test_google_login_rejects_invalid_token(): void

@@ -17,6 +17,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Demo / QA Tools
+    |--------------------------------------------------------------------------
+    |
+    | Habilita las herramientas de simulación y QA (sembrado de actividad,
+    | sincronización de balance demo y simulación de alerta de retiros). Estas
+    | rutas MUTAN datos y credenciales del usuario, por lo que deben permanecer
+    | DESACTIVADAS en producción salvo necesidad explícita.
+    |
+    */
+
+    'demo_tools_enabled' => env('DEMO_TOOLS_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

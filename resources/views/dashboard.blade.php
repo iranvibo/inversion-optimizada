@@ -360,7 +360,7 @@
 
     </div>
 
-    @if(request()->has('simulador'))
+    @if(config('app.demo_tools_enabled') && request()->has('simulador'))
     <!-- SECCIÓN DE SIMULACIÓN Y PRUEBAS PARA EL USUARIO -->
     <div class="bg-[hsl(223,47%,14%)] border border-violet-500/20 rounded-2xl p-6 shadow-lg relative overflow-hidden">
         <div class="absolute -right-20 -bottom-20 w-60 h-60 bg-violet-500/5 rounded-full blur-3xl pointer-events-none"></div>

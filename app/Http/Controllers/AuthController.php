@@ -112,9 +112,19 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user = User::where('firebase_uid', $claims['sub'])
-            ->orWhere('email', $claims['email'] ?? null)
-            ->first();
+        // Solo confiamos en el email del token si Google lo da por verificado.
+        // De lo contrario no podemos usarlo para localizar/fusionar cuentas sin
+        // arriesgar una apropiación de cuenta por colisión de correo.
+        $emailVerified = filter_var($claims['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $email = $emailVerified ? ($claims['email'] ?? null) : null;
+
+        // Prioriza la identidad fuerte (firebase_uid). Solo se vincula por email
+        // cuando este viene verificado por Google.
+        $user = User::where('firebase_uid', $claims['sub'])->first();
+
+        if (! $user && $email) {
+            $user = User::where('email', $email)->first();
+        }
 
         if ($user) {
             // Vincula una cuenta de correo existente con su identidad de Google.
@@ -124,9 +134,12 @@ class AuthController extends Controller
                 'accepted_privacy_at' => $user->accepted_privacy_at ?? now(),
             ])->save();
         } else {
+            // Solo se asocia el email a la cuenta nueva si Google lo verificó; en
+            // caso contrario se usa un correo sintético no colisionable para no
+            // chocar con (ni suplantar) una cuenta existente con ese mismo correo.
             $user = User::create([
-                'name' => $claims['name'] ?? Str::before($claims['email'] ?? 'Usuario', '@'),
-                'email' => $claims['email'] ?? $claims['sub'].'@google.local',
+                'name' => $claims['name'] ?? Str::before($email ?? 'Usuario', '@'),
+                'email' => $email ?? $claims['sub'].'@google.local',
                 'firebase_uid' => $claims['sub'],
                 'avatar' => $claims['picture'] ?? null,
                 'accepted_privacy_at' => now(),
