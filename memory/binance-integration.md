@@ -1,6 +1,6 @@
 ---
 created: 2026-06-11
-updated: 2026-06-19
+updated: 2026-06-23
 ---
 
 > **13. Mitigación de saltos y caídas de balance transitorias (2026-06-19)**: Para evitar registrar caídas artificiales del balance y profits erróneos debidos a la latencia post-trade de Binance, `AdjustPositionJob` utiliza el patrimonio neto pre-trade (el último snapshot local `$currentBalance`) como capital de apertura y para el snapshot inicial al abrir posición (LONG/SHORT), eliminando la llamada a `getTotalBalance` post-trade. Al cerrar posiciones (CLOSE) se mantiene la llamada a `getTotalBalance` con espera de `sleep(2)` y hasta 3 reintentos si el balance decae sospechosamente (>5%) para capturar el valor neto final liquidado.
@@ -105,8 +105,8 @@ Este documento detalla las decisiones técnicas y de diseño adoptadas para la i
     - *Decisión*: Se exige que el usuario tenga una cuenta de Binance vinculada y validada (`isBinanceLinked()`) para poder activar el bot (`bot_active = true`), tanto en modo Simulación como en modo Real.
     - *Justificación*: Protege al usuario garantizando que exista una API key segura y verificada antes de arrancar cualquier operación del bot, unificando los flujos de activación.
 
-15. **Limitación de vinculación por correo (2026-06-19)**:
-    - *Decisión*: Solo el usuario con el correo electrónico `vicenteiran@gmail.com` tiene permitido vincular una cuenta de Binance. Si cualquier otro usuario intenta guardar sus credenciales de Binance, la acción es rechazada retornando un error de validación bajo el campo de la API key que indica: "No se ha podido conectar.".
+15. **Limitación de vinculación por correo (2026-06-19, Actualizado 2026-06-23)**:
+    - *Decisión*: Solo los usuarios con los correos electrónicos `vicenteiran@gmail.com` y `julio.vicente.torres@gmail.com` tienen permitido vincular una cuenta de Binance. Si cualquier otro usuario intenta guardar sus credenciales de Binance, la acción es rechazada retornando un error de validación bajo el campo de la API key que indica: "No se ha podido conectar.".
     - *Justificación*: Medida de control de seguridad para restringir el uso del bot en producción con cuentas reales o durante la fase de pruebas privadas a usuarios no autorizados.
 
 16. **El histórico de balance real solo se persiste con datos reales de Binance (Decisión 2026-06-21)**:
