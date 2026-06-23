@@ -76,7 +76,8 @@
         </p>
         <p class="text-center text-[11px] text-slate-500 mt-4">
             Al continuar, aceptas nuestra
-            <a href="{{ route('privacy') }}" class="underline hover:text-slate-300">Política de Privacidad</a>.
+            <a href="{{ route('privacy') }}" class="underline hover:text-slate-300">Política de Privacidad</a> y los
+            <a href="{{ route('terms') }}" class="underline hover:text-slate-300">Términos de Servicio y Aviso de Riesgo</a>.
         </p>
 
     </div>

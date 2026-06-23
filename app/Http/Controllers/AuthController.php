@@ -71,8 +71,10 @@ class AuthController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
             'privacy' => ['accepted'],
+            'terms' => ['accepted'],
         ], [
             'privacy.accepted' => 'Debes aceptar la Política de Privacidad para continuar.',
+            'terms.accepted' => 'Debes aceptar los Términos de Servicio y el Descargo de Responsabilidad para continuar.',
         ], [
             'name' => 'nombre',
             'email' => 'correo electrónico',
@@ -84,6 +86,7 @@ class AuthController extends Controller
             'email' => $data['email'],
             'password' => $data['password'],
             'accepted_privacy_at' => now(),
+            'accepted_terms_at' => now(),
         ]);
 
         Auth::login($user);
@@ -132,6 +135,7 @@ class AuthController extends Controller
                 'firebase_uid' => $claims['sub'],
                 'avatar' => $claims['picture'] ?? $user->avatar,
                 'accepted_privacy_at' => $user->accepted_privacy_at ?? now(),
+                'accepted_terms_at' => $user->accepted_terms_at ?? now(),
             ])->save();
         } else {
             // Solo se asocia el email a la cuenta nueva si Google lo verificó; en
@@ -143,6 +147,7 @@ class AuthController extends Controller
                 'firebase_uid' => $claims['sub'],
                 'avatar' => $claims['picture'] ?? null,
                 'accepted_privacy_at' => now(),
+                'accepted_terms_at' => now(),
             ]);
         }
 

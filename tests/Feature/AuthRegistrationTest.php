@@ -27,6 +27,7 @@ class AuthRegistrationTest extends TestCase
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
             'privacy' => '1',
+            'terms' => '1',
         ]);
 
         // Usuario nuevo: pasa primero por el onboarding.
@@ -36,6 +37,7 @@ class AuthRegistrationTest extends TestCase
         $user = User::where('email', 'ada@example.com')->first();
         $this->assertNotNull($user);
         $this->assertNotNull($user->accepted_privacy_at);
+        $this->assertNotNull($user->accepted_terms_at);
     }
 
     public function test_registration_requires_privacy_acceptance(): void
@@ -45,9 +47,25 @@ class AuthRegistrationTest extends TestCase
             'email' => 'ada@example.com',
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
+            'terms' => '1',
         ]);
 
         $response->assertSessionHasErrors('privacy');
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'ada@example.com']);
+    }
+
+    public function test_registration_requires_terms_acceptance(): void
+    {
+        $response = $this->post(route('register'), [
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+            'privacy' => '1',
+        ]);
+
+        $response->assertSessionHasErrors('terms');
         $this->assertGuest();
         $this->assertDatabaseMissing('users', ['email' => 'ada@example.com']);
     }
@@ -60,6 +78,7 @@ class AuthRegistrationTest extends TestCase
             'password' => 'short',
             'password_confirmation' => 'mismatch',
             'privacy' => '1',
+            'terms' => '1',
         ])->assertSessionHasErrors('password');
 
         $this->assertGuest();

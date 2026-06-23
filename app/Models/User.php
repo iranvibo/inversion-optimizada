@@ -28,6 +28,7 @@ class User extends Authenticatable
         'firebase_uid',
         'avatar',
         'accepted_privacy_at',
+        'accepted_terms_at',
         'binance_api_key',
         'binance_secret_key',
         'binance_verified',
@@ -68,6 +69,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'accepted_privacy_at' => 'datetime',
+            'accepted_terms_at' => 'datetime',
             'password' => 'hashed',
             'binance_api_key' => 'encrypted',
             'binance_secret_key' => 'encrypted',

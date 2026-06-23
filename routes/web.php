@@ -24,6 +24,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Política de privacidad
 Route::view('/privacidad', 'legal.privacy')->name('privacy');
+Route::view('/terminos', 'legal.terms')->name('terms');
 
 // Rutas protegidas
 Route::middleware('auth')->group(function () {

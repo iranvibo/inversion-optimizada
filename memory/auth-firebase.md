@@ -1,6 +1,6 @@
 ---
 created: 2026-06-16
-updated: 2026-06-16
+updated: 2026-06-23
 ---
 
 # Autenticación: contraseña, Google (Firebase) y privacidad
@@ -31,8 +31,8 @@ privacidad.
    existe un usuario con ese correo, le asocia el `firebase_uid` (forceFill). Tras autenticar,
    reusa la redirección común: onboarding si `onboarding_completed_at` es null, si no dashboard.
 
-4. **Privacidad**: registro exige checkbox `privacy` (`accepted`) y guarda `accepted_privacy_at`.
-   Página estática en `route('privacy')` → `/privacidad` (vista `legal.privacy`).
+4. **Privacidad y Términos**: El registro tradicional exige marcar los checkboxes `privacy` y `terms` (`accepted`), guardando `accepted_privacy_at` y `accepted_terms_at`. El flujo de Google (Firebase) infiere la aceptación de ambos mediante disclaimers visuales en registro y login, persistiendo los mismos timestamps al crear/vincular el usuario.
+   - Páginas estáticas: `route('privacy')` → `/privacidad` (`legal.privacy`) y `route('terms')` → `/terminos` (`legal.terms`, incluye el aviso legal de descargo de responsabilidad financiera).
 
 ## Configuración (no obvio)
 

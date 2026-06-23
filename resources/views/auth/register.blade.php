@@ -22,6 +22,11 @@
 
         <!-- Registro con Google -->
         @include('auth.partials.social')
+        <p class="text-center text-[11px] text-slate-500 -mt-4 mb-6">
+            Al registrarte o iniciar sesión con Google, confirmas que has leído y aceptas la
+            <a href="{{ route('privacy') }}" target="_blank" class="underline hover:text-slate-300">Política de Privacidad</a> y los
+            <a href="{{ route('terms') }}" target="_blank" class="underline hover:text-slate-300">Términos de Servicio y Aviso de Riesgo</a>.
+        </p>
 
         <!-- Formulario tradicional -->
         <form action="{{ route('register') }}" method="POST" class="space-y-5">
@@ -63,7 +68,7 @@
                        placeholder="••••••••">
             </div>
 
-            <label class="flex items-start gap-2 text-xs text-slate-400 select-none cursor-pointer">
+            <label class="flex items-start gap-2 text-xs text-slate-400 select-none cursor-pointer mb-2">
                 <input type="checkbox" name="privacy" value="1" {{ old('privacy') ? 'checked' : '' }}
                        class="mt-0.5 rounded border-slate-700 bg-[hsl(223,47%,10%)] text-violet-600 focus:ring-violet-500">
                 <span>
@@ -72,7 +77,19 @@
                 </span>
             </label>
             @error('privacy')
-                <span class="text-rose-400 text-xs -mt-3 block">{{ $message }}</span>
+                <span class="text-rose-400 text-xs -mt-1 mb-2 block">{{ $message }}</span>
+            @enderror
+
+            <label class="flex items-start gap-2 text-xs text-slate-400 select-none cursor-pointer">
+                <input type="checkbox" name="terms" value="1" {{ old('terms') ? 'checked' : '' }}
+                       class="mt-0.5 rounded border-slate-700 bg-[hsl(223,47%,10%)] text-violet-600 focus:ring-violet-500">
+                <span>
+                    He leído y acepto los
+                    <a href="{{ route('terms') }}" target="_blank" class="text-violet-400 hover:text-violet-300 underline">Términos de Servicio y Aviso de Riesgo</a>.
+                </span>
+            </label>
+            @error('terms')
+                <span class="text-rose-400 text-xs -mt-1 block">{{ $message }}</span>
             @enderror
 
             <button type="submit"
