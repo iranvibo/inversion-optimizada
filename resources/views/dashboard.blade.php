@@ -42,6 +42,9 @@
         <button type="button" id="tab-btn-activity" class="tab-btn border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
             Actividad
         </button>
+        <button type="button" id="tab-btn-help" class="tab-btn border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
+            Ayuda
+        </button>
     </div>
 
     <div id="tab-content-panel" class="tab-content space-y-8 animate-fade-in">
@@ -567,6 +570,475 @@
         </div>
 
     </div>
+
+    <!-- Contenido de la pestaña de Ayuda -->
+    <div id="tab-content-help" class="tab-content hidden animate-fade-in space-y-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Columna Izquierda: Lista de Pasos -->
+            <div class="lg:col-span-5 space-y-4">
+                <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md sticky top-24">
+                    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 px-2">Guía de Configuración</h3>
+                    <div class="space-y-2">
+                        <!-- Botón Paso 1 -->
+                        <button type="button" data-step="1" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border text-left transition duration-200 bg-violet-600/10 border-violet-500/30 text-white font-semibold">
+                            <span class="step-num w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md transition-colors duration-200">01</span>
+                            <span class="text-sm font-semibold truncate">Crear cuenta en Binance</span>
+                        </button>
+                        <!-- Botón Paso 2 -->
+                        <button type="button" data-step="2" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">02</span>
+                            <span class="text-sm truncate">Cargar fondos (USDC)</span>
+                        </button>
+                        <!-- Botón Paso 3 -->
+                        <button type="button" data-step="3" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">03</span>
+                            <span class="text-sm truncate">Crear API en Binance</span>
+                        </button>
+                        <!-- Botón Paso 4 -->
+                        <button type="button" data-step="4" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">04</span>
+                            <span class="text-sm truncate">Vincular cuenta</span>
+                        </button>
+                        <!-- Botón Paso 5 -->
+                        <button type="button" data-step="5" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">05</span>
+                            <span class="text-sm truncate">Activar Bot de trading</span>
+                        </button>
+                        <!-- Botón Paso 6 -->
+                        <button type="button" data-step="6" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">06</span>
+                            <span class="text-sm truncate">Monitorización</span>
+                        </button>
+                        <!-- Botón Paso 7 -->
+                        <button type="button" data-step="7" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">07</span>
+                            <span class="text-sm truncate">Realizar un Retiro</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Detalle del Paso y Video -->
+            <div class="lg:col-span-7">
+                <!-- Contenido Paso 1 -->
+                <div id="help-step-content-1" class="help-step-content space-y-6">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">1</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Crear cuenta en Binance</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Para poder utilizar el bot en modo Real, necesitas tener una cuenta en la plataforma Binance. Sigue estos sencillos pasos para registrarte de forma gratuita:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <div>
+                                    Haz clic en el enlace de invitación para registrarte directamente:
+                                    <a href="https://www.binance.com/register?ref=142891053" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-violet-400 hover:text-violet-300 font-semibold underline underline-offset-2 transition-all duration-200 ml-1">
+                                        abrir Binance
+                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    Completa el proceso de registro introduciendo tu correo electrónico o teléfono y verifica tu identidad (KYC) para habilitar todas las operaciones de la cuenta.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-1" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Crear cuenta en Binance</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 2 -->
+                <div id="help-step-content-2" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">2</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Cargar fondos para operar</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Para que el bot pueda abrir inversiones, es necesario tener saldo disponible en tu cuenta de **Margen Cruzado** (Cross Margin) en la moneda estable **USDC**:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Depositar fondos:</strong> Dirígete a la sección **Deposit** en Binance, haz clic en **Buy with EUR** (o tu moneda local), realiza el pago con tarjeta o transferencia y adquiere la moneda estable **USDC**.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <div class="flex-grow">
+                                    <span><strong>Transferir a Margen Cruzado:</strong> Haz clic en el botón **Transfer** (Transferir) y realiza la transferencia interna configurando los siguientes datos:</span>
+                                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-xs mt-3 text-slate-400 space-y-1.5 max-w-md">
+                                        <div class="flex justify-between border-b border-slate-800/40 pb-1.5">
+                                            <span class="font-semibold text-slate-300">De (From):</span>
+                                            <span>Fiat and Spot</span>
+                                        </div>
+                                        <div class="flex justify-between border-b border-slate-800/40 pb-1.5">
+                                            <span class="font-semibold text-slate-300">Para (To):</span>
+                                            <span>Cross Margin (Margen Cruzado)</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="font-semibold text-slate-300">Moneda (Coin):</span>
+                                            <span class="text-violet-400 font-bold">USDC</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-2" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Cargar fondos</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 3 -->
+                <div id="help-step-content-3" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">3</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Crear API en Binance</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Para que el bot pueda leer tu balance y lanzar órdenes en modo Real, es necesario configurar una API Key en Binance aplicando estrictas medidas de seguridad:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Generar API:</strong> En Binance, ve a tu perfil &rarr; **API Management** (Gestión de API) y haz clic en **Create API**. Elige la opción **System Generated** (Generada por el sistema) y ponle un nombre (por ejemplo: "ViBo Bot").
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Guardar claves:</strong> Copia la **API Key** y la **Secret Key** que se muestran. <em>(Atención: la Secret Key no se volverá a mostrar nunca más después de recargar la pantalla).</em>
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <div class="flex-grow">
+                                    <span><strong>Restringir acceso IP (Seguridad Obligatoria):</strong> Haz clic en **Edit Restrictions** (Editar restricciones), marca **Restrict access to trusted IPs only** (Restringir acceso solo a IPs de confianza) e ingresa la dirección IP de nuestro servidor:</span>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <code class="bg-slate-900 border border-slate-800 text-violet-400 px-3 py-1.5 rounded-xl font-mono font-bold text-xs select-all">82.223.44.83</code>
+                                        <button type="button" onclick="copyIpToClipboard()" class="bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold py-1.5 px-3 rounded-xl transition duration-200 flex items-center gap-1.5">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                            </svg>
+                                            Copiar IP
+                                        </button>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <div class="flex-grow">
+                                    <span><strong>Habilitar permisos necesarios:</strong> En la sección de restricciones, marca únicamente las casillas de operaciones requeridas:</span>
+                                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3 text-xs mt-3 text-slate-400 space-y-1.5">
+                                        <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span> Enable Spot & Margin & Stock Trading</div>
+                                        <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span> Enable Margin Loan, Repay & Transfer</div>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Guardar cambios:</strong> Haz clic en **Save** e introduce tu código de verificación 2FA.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
+                            <strong>REGLA DE SEGURIDAD ABSOLUTA:</strong> Bajo ninguna circunstancia habilites la casilla "Permitir Retiros" (Enable Withdrawals). Para garantizar la seguridad del capital de nuestros usuarios, el bot rechazará y pausará la cuenta en el acto si detecta que la API tiene permisos de retiro.
+                        </div>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-3" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Crear API</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 4 -->
+                <div id="help-step-content-4" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">4</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Vincular cuenta de Binance</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Establece el enlace entre Binance y tu panel de trading en ViBo Invest de manera encriptada y 100% segura:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    Haz clic en el botón **Conectar Binance** en la tarjeta de Conexión del Panel de Control.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    Pega la **API KEY** y la **SECRET KEY** de Binance generadas en el paso anterior en los campos del formulario.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    Presiona en **Verificar y Vincular Cuenta**. El sistema realizará una validación automática inmediata y, si todo está correcto, tu cuenta quedará vinculada de forma segura.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-4" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Vincular cuenta</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 5 -->
+                <div id="help-step-content-5" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">5</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Activar Bot de trading</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Una vez completada la vinculación de tu API de Binance, pon a operar la estrategia en mercado real:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Seleccionar Riesgo:</strong> En la tarjeta "Nivel de Riesgo" de tu Panel de Control, selecciona el perfil (Conservador, Balanceado o Agresivo) en el menú y haz clic en el botón **Cambiar**.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Cambiar a Modo Real:</strong> En la tarjeta de Modo de Operación, haz clic en **Cambiar a modo Real** para conmutar del entorno de simulación al dinero real.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Activar Bot:</strong> En la tarjeta "Estado del Bot", presiona en **Activar Bot**. Confirma tu decisión en el popup interactivo de seguridad. El bot empezará a seguir automáticamente las señales vigentes del proveedor.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-5" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Activar Bot</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 6 -->
+                <div id="help-step-content-6" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">6</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Monitorización</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Supervisa el comportamiento del bot sin tecnicismos complejos:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Confirmación de conexión:</strong> En la cabecera del panel de control verás la insignia verde **Binance Conectado**.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Identificar inversiones activas:</strong> Revisa el distintivo superior para conocer el estado actual de tu balance: **Comprando-BTC** (cuando hay una operación al alza abierta), **Vendiendo-BTC** (cuando hay una posición a la baja abierta) o **Fuera del Mercado** (cuando no hay posiciones abiertas y tu dinero está refugiado en USDC sin riesgo de precio).
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Evolución y saldos:</strong> El valor en la sección **Balance Total** fluctúa en tiempo real reflejando el patrimonio de tu billetera de Margen, reflejado también de forma simplificada en el gráfico de evolución.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-6" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Monitorización</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 7 -->
+                <div id="help-step-content-7" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">7</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Para hacer un retiro</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            El bot de ViBo Invest no tiene autorización para realizar retiros sobre tu cuenta de Binance. Cuando decidas retirar fondos a tu banco, sigue estos pasos ordenados de seguridad:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Pausar Bot:</strong> Ve al Panel de Control de ViBo Invest y haz clic en **Pausar Bot**. Esto asegura el cierre de cualquier operación activa y consolida tu patrimonio en USDC, previniendo que el bot abra transacciones durante el retiro.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Acceder a Binance:</strong> Inicia sesión en tu cuenta de Binance y dirígete al menú superior &rarr; billetera **Funding** (Financiación o Spot).
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Retirar fondos:</strong> Haz clic en **Withdraw** (Retirar), selecciona la moneda estable USDC o moneda fiat (como EUR), introduce tu cuenta o destino y confirma el retiro.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-7" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Realizar retiros</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div> <!-- Closes #tab-content-help -->
+    </div> <!-- Closes the main wrapper (line 4) -->
 
     <!-- Modal de Confirmación Premium para Activar/Pausar Bot -->
     <div id="bot-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
@@ -1456,38 +1928,137 @@
     // Gestión de pestañas (US05)
     const tabBtnPanel = document.getElementById('tab-btn-panel');
     const tabBtnActivity = document.getElementById('tab-btn-activity');
+    const tabBtnHelp = document.getElementById('tab-btn-help');
     const tabContentPanel = document.getElementById('tab-content-panel');
     const tabContentActivity = document.getElementById('tab-content-activity');
+    const tabContentHelp = document.getElementById('tab-content-help');
 
     function switchTab(target) {
-        if (target === 'activity') {
-            tabBtnPanel.classList.remove('border-violet-500', 'text-white');
-            tabBtnPanel.classList.add('border-transparent', 'text-slate-400');
-            tabBtnActivity.classList.remove('border-transparent', 'text-slate-400');
-            tabBtnActivity.classList.add('border-violet-500', 'text-white');
+        // Remover clases activas de todos los botones
+        [tabBtnPanel, tabBtnActivity, tabBtnHelp].forEach(btn => {
+            if (btn) {
+                btn.classList.remove('border-violet-500', 'text-white');
+                btn.classList.add('border-transparent', 'text-slate-400');
+                btn.classList.remove('font-semibold');
+                btn.classList.add('font-medium');
+            }
+        });
+        
+        // Ocultar todos los contenidos
+        [tabContentPanel, tabContentActivity, tabContentHelp].forEach(content => {
+            if (content) content.classList.add('hidden');
+        });
 
-            tabContentPanel.classList.add('hidden');
+        // Activar el objetivo
+        if (target === 'activity' && tabBtnActivity && tabContentActivity) {
+            tabBtnActivity.classList.remove('border-transparent', 'text-slate-400', 'font-medium');
+            tabBtnActivity.classList.add('border-violet-500', 'text-white', 'font-semibold');
             tabContentActivity.classList.remove('hidden');
-
             refreshActivities();
-        } else {
-            tabBtnActivity.classList.remove('border-violet-500', 'text-white');
-            tabBtnActivity.classList.add('border-transparent', 'text-slate-400');
-            tabBtnPanel.classList.remove('border-transparent', 'text-slate-400');
-            tabBtnPanel.classList.add('border-violet-500', 'text-white');
-
-            tabContentActivity.classList.add('hidden');
+        } else if (target === 'help' && tabBtnHelp && tabContentHelp) {
+            tabBtnHelp.classList.remove('border-transparent', 'text-slate-400', 'font-medium');
+            tabBtnHelp.classList.add('border-violet-500', 'text-white', 'font-semibold');
+            tabContentHelp.classList.remove('hidden');
+        } else if (tabBtnPanel && tabContentPanel) {
+            tabBtnPanel.classList.remove('border-transparent', 'text-slate-400', 'font-medium');
+            tabBtnPanel.classList.add('border-violet-500', 'text-white', 'font-semibold');
             tabContentPanel.classList.remove('hidden');
         }
     }
 
-    if (tabBtnPanel && tabBtnActivity) {
+    if (tabBtnPanel && tabBtnActivity && tabBtnHelp) {
         tabBtnPanel.addEventListener('click', () => switchTab('panel'));
         tabBtnActivity.addEventListener('click', () => switchTab('activity'));
+        tabBtnHelp.addEventListener('click', () => switchTab('help'));
     }
+
+    // Configuración de videos explicativos para cada paso (vacio por defecto)
+    const HELP_VIDEOS = {
+        1: "", // url del video para paso 1, ej: "/videos/paso-1.mp4"
+        2: "",
+        3: "",
+        4: "",
+        5: "",
+        6: "",
+        7: ""
+    };
+
+    // Gestión de Pasos en la pestaña de Ayuda
+    const stepNavButtons = document.querySelectorAll('.step-nav-btn');
+    const stepContents = document.querySelectorAll('.help-step-content');
+
+    stepNavButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const selectedStep = parseInt(btn.dataset.step);
+
+            // Actualizar botones de navegación lateral
+            stepNavButtons.forEach(b => {
+                const stepNum = b.querySelector('.step-num');
+                if (parseInt(b.dataset.step) === selectedStep) {
+                    b.classList.remove('border-transparent', 'text-slate-400', 'hover:text-slate-200', 'font-medium');
+                    b.classList.add('bg-violet-600/10', 'border-violet-500/30', 'text-white', 'font-semibold');
+                    if (stepNum) {
+                        stepNum.classList.remove('bg-slate-800', 'text-slate-400');
+                        stepNum.classList.add('bg-violet-600', 'text-white');
+                    }
+                } else {
+                    b.classList.remove('bg-violet-600/10', 'border-violet-500/30', 'text-white', 'font-semibold');
+                    b.classList.add('border-transparent', 'text-slate-400', 'hover:text-slate-200', 'font-medium');
+                    if (stepNum) {
+                        stepNum.classList.remove('bg-violet-600', 'text-white');
+                        stepNum.classList.add('bg-slate-800', 'text-slate-400');
+                    }
+                }
+            });
+
+            // Mostrar el contenido correspondiente y configurar el video
+            stepContents.forEach(content => {
+                const contentId = `help-step-content-${selectedStep}`;
+                if (content.id === contentId) {
+                    content.classList.remove('hidden');
+                } else {
+                    content.classList.add('hidden');
+                }
+            });
+
+            // Cargar y mostrar video si existe
+            const videoEl = document.getElementById(`help-video-${selectedStep}`);
+            if (videoEl) {
+                const videoContainer = videoEl.parentElement;
+                const placeholderEl = videoContainer ? videoContainer.querySelector('div') : null;
+                const videoUrl = HELP_VIDEOS[selectedStep];
+
+                if (videoUrl) {
+                    videoEl.src = videoUrl;
+                    videoEl.classList.remove('hidden');
+                    if (placeholderEl) {
+                        placeholderEl.classList.add('hidden', 'opacity-0');
+                    }
+                } else {
+                    videoEl.src = "";
+                    videoEl.classList.add('hidden');
+                    if (placeholderEl) {
+                        placeholderEl.classList.remove('hidden', 'opacity-0');
+                    }
+                }
+            }
+        });
+    });
+
+    // Función de copia al portapapeles global
+    window.copyIpToClipboard = function() {
+        const ip = "82.223.44.83";
+        navigator.clipboard.writeText(ip).then(() => {
+            showToast("IP copiada al portapapeles: " + ip);
+        }).catch(err => {
+            console.error("No se pudo copiar la IP: ", err);
+        });
+    };
 
     @if(session('active_tab') === 'activity')
         switchTab('activity');
+    @elseif(session('active_tab') === 'help')
+        switchTab('help');
     @endif
 
     @if(session('success'))

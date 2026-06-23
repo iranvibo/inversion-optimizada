@@ -224,4 +224,19 @@ class BotActivityFeedTest extends TestCase
         $this->assertSame('short', $data[0]['type']);
         $this->assertSame('close', $data[1]['type']);
     }
+
+    /**
+     * Prueba que el dashboard renderice la pestaña de Ayuda y los pasos detallados.
+     */
+    public function test_dashboard_renders_help_tab_and_steps(): void
+    {
+        $response = $this->actingAs($this->user)->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('tab-btn-help');
+        $response->assertSee('Crear cuenta en Binance');
+        $response->assertSee('82.223.44.83');
+        $response->assertSee('Cargar fondos para operar');
+        $response->assertSee('Vincular cuenta de Binance');
+    }
 }
