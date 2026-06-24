@@ -575,7 +575,7 @@
     <div id="tab-content-help" class="tab-content hidden animate-fade-in space-y-8">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <!-- Columna Izquierda: Lista de Pasos -->
-            <div class="lg:col-span-5 space-y-4">
+            <div id="help-steps-list" class="lg:col-span-5 space-y-4 lg:block transition-all duration-300">
                 <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md sticky top-24">
                     <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 px-2">Guía de Configuración</h3>
                     <div class="space-y-2">
@@ -619,7 +619,16 @@
             </div>
 
             <!-- Columna Derecha: Detalle del Paso y Video -->
-            <div class="lg:col-span-7">
+            <div id="help-step-details" class="lg:col-span-7 hidden lg:block transition-all duration-300">
+                <!-- Botón Volver (solo visible en móvil) -->
+                <div class="lg:hidden mb-6">
+                    <button type="button" id="back-to-steps-btn" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] text-xs font-bold text-slate-300 hover:text-white transition duration-200 shadow-md">
+                        <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Volver a la lista de temas
+                    </button>
+                </div>
                 <!-- Contenido Paso 1 -->
                 <div id="help-step-content-1" class="help-step-content space-y-6">
                     <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
@@ -670,6 +679,16 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(2)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Cargar fondos (USDC)
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -732,6 +751,16 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(3)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Crear API en Binance
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -816,6 +845,16 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(4)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Vincular cuenta
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -869,6 +908,16 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(5)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Activar Bot de trading
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -924,6 +973,16 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(6)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Monitorización
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -977,6 +1036,16 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(7)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Realizar un Retiro
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1986,6 +2055,9 @@
     // Gestión de Pasos en la pestaña de Ayuda
     const stepNavButtons = document.querySelectorAll('.step-nav-btn');
     const stepContents = document.querySelectorAll('.help-step-content');
+    const stepsList = document.getElementById('help-steps-list');
+    const stepDetails = document.getElementById('help-step-details');
+    const backToStepsBtn = document.getElementById('back-to-steps-btn');
 
     stepNavButtons.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -2042,8 +2114,31 @@
                     }
                 }
             }
+
+            // Control de vistas en móvil (Ayuda Responsiva)
+            if (window.innerWidth < 1024) {
+                if (stepsList && stepDetails) {
+                    stepsList.classList.add('hidden');
+                    stepDetails.classList.remove('hidden');
+                }
+            }
+
+            // Dirigir el scroll arriba del todo en la página
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     });
+
+    // Botón Volver en móvil para la pestaña de Ayuda
+    if (backToStepsBtn) {
+        backToStepsBtn.addEventListener('click', () => {
+            if (window.innerWidth < 1024) {
+                if (stepsList && stepDetails) {
+                    stepsList.classList.remove('hidden');
+                    stepDetails.classList.add('hidden');
+                }
+            }
+        });
+    }
 
     // Función de copia al portapapeles global
     window.copyIpToClipboard = function() {
@@ -2053,6 +2148,14 @@
         }).catch(err => {
             console.error("No se pudo copiar la IP: ", err);
         });
+    };
+
+    // Función global para seleccionar un paso de ayuda desde enlaces internos
+    window.selectHelpStep = function(step) {
+        const btn = document.querySelector(`.step-nav-btn[data-step="${step}"]`);
+        if (btn) {
+            btn.click();
+        }
     };
 
     @if(session('active_tab') === 'activity')
