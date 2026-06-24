@@ -35,14 +35,17 @@
     </div>
 
     <!-- Pestañas de Navegación (US05) -->
-    <div class="border-b border-slate-800/60 flex space-x-6">
-        <button type="button" id="tab-btn-panel" class="tab-btn border-b-2 border-violet-500 pb-3 px-1 text-sm font-semibold text-white focus:outline-none transition duration-200">
+    <div class="border-b border-slate-800/60 flex space-x-6 overflow-x-auto whitespace-nowrap scrollbar-none pb-0.5">
+        <button type="button" id="tab-btn-panel" class="tab-btn shrink-0 border-b-2 border-violet-500 pb-3 px-1 text-sm font-semibold text-white focus:outline-none transition duration-200">
             Panel de Control
         </button>
-        <button type="button" id="tab-btn-activity" class="tab-btn border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
+        <button type="button" id="tab-btn-activity" class="tab-btn shrink-0 border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
             Actividad
         </button>
-        <button type="button" id="tab-btn-help" class="tab-btn border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
+        <button type="button" id="tab-btn-info" class="tab-btn shrink-0 border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
+            Cómo Funciona
+        </button>
+        <button type="button" id="tab-btn-help" class="tab-btn shrink-0 border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
             Ayuda
         </button>
     </div>
@@ -569,6 +572,185 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- Contenido de la pestaña de Cómo Funciona -->
+    <div id="tab-content-info" class="tab-content hidden animate-fade-in space-y-8">
+        <!-- Tarjeta de Bienvenida / Hero simple -->
+        <div class="relative bg-gradient-to-r from-violet-600/10 via-slate-900 to-indigo-600/10 border border-violet-500/20 rounded-3xl p-6 md:p-8 overflow-hidden shadow-xl">
+            <!-- Glow estético -->
+            <div class="absolute -right-20 -top-20 w-64 h-64 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-20 -bottom-20 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 max-w-3xl space-y-4">
+                <span class="text-xs font-bold text-violet-400 uppercase tracking-widest bg-violet-500/10 px-3 py-1 rounded-full border border-violet-500/20">Tu guía de inicio</span>
+                <h2 class="text-2xl md:text-3xl font-bold text-white tracking-tight leading-tight">Cómo funciona ViBo Invest</h2>
+                <p class="text-sm md:text-base text-slate-300 leading-relaxed">
+                    Nuestra misión es hacer accesible el trading automatizado para cualquier persona. Diseñado bajo el concepto de "Netflix del trading", ViBo se enfoca en la máxima simplicidad, transparencia y seguridad, eliminando gráficos complejos y tecnicismos.
+                </p>
+            </div>
+        </div>
+
+        <!-- Cuadrícula de Fundamentos -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- El Objetivo -->
+            <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 hover:border-violet-500/30 transition duration-300 group shadow-md">
+                <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/20 mb-4 group-hover:scale-105 transition-transform duration-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-white mb-2">¿Cuál es el Objetivo?</h3>
+                <p class="text-sm text-slate-300 leading-relaxed">
+                    Democratizar las inversiones automatizadas. En lugar de lidiar con complicadas terminales de trading, ViBo te permite activar estrategias preconfiguradas con un solo clic y adaptadas a tu perfil de riesgo personal.
+                </p>
+            </div>
+
+            <!-- ¿Qué es el Trading? -->
+            <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 hover:border-violet-500/30 transition duration-300 group shadow-md">
+                <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/20 mb-4 group-hover:scale-105 transition-transform duration-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-white mb-2">¿Qué es el Trading?</h3>
+                <p class="text-sm text-slate-300 leading-relaxed">
+                    El trading es la compra y venta de activos financieros para obtener beneficios de sus variaciones de precio. En ViBo, nuestro sistema opera de forma 100% automatizada en segundo plano: no tienes que analizar gráficos ni ejecutar órdenes manualmente.
+                </p>
+            </div>
+
+            <!-- ¿Por qué solo Bitcoin? -->
+            <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 hover:border-violet-500/30 transition duration-300 group shadow-md">
+                <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/20 mb-4 group-hover:scale-105 transition-transform duration-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-white mb-2">¿Por qué solo con Bitcoin (BTC)?</h3>
+                <p class="text-sm text-slate-300 leading-relaxed">
+                    Operamos exclusivamente el par BTC/USDC. Bitcoin es el activo digital más consolidado, seguro y líquido del mercado. Al enfocarnos solo en BTC contra USDC (dólar digital), evitamos la volatilidad desmedida de monedas desconocidas y mantenemos tu cartera clara y simple.
+                </p>
+            </div>
+
+            <!-- ¿Qué es Binance y su prestigio? -->
+            <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 hover:border-violet-500/30 transition duration-300 group shadow-md">
+                <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/20 mb-4 group-hover:scale-105 transition-transform duration-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-white mb-2">Prestigio de Binance</h3>
+                <p class="text-sm text-slate-300 leading-relaxed">
+                    Binance es el exchange (casa de cambio) de criptomonedas más grande, seguro y de mayor prestigio en el mundo. Tus fondos nunca se transfieren a ViBo Invest; siempre se quedan bajo tu custodia directa dentro de tu cuenta personal de Binance.
+                </p>
+            </div>
+        </div>
+
+
+
+        <!-- Mecanismo y herramientas -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Mecanismo y Herramientas (Paso a Paso) -->
+            <div class="lg:col-span-7 bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-3xl p-6 md:p-8 shadow-md space-y-6">
+                <div>
+                    <h3 class="text-xl font-bold text-white mb-2">El Mecanismo de Funcionamiento</h3>
+                    <p class="text-sm text-slate-400">Así es como ViBo procesa y ejecuta cada movimiento en milisegundos:</p>
+                </div>
+
+                <div class="space-y-6 relative before:absolute before:left-6 before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-800">
+                    <!-- Paso 1 -->
+                    <div class="flex items-start gap-4 relative">
+                        <span class="w-12 h-12 rounded-xl bg-violet-600/10 border border-violet-500/20 text-violet-400 flex items-center justify-center font-bold text-sm shrink-0 shadow-md">01</span>
+                        <div>
+                            <h4 class="text-sm font-bold text-white mb-1">Sondeo de Señales (Polling)</h4>
+                            <p class="text-xs text-slate-300 leading-relaxed">
+                                Cada 5 segundos, nuestro servidor consulta al proveedor de señales si existe un cambio de estrategia de acuerdo con tu nivel de riesgo (Conservador, Balanceado o Agresivo).
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Paso 2 -->
+                    <div class="flex items-start gap-4 relative">
+                        <span class="w-12 h-12 rounded-xl bg-violet-600/10 border border-violet-500/20 text-violet-400 flex items-center justify-center font-bold text-sm shrink-0 shadow-md">02</span>
+                        <div>
+                            <h4 class="text-sm font-bold text-white mb-1">Validación y Filtro de Seguridad</h4>
+                            <p class="text-xs text-slate-300 leading-relaxed">
+                                El sistema actúa como un guardián de seguridad (Gatekeeper). Antes de emitir cualquier orden, confirma que el bot esté encendido, verifica tus credenciales y comprueba que **no** existan permisos de retiro activos.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Paso 3 -->
+                    <div class="flex items-start gap-4 relative">
+                        <span class="w-12 h-12 rounded-xl bg-violet-600/10 border border-violet-500/20 text-violet-400 flex items-center justify-center font-bold text-sm shrink-0 shadow-md">03</span>
+                        <div>
+                            <h4 class="text-sm font-bold text-white mb-1">Ejecución en Tiempo Real</h4>
+                            <p class="text-xs text-slate-300 leading-relaxed">
+                                Si la señal cambia y la cuenta es segura, ViBo procesa y envía la orden a Binance (comprar BTC, vender BTC o cerrar posición a USDC). Esto se ejecuta localmente mediante claves API cifradas en nuestro servidor.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Protecciones y Seguridad -->
+            <div class="lg:col-span-5 bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-3xl p-6 md:p-8 shadow-md relative overflow-hidden space-y-6">
+                <!-- Glow verde sutil para seguridad -->
+                <div class="absolute -right-20 -top-20 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    Protecciones y Seguridad
+                </h3>
+
+                <div class="space-y-4 text-xs text-slate-300 leading-relaxed">
+                    <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
+                        <strong class="text-white block mb-1">Sin permisos de retiro</strong>
+                        Para conectar ViBo, es obligatorio desactivar la casilla "Enable Withdrawals" (Permitir Retiros) al crear tu API Key en Binance. ViBo **nunca** podrá retirar tus fondos.
+                    </div>
+                    <div class="bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
+                        <strong class="text-white block mb-1">Pausa Automática Ineludible</strong>
+                        Si en cualquier momento nuestro sistema detecta que has activado los permisos de retiro en Binance, el bot se **detendrá de inmediato** por seguridad absoluta.
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-3">
+                        <strong class="text-white block mb-1">Cifrado de Llaves (AES-256)</strong>
+                        Tus API Keys y Secret Keys se guardan completamente cifradas en el servidor y nunca se comparten con la API de señales ni terceros.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gestión y Control de Riesgos (Horizontal) -->
+        <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-3xl p-6 md:p-8 shadow-md space-y-6">
+            <div class="max-w-3xl">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2 mb-2">
+                    <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Gestión y Control de Riesgos
+                </h3>
+                <p class="text-sm text-slate-300">
+                    El trading es una actividad con riesgo inherente y se pueden experimentar **caídas temporales** ("drawdowns"). En ViBo te damos herramientas claras y sencillas para gestionarlo:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Punto 1 -->
+                <div class="bg-violet-500/5 border border-violet-500/20 rounded-2xl p-5">
+                    <strong class="text-white block text-sm mb-2">Perfiles de Riesgo Ajustables</strong>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Elige en cualquier momento entre un nivel **Conservador**, **Balanceado** o **Agresivo**. Esto cambiará el apalancamiento y el comportamiento de las señales replicadas del proveedor externo.
+                    </p>
+                </div>
+                <!-- Punto 2 -->
+                <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-5">
+                    <strong class="text-white block text-sm mb-2">Botón de Pánico (Pausa al instante)</strong>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Si deseas detener la operativa por cualquier motivo, puedes pausar el bot con un solo clic. Esto cerrará todas tus posiciones en Bitcoin de inmediato y convertirá el saldo a USDC.
+                    </p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Contenido de la pestaña de Ayuda -->
@@ -1997,14 +2179,16 @@
     // Gestión de pestañas (US05)
     const tabBtnPanel = document.getElementById('tab-btn-panel');
     const tabBtnActivity = document.getElementById('tab-btn-activity');
+    const tabBtnInfo = document.getElementById('tab-btn-info');
     const tabBtnHelp = document.getElementById('tab-btn-help');
     const tabContentPanel = document.getElementById('tab-content-panel');
     const tabContentActivity = document.getElementById('tab-content-activity');
+    const tabContentInfo = document.getElementById('tab-content-info');
     const tabContentHelp = document.getElementById('tab-content-help');
 
     function switchTab(target) {
         // Remover clases activas de todos los botones
-        [tabBtnPanel, tabBtnActivity, tabBtnHelp].forEach(btn => {
+        [tabBtnPanel, tabBtnActivity, tabBtnInfo, tabBtnHelp].forEach(btn => {
             if (btn) {
                 btn.classList.remove('border-violet-500', 'text-white');
                 btn.classList.add('border-transparent', 'text-slate-400');
@@ -2014,7 +2198,7 @@
         });
         
         // Ocultar todos los contenidos
-        [tabContentPanel, tabContentActivity, tabContentHelp].forEach(content => {
+        [tabContentPanel, tabContentActivity, tabContentInfo, tabContentHelp].forEach(content => {
             if (content) content.classList.add('hidden');
         });
 
@@ -2024,6 +2208,10 @@
             tabBtnActivity.classList.add('border-violet-500', 'text-white', 'font-semibold');
             tabContentActivity.classList.remove('hidden');
             refreshActivities();
+        } else if (target === 'info' && tabBtnInfo && tabContentInfo) {
+            tabBtnInfo.classList.remove('border-transparent', 'text-slate-400', 'font-medium');
+            tabBtnInfo.classList.add('border-violet-500', 'text-white', 'font-semibold');
+            tabContentInfo.classList.remove('hidden');
         } else if (target === 'help' && tabBtnHelp && tabContentHelp) {
             tabBtnHelp.classList.remove('border-transparent', 'text-slate-400', 'font-medium');
             tabBtnHelp.classList.add('border-violet-500', 'text-white', 'font-semibold');
@@ -2035,11 +2223,10 @@
         }
     }
 
-    if (tabBtnPanel && tabBtnActivity && tabBtnHelp) {
-        tabBtnPanel.addEventListener('click', () => switchTab('panel'));
-        tabBtnActivity.addEventListener('click', () => switchTab('activity'));
-        tabBtnHelp.addEventListener('click', () => switchTab('help'));
-    }
+    if (tabBtnPanel) tabBtnPanel.addEventListener('click', () => switchTab('panel'));
+    if (tabBtnActivity) tabBtnActivity.addEventListener('click', () => switchTab('activity'));
+    if (tabBtnInfo) tabBtnInfo.addEventListener('click', () => switchTab('info'));
+    if (tabBtnHelp) tabBtnHelp.addEventListener('click', () => switchTab('help'));
 
     // Configuración de videos explicativos para cada paso (vacio por defecto)
     const HELP_VIDEOS = {
