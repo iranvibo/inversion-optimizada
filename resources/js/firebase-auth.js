@@ -34,9 +34,23 @@ function showError(message) {
     }
 }
 
+let auth = null;
+if (isConfigured) {
+    try {
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        auth.useDeviceLanguage();
+        setPersistence(auth, browserSessionPersistence).catch((error) => {
+            console.error('Error al configurar la persistencia de Firebase:', error);
+        });
+    } catch (error) {
+        console.error('Error al inicializar Firebase:', error);
+    }
+}
+
 async function handleGoogleSignIn(button) {
-    if (!isConfigured) {
-        showError('El acceso con Google aún no está configurado.');
+    if (!isConfigured || !auth) {
+        showError('El acceso con Google aún no está configurado o no se pudo inicializar.');
         return;
     }
 
@@ -45,11 +59,6 @@ async function handleGoogleSignIn(button) {
     button.classList.add('opacity-60', 'cursor-wait');
 
     try {
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        auth.useDeviceLanguage();
-        await setPersistence(auth, browserSessionPersistence);
-
         const result = await signInWithPopup(auth, provider);
         const idToken = await result.user.getIdToken();
 

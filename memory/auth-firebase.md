@@ -66,3 +66,9 @@ Ampliación del flujo de login/registro de ViBo Invest (US01), cumplimiento GDPR
 - Vistas movidas a `resources/views/auth/{login,register}.blade.php` (antes `login.blade.php`).
 - Tests: `tests/Feature/AuthRegistrationTest.php` (mockea `FirebaseTokenVerifier`) y `tests/Feature/AccountDeletionTest.php` (valida el borrado en cascada y seguridad de Binance).
 
+## Prevención del Bloqueo del Popup de Google (Firebase: auth/popup-blocked)
+
+- *Problema:* El primer click en "Continuar con Google" resultaba en un error `Firebase: Error (auth/popup-blocked)`. Esto sucedía porque la inicialización de Firebase y la configuración de persistencia (`await setPersistence(...)`) eran ejecutadas asíncronamente *dentro* del manejador del evento click, interrumpiendo el flujo sincrónico que los navegadores exigen para permitir ventanas emergentes (popups).
+- *Solución:* Mover la inicialización de Firebase (`initializeApp`), de Auth (`getAuth`) y de la persistencia al ámbito global (top-level scope) del script. Al cargarse la página, se inicializan de forma anticipada. De este modo, en el evento click se invoca directamente `signInWithPopup(auth, provider)` de forma sincrónica en el primer paso del manejador, lo cual es interpretado por el navegador como una acción de usuario válida y evita el bloqueo.
+
+
