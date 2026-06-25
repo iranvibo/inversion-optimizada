@@ -1,13 +1,11 @@
 ---
 created: 2026-06-16
-updated: 2026-06-23
+updated: 2026-06-25
 ---
 
-# Autenticación: contraseña, Google (Firebase) y privacidad
+# Autenticación: contraseña, Google (Firebase), privacidad y eliminación de cuenta (GDPR)
 
-Ampliación del flujo de login/registro de ViBo Invest (US01): registro self-service con
-contraseña, inicio de sesión con Google vía Firebase y consentimiento de política de
-privacidad.
+Ampliación del flujo de login/registro de ViBo Invest (US01), cumplimiento GDPR y el derecho al olvido mediante eliminación definitiva de la cuenta.
 
 ## Decisiones Clave y Razones
 
@@ -34,6 +32,26 @@ privacidad.
 4. **Privacidad y Términos**: El registro tradicional exige marcar los checkboxes `privacy` y `terms` (`accepted`), guardando `accepted_privacy_at` y `accepted_terms_at`. El flujo de Google (Firebase) infiere la aceptación de ambos mediante disclaimers visuales en registro y login, persistiendo los mismos timestamps al crear/vincular el usuario.
    - Páginas estáticas: `route('privacy')` → `/privacidad` (`legal.privacy`) y `route('terms')` → `/terminos` (`legal.terms`, incluye el aviso legal de descargo de responsabilidad financiera).
 
+5. **Exención del Banner de Consentimiento de Cookies (ePrivacy / GDPR)**:
+   - *Decisión*: **No** se implementa banner de cookies ni consentimiento de rastreo.
+   - *Justificación*: La plataforma utiliza exclusivamente cookies e identificadores técnicos estrictamente necesarios para la sesión (`laravel_session`), seguridad (`XSRF-TOKEN`) y autenticación (Firebase Auth Token local). Al no cargarse analíticas ni trackers de terceros (ej. Google Analytics, Facebook Pixel), están exentos de consentimiento. Un banner sería confuso y redundante para el usuario.
+
+6. **Eliminación definitiva de cuenta y Derecho al Olvido (Art. 17 GDPR)**:
+   - *Decisión*: Implementar una sección "Zona de Peligro" en el Panel de Control del Dashboard que permita la supresión de la cuenta del usuario de forma irreversible.
+   - *Cierre preventivo de Binance:* Si el bot de futuros (apalancamiento 10x) está activo, se invoca automáticamente al broker `closeOpenPositions()` antes de eliminar los datos para evitar dejar posiciones reales expuestas sin control automatizado. Si la API de Binance falla, la eliminación local del usuario prosigue para garantizar su derecho legal de supresión de datos de carácter personal.
+   - *Borrado en cascada:* Los snapshots de balance y el historial de actividades del bot se borran automáticamente mediante las claves foráneas en cascada en la base de datos sqlite.
+
+## Evitar Bug de Re-inserción del Usuario al Eliminar (Laravel Remember Token)
+
+- *Problema:* Si se llama a `$user->delete()` antes del cierre de sesión, `Auth::logout()` intenta limpiar el `remember_token` de la sesión activa modificando el modelo en memoria del usuario autenticado y llamando internamente a `$user->save()`. En Laravel, esto provoca que el usuario sea reinsertado de inmediato en la base de datos tras su eliminación.
+- *Solución:* En `AuthController@deleteAccount()`, es mandatorio invalidar la sesión y realizar el logout **antes** de ejecutar `$user->delete()`:
+  ```php
+  Auth::logout();
+  $request->session()->invalidate();
+  $request->session()->regenerateToken();
+  $user->delete();
+  ```
+
 ## Configuración (no obvio)
 
 - Env backend: `FIREBASE_PROJECT_ID`. Env frontend (expuestas al navegador):
@@ -46,4 +64,5 @@ privacidad.
 - Dependencias declaradas en composer.json (`firebase/php-jwt`, `kreait/laravel-firebase`) y
   package.json (`firebase`); ya estaban en vendor/node_modules pero sin declarar.
 - Vistas movidas a `resources/views/auth/{login,register}.blade.php` (antes `login.blade.php`).
-- Tests: `tests/Feature/AuthRegistrationTest.php` (mockea `FirebaseTokenVerifier`).
+- Tests: `tests/Feature/AuthRegistrationTest.php` (mockea `FirebaseTokenVerifier`) y `tests/Feature/AccountDeletionTest.php` (valida el borrado en cascada y seguridad de Binance).
+

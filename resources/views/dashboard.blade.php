@@ -473,6 +473,24 @@
     </div>
     @endif
 
+    <!-- Zona de Peligro (GDPR) -->
+    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md mt-8">
+        <h3 class="text-sm font-bold text-rose-400 flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Zona de Peligro: Privacidad y Datos (GDPR)
+        </h3>
+        <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+            De acuerdo con la legislación GDPR, puedes eliminar de forma permanente tu cuenta, tus claves API cifradas de Binance y todo tu historial de operaciones. Esta acción es irreversible.
+        </p>
+        <button type="button" 
+                onclick="confirmAccountDeletion()" 
+                class="inline-block text-xs font-bold py-2.5 px-5 rounded-xl transition duration-200 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 border border-rose-500/30 cursor-pointer hover-lift">
+            Eliminar mi Cuenta
+        </button>
+    </div>
+
     </div>
 
     <!-- Contenido de la pestaña de Actividad (US05) -->
@@ -1316,6 +1334,58 @@
                         Confirmar
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación de Eliminación de Cuenta -->
+    <div id="delete-account-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeDeleteAccountModal()"></div>
+        
+        <div class="bg-[hsl(223,47%,14%)] border border-rose-500/20 rounded-2xl p-6 shadow-2xl relative max-w-md w-full mx-4 z-10 animate-fade-in space-y-6">
+            <div class="flex items-center gap-3 text-rose-400">
+                <span class="w-10 h-10 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </span>
+                <h3 class="text-lg font-bold text-white">¿Eliminar tu cuenta definitivamente?</h3>
+            </div>
+            
+            <div class="space-y-3 text-xs text-slate-300">
+                <p>
+                    Estás a punto de eliminar de forma permanente tu cuenta de **ViBo Invest** y todos los datos asociados de acuerdo a la regulación de privacidad (GDPR).
+                </p>
+                <div class="bg-rose-500/5 border border-rose-500/10 rounded-xl p-3 text-[11px] text-rose-300 space-y-2">
+                    <p class="font-bold flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Aviso Financiero Importante:
+                    </p>
+                    <p>
+                        Si tienes el bot activo, el sistema intentará **pausar el bot y cerrar de forma preventiva las posiciones abiertas** en tu cuenta de Binance antes de borrar tus credenciales.
+                    </p>
+                    <p class="font-semibold text-rose-200">
+                        Esta acción es irreversible y perderás tu historial de inmediato.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button type="button" 
+                        onclick="closeDeleteAccountModal()" 
+                        class="text-xs font-semibold py-2 px-4 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 transition duration-200 cursor-pointer">
+                    Cancelar
+                </button>
+                <form action="{{ route('account.delete') }}" method="POST" class="m-0 p-0">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" 
+                            class="text-xs font-bold py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white shadow-md transition duration-200 cursor-pointer">
+                        Sí, eliminar cuenta
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -2357,6 +2427,21 @@
     @if(session('error'))
         showToast("{{ session('error') }}", true);
     @endif
+
+    // Controladores para el Modal de Eliminación de Cuenta
+    window.confirmAccountDeletion = function() {
+        const modal = document.getElementById('delete-account-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    };
+
+    window.closeDeleteAccountModal = function() {
+        const modal = document.getElementById('delete-account-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    };
 
     // Primera carga del gráfico con el filtro por defecto (Mes)
     refreshHistory();

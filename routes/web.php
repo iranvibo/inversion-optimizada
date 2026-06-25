@@ -51,6 +51,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/binance/link', [BinanceConnectionController::class, 'storeLink'])->name('binance.store')->middleware('throttle:6,1');
     Route::post('/binance/disconnect', [BinanceConnectionController::class, 'disconnect'])->name('binance.disconnect');
 
+    // Eliminación definitiva de la cuenta (GDPR)
+    Route::delete('/account', [AuthController::class, 'deleteAccount'])->name('account.delete');
+
     // Herramientas de simulación / QA. MUTAN datos y credenciales reales del
     // usuario (p. ej. la simulación de alerta sobrescribe la API Key cifrada),
     // así que solo se registran cuando DEMO_TOOLS_ENABLED está activo. En

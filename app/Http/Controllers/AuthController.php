@@ -7,6 +7,7 @@ use App\Services\FirebaseTokenVerifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use RuntimeException;
@@ -169,6 +170,42 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login');
+    }
+
+    /**
+     * Elimina definitivamente la cuenta del usuario autenticado (GDPR).
+     * Cierra de forma preventiva cualquier posición abierta en Binance
+     * si el bot está activo.
+     */
+    public function deleteAccount(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        if ($user->bot_active) {
+            try {
+                $binanceBroker = app(\App\Core\Contracts\BinanceBrokerInterface::class);
+                if ($user->isBinanceLinked()) {
+                    $binanceBroker->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
+                    Log::info("Cierre de posiciones preventivo por eliminación de cuenta para el usuario ID: {$user->id}");
+                }
+            } catch (\Exception $e) {
+                Log::critical("Fallo al cerrar posiciones preventivamente al eliminar la cuenta del usuario ID: {$user->id}. Detalle: " . $e->getMessage());
+            }
+        }
+
+        // 1. Cerrar sesión e invalidar la sesión primero para evitar que Laravel intente 
+        // actualizar el remember_token en la base de datos para un usuario eliminado
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        // 2. Eliminar el usuario definitivamente (borrado en cascada configurado en BD)
+        $user->delete();
+
+        return redirect()->route('login')->with('success', 'Tu cuenta y todos tus datos personales han sido eliminados de forma permanente.');
     }
 
     /**
