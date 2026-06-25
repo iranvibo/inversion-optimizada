@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-06-22
+updated: 2026-06-25
 ---
 
 # Decisiones de Arquitectura de ViBo Invest
@@ -66,10 +66,49 @@ El sistema se ejecuta en una red interna puente (`vibo-network`):
 * **Gotcha env_file: cambios en el `.env` requieren RECREAR, no `restart`**: el `.env` de producción se gestiona **a mano en el VPS** (`/var/www/vibo-invest/.env`) y está **excluido del rsync**. Se inyecta vía `env_file: .env`, que solo se relee al **recrear** el contenedor. Tras cualquier modificación en el `.env`, es obligatorio ejecutar la siguiente secuencia de comandos para aplicar los cambios y reiniciar correctamente los servicios en caché:
   ```bash
   docker compose -f docker-compose.prod.yml up -d --force-recreate
-  docker compose -f docker-compose.prod.yml exec app php artisan config:cache
+  docker compose -f docker-compose.prod.yml exec app php artisan config:clear
   docker compose -f docker-compose.prod.yml exec app php artisan queue:restart
   ```
   Como prod usa `opcache.validate_timestamps=0`, los cambios de código/config solo se ven al recrear/reiniciar php-fpm y los workers.
+  *Ojo con config:cache*: Ejecutar `php artisan config:cache` vía `exec app` solo genera el archivo cacheado en el contenedor `app`. Los demás contenedores (`queue-worker`, `websocket`) no comparten el directorio `/bootstrap/cache` y leerán directamente del entorno inyectado por Docker. Para garantizar sincronía absoluta, es preferible utilizar `config:clear` en producción o asegurar la recreación completa.
 * **Gotcha 502 tras recrear solo `app`**: si recreas `app` (nueva IP en la red Docker) pero no `web`, el nginx del contenedor `web` mantiene la IP vieja cacheada en `fastcgi_pass app:9000` → 502. Solución: `docker compose restart web` (o recrear todo junto con `up -d`).
 * **Gotcha: usar SIEMPRE `-f docker-compose.prod.yml` en el VPS (incidencia 2026-06-22)**: lanzar `docker compose up -d` a secas usa el `docker-compose.yml` de **dev**, que mapea `web` a `:80` (host) y `websocket` a `0.0.0.0:8080`. Síntomas de haberse equivocado de archivo: el contenedor `web` falla con `failed to bind host port 0.0.0.0:80/tcp: address already in use` (lo ocupa el nginx del host) y `docker compose ps` muestra `websocket` en `0.0.0.0:8080->8080` en vez de `127.0.0.1:8092`. El comando correcto es `docker compose -f docker-compose.prod.yml up -d`. Aun así, ese `up -d` recrea los contenedores, por lo que el `.env` SÍ se releyó (ver gotcha env_file); el trading sigue operando porque depende de `queue-worker`/`scheduler-worker`, no del `web`.
 * **Variables críticas del `.env` de prod a verificar tras cada cambio**: `SIGNALS_PROVIDER=http` (por defecto `mock` → la simulación mostraría solo las 8 señales mock en vez de las ~153 de la API externa; ver [[bot-signals]]), `SIGNALS_HTTP_BASE_URL`, `SIGNALS_HTTP_TOKEN`, y `BINANCE_MOCK=false` (por defecto `true` → el balance "real" sería ficticio; ver [[binance-integration]]). Verificación dentro del contenedor: `php artisan tinker --execute="echo config('signals.provider'); echo config('services.binance.mock');"`.
+
+## Comandos Útiles de Diagnóstico y Operaciones en Producción
+
+Para diagnosticar y operar el stack de producción en el VPS (directorio `/var/www/vibo-invest/`):
+
+1. **Estado de los Contenedores**:
+   ```bash
+   docker compose -f docker-compose.prod.yml ps
+   ```
+
+2. **Monitoreo de Logs**:
+   - **Planificador** (Scheduler, sondeo de señales externas cada ~5s):
+     ```bash
+     docker compose -f docker-compose.prod.yml logs scheduler-worker --tail=50 -f
+     ```
+   - **Procesador de colas** (Queue worker, ejecuta los `AdjustPositionJob` y el broadcast de WebSockets):
+     ```bash
+     docker compose -f docker-compose.prod.yml logs queue-worker --tail=50 -f
+     ```
+   - **Logs generales de Laravel** (errores de ejecución y excepciones):
+     ```bash
+     docker compose -f docker-compose.prod.yml exec app tail -n 100 storage/logs/laravel.log
+     ```
+
+3. **Sincronización Manual de Balances (Pruebas)**:
+   ```bash
+   docker compose -f docker-compose.prod.yml exec app php artisan binance:sync-balances
+   ```
+
+4. **Tinker (Inspección rápida de variables y caché)**:
+   ```bash
+   docker compose -f docker-compose.prod.yml exec app php artisan tinker
+   ```
+   *Ejemplo para comprobar la configuración de Reverb en caliente:*
+   ```php
+   echo 'DRIVER: ' . config('broadcasting.default') . PHP_EOL . 'HOST: ' . config('broadcasting.connections.reverb.options.host');
+   ```
+
