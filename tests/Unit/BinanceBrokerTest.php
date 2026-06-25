@@ -288,6 +288,7 @@ class BinanceBrokerTest extends TestCase
             '*/api/v3/ticker/price*' => Http::response(['price' => '50000.00']),
             '*/sapi/v1/margin/order*' => Http::response(['orderId' => 1, 'status' => 'FILLED']),
             '*/sapi/v1/margin/openOrders*' => Http::response([]),
+            '*/sapi/v1/margin/borrow-repay*' => Http::response(['tranId' => 123456]),
         ]);
     }
 
@@ -437,5 +438,28 @@ class BinanceBrokerTest extends TestCase
         $this->fakeMarginMode([['asset' => 'BTC', 'free' => '0.0000096', 'borrowed' => '0', 'netAsset' => '0.0000096']]);
 
         $this->assertSame('CLOSE', $this->binanceBroker->getOpenPosition('k', 's'));
+    }
+
+    /**
+     * Prueba que al cerrar una posición en Cross Margin, si queda deuda residual
+     * en el activo de margen, se llame automáticamente al endpoint de repay de Binance.
+     */
+    public function test_margin_close_repays_residual_margin_asset_debt(): void
+    {
+        $this->fakeMarginMode([
+            ['asset' => 'BTC', 'free' => '0', 'borrowed' => '0', 'netAsset' => '0'],
+            // USDC es el activo de margen; simula que hay 10 USDC de deuda y 20 USDC libres
+            ['asset' => 'USDC', 'free' => '20', 'borrowed' => '10', 'netAsset' => '10'],
+        ]);
+
+        // Simulamos el cierre de posición: el broker detectará que no hay BTC abierto,
+        // pero detectará la deuda de USDC (10) y saldo libre (20), llamando a repay por min(10, 20) = 10.
+        $changed = $this->binanceBroker->closeOpenPositions('my_key', 'my_secret');
+
+        $this->assertTrue($changed);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/sapi/v1/margin/borrow-repay')
+            && str_contains($request->url(), 'asset=USDC')
+            && str_contains($request->url(), 'amount=10')
+            && str_contains($request->url(), 'type=REPAY'));
     }
 }

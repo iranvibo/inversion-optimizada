@@ -966,6 +966,29 @@ class BinanceBroker implements BinanceBrokerInterface
             $this->placeMarginOrder($apiKey, $secretKey, 'SELL', $this->floorToLot($free), 'AUTO_REPAY');
         }
 
+        // --- Autoliquidación de deuda residual del activo de margen (USDT/USDC) ---
+        try {
+            $marginAsset = config('services.binance.margin_asset', 'USDT');
+            // Damos un pequeño margen para que se actualicen las comisiones y órdenes en Binance
+            if (! app()->runningUnitTests()) {
+                sleep(2);
+            }
+            $marginAssetDetails = $this->fetchMarginAsset($apiKey, $secretKey, $marginAsset);
+            $marginBorrowed = (float) ($marginAssetDetails['borrowed'] ?? 0);
+            $marginFree = (float) ($marginAssetDetails['free'] ?? 0);
+
+            if ($marginBorrowed > 0.0) {
+                // Solo podemos pagar si tenemos saldo libre
+                $repayAmount = min($marginBorrowed, $marginFree);
+                if ($repayAmount > 0.0) {
+                    Log::info("Deuda residual detectada de {$marginBorrowed} {$marginAsset}. Intentando pagar automáticamente {$repayAmount} {$marginAsset}.");
+                    $this->repayMarginDebt($apiKey, $secretKey, $marginAsset, $repayAmount);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning("No se pudo realizar el pago automático de la deuda de margen residual: " . $e->getMessage());
+        }
+
         return true;
     }
 
@@ -1069,6 +1092,51 @@ class BinanceBroker implements BinanceBrokerInterface
             }
             Log::error('Binance margin order placement failed: '.$e->getMessage());
             throw new BinanceException('Error al conectar con la API de Binance para colocar la orden de margen: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Realiza un pago de deuda de margen en Binance (POST /sapi/v1/margin/borrow-repay).
+     *
+     * @throws BinanceInvalidCredentialsException
+     * @throws BinanceException
+     */
+    protected function repayMarginDebt(string $apiKey, string $secretKey, string $asset, float $amount): bool
+    {
+        $queryString = http_build_query([
+            'asset' => $asset,
+            'isIsolated' => 'FALSE',
+            'amount' => $amount,
+            'type' => 'REPAY',
+            'timestamp' => now()->timestamp * 1000,
+        ]);
+        $signature = hash_hmac('sha256', $queryString, $secretKey);
+        $apiUrl = config('services.binance.api_url', 'https://api.binance.com');
+
+        try {
+            $response = Http::withHeaders([
+                'X-MBX-APIKEY' => $apiKey,
+            ])->post("{$apiUrl}/sapi/v1/margin/borrow-repay?{$queryString}&signature={$signature}");
+
+            if ($response->status() === 400 || $response->status() === 401) {
+                $data = $response->json();
+                if (isset($data['code']) && $data['code'] === -2015) {
+                    throw new BinanceInvalidCredentialsException;
+                }
+                throw new BinanceException($data['msg'] ?? 'Error de autenticación o permisos al pagar la deuda de margen.');
+            }
+
+            if ($response->failed()) {
+                throw new BinanceException('No se pudo pagar la deuda de margen en Binance: HTTP '.$response->status());
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            if ($e instanceof BinanceInvalidCredentialsException || $e instanceof BinanceException) {
+                throw $e;
+            }
+            Log::error('Binance margin repay failed: '.$e->getMessage());
+            throw new BinanceException('Error al conectar con la API de Binance para pagar la deuda de margen: '.$e->getMessage());
         }
     }
 }
