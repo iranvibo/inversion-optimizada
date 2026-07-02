@@ -262,4 +262,35 @@ class DashboardBalanceTest extends TestCase
     {
         $this->getJson(route('dashboard.balance.live'))->assertUnauthorized();
     }
+
+    public function test_history_endpoint_separates_channels_and_returns_only_active_channel_snapshots(): void
+    {
+        // Snapshot for Binance
+        $this->user->balanceSnapshots()->create([
+            'balance' => 1000.00,
+            'captured_at' => now()->subMinutes(10),
+            'trading_channel' => 'binance',
+        ]);
+
+        // Snapshot for Hyperliquid
+        $this->user->balanceSnapshots()->create([
+            'balance' => 2000.00,
+            'captured_at' => now()->subMinutes(5),
+            'trading_channel' => 'hyperliquid',
+        ]);
+
+        // When active channel is Binance, only Binance snapshots should be returned
+        $this->user->update(['trading_channel' => 'binance']);
+        $response = $this->actingAs($this->user)->getJson(route('dashboard.balance', ['range' => 'day']));
+        $response->assertOk();
+        $this->assertCount(1, $response->json('series'));
+        $this->assertEquals(1000.00, $response->json('current_balance'));
+
+        // When active channel is Hyperliquid, only Hyperliquid snapshots should be returned
+        $this->user->update(['trading_channel' => 'hyperliquid']);
+        $response = $this->actingAs($this->user)->getJson(route('dashboard.balance', ['range' => 'day']));
+        $response->assertOk();
+        $this->assertCount(1, $response->json('series'));
+        $this->assertEquals(2000.00, $response->json('current_balance'));
+    }
 }

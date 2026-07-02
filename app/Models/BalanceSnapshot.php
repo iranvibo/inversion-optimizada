@@ -22,6 +22,7 @@ class BalanceSnapshot extends Model
         'user_id',
         'balance',
         'captured_at',
+        'trading_channel',
     ];
 
     /**

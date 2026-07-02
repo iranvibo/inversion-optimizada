@@ -35,6 +35,7 @@ class DashboardController extends Controller
         // Balance inicial renderizado en servidor (US03, Escenario 1);
         // la serie del gráfico se carga después vía JSON según el filtro.
         $latestSnapshot = $user->balanceSnapshots()
+            ->where('trading_channel', $user->tradingChannel())
             ->latest('captured_at')
             ->first(['balance', 'captured_at']);
 
@@ -186,10 +187,11 @@ class DashboardController extends Controller
                         $now = now()->toImmutable();
                         // En real solo se persiste con datos reales del canal, nunca en mock.
                         if (! $this->brokerResolver->isMock($user->tradingChannel())) {
-                            $user->balanceSnapshots()->create([
-                                'balance' => $newBalance,
-                                'captured_at' => $now,
-                            ]);
+                             $user->balanceSnapshots()->create([
+                                 'balance' => $newBalance,
+                                 'captured_at' => $now,
+                                 'trading_channel' => $user->tradingChannel(),
+                             ]);
                         }
 
                         // Recuperar el capital de apertura
@@ -242,6 +244,7 @@ class DashboardController extends Controller
                 $user->balanceSnapshots()->create([
                     'balance' => $newBalance,
                     'captured_at' => $now,
+                    'trading_channel' => $user->tradingChannel(),
                 ]);
 
                 // Emitir evento WebSocket para actualizar balance en tiempo real

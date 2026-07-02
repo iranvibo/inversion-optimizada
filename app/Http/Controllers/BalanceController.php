@@ -97,22 +97,24 @@ class BalanceController extends Controller
             return response()->json($report->toArray());
         }
 
-        if ($user->isBrokerLinked() && ! $user->balanceSnapshots()->exists() && ! app()->environment('testing') && ! $this->brokerResolver->isMock($user->tradingChannel())) {
+        if ($user->isBrokerLinked() && ! $user->balanceSnapshots()->where('trading_channel', $user->tradingChannel())->exists() && ! app()->environment('testing') && ! $this->brokerResolver->isMock($user->tradingChannel())) {
             try {
                 $broker = $this->brokerResolver->forUser($user);
                 $balance = $broker->getTotalBalance($user->brokerApiKey(), $user->brokerSecretKey());
                 $user->balanceSnapshots()->create([
                     'balance' => $balance,
                     'captured_at' => now(),
+                    'trading_channel' => $user->tradingChannel(),
                 ]);
             } catch (\Exception $e) {
-                Log::warning('Failed to fetch initial Binance balance for history: '.$e->getMessage());
+                Log::warning('Failed to fetch initial balance for history: '.$e->getMessage());
             }
         }
 
         // Filtrado y orden en SQL (índice user_id + captured_at): solo se
         // hidratan los puntos de la ventana solicitada, nunca todo el historial.
         $snapshots = $user->balanceSnapshots()
+            ->where('trading_channel', $user->tradingChannel())
             ->where('captured_at', '>=', $range->startAt($now))
             ->orderBy('captured_at')
             ->get(['balance', 'captured_at'])
@@ -149,7 +151,7 @@ class BalanceController extends Controller
 
         $now = now()->toImmutable();
 
-        if (! $user->balanceSnapshots()->exists()) {
+        if (! $user->balanceSnapshots()->where('trading_channel', $user->tradingChannel())->exists()) {
             $base = (float) ($user->estimated_capital ?? 100);
             $history = $generator->generate($base, $now->modify('-1 hour'), seed: (int) $user->id);
 
@@ -158,6 +160,7 @@ class BalanceController extends Controller
                 fn (array $point) => [
                     'balance' => $point['balance'],
                     'captured_at' => $point['captured_at'],
+                    'trading_channel' => $user->tradingChannel(),
                 ],
                 $history,
             ));
@@ -166,6 +169,7 @@ class BalanceController extends Controller
         // Nuevo snapshot "recién sincronizado" con una variación pequeña,
         // como si el saldo real hubiese cambiado por operaciones del bot.
         $lastBalance = (float) $user->balanceSnapshots()
+            ->where('trading_channel', $user->tradingChannel())
             ->latest('captured_at')
             ->value('balance');
 
@@ -174,6 +178,7 @@ class BalanceController extends Controller
         $user->balanceSnapshots()->create([
             'balance' => $newBalance,
             'captured_at' => $now,
+            'trading_channel' => $user->tradingChannel(),
         ]);
 
         event(new BalanceUpdated($user, $newBalance, $now));

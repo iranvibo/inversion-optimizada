@@ -106,9 +106,29 @@ class HyperliquidBroker implements HyperliquidBrokerInterface
             return $this->handleMockBalance($apiKey, $secretKey);
         }
 
-        $state = $this->fetchClearinghouseState($this->normalizedAddress($apiKey));
+        $wallet = $this->normalizedAddress($apiKey);
 
-        return round((float) ($state['marginSummary']['accountValue'] ?? 0), 2);
+        try {
+            $state = $this->fetchClearinghouseState($wallet);
+            $perpBalance = (float) ($state['marginSummary']['accountValue'] ?? 0);
+        } catch (\Exception $e) {
+            $perpBalance = 0.0;
+        }
+
+        try {
+            $spotState = $this->fetchSpotClearinghouseState($wallet);
+            $spotBalance = 0.0;
+            foreach ($spotState['balances'] ?? [] as $bal) {
+                if (($bal['coin'] ?? null) === 'USDC') {
+                    $spotBalance = (float) ($bal['total'] ?? 0);
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            $spotBalance = 0.0;
+        }
+
+        return round($perpBalance + $spotBalance, 2);
     }
 
     /**
@@ -124,9 +144,29 @@ class HyperliquidBroker implements HyperliquidBrokerInterface
             return (float) (1000 + (crc32($apiKey) % 9000));
         }
 
-        $state = $this->fetchClearinghouseState($this->normalizedAddress($apiKey));
+        $wallet = $this->normalizedAddress($apiKey);
 
-        return round((float) ($state['withdrawable'] ?? 0), 2);
+        try {
+            $state = $this->fetchClearinghouseState($wallet);
+            $perpAvailable = (float) ($state['withdrawable'] ?? 0);
+        } catch (\Exception $e) {
+            $perpAvailable = 0.0;
+        }
+
+        try {
+            $spotState = $this->fetchSpotClearinghouseState($wallet);
+            $spotAvailable = 0.0;
+            foreach ($spotState['balances'] ?? [] as $bal) {
+                if (($bal['coin'] ?? null) === 'USDC') {
+                    $spotAvailable = (float) ($bal['total'] ?? 0);
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            $spotAvailable = 0.0;
+        }
+
+        return round($perpAvailable + $spotAvailable, 2);
     }
 
     /**
@@ -498,6 +538,14 @@ class HyperliquidBroker implements HyperliquidBrokerInterface
     protected function fetchClearinghouseState(string $wallet): array
     {
         return $this->postInfo(['type' => 'clearinghouseState', 'user' => $wallet]);
+    }
+
+    /**
+     * Estado de la cuenta de spot (balances de tokens spot).
+     */
+    protected function fetchSpotClearinghouseState(string $wallet): array
+    {
+        return $this->postInfo(['type' => 'spotClearinghouseState', 'user' => $wallet]);
     }
 
     /**

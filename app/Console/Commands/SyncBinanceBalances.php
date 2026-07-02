@@ -79,6 +79,7 @@ class SyncBinanceBalances extends Command
                 $user->balanceSnapshots()->create([
                     'balance' => $balance,
                     'captured_at' => $capturedAt,
+                    'trading_channel' => $user->tradingChannel(),
                 ]);
 
                 event(new BalanceUpdated($user, $balance, $capturedAt->toImmutable()));

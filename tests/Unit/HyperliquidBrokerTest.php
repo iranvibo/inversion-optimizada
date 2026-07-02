@@ -74,6 +74,9 @@ class HyperliquidBrokerTest extends TestCase
                         'position' => ['coin' => 'BTC', 'szi' => (string) $szi],
                     ]],
                 ]),
+                'spotClearinghouseState' => Http::response([
+                    'balances' => [],
+                ]),
                 'allMids' => Http::response(['BTC' => '50000.0']),
                 'meta' => Http::response(['universe' => [['name' => 'BTC', 'szDecimals' => 5, 'maxLeverage' => 40]]]),
                 'openOrders' => Http::response([]),
@@ -179,6 +182,36 @@ class HyperliquidBrokerTest extends TestCase
         Http::fake($this->fakeInfoResponses(accountValue: 1234.567));
 
         $this->assertSame(1234.57, $this->broker->getTotalBalance(self::WALLET, self::AGENT_KEY));
+    }
+
+    public function test_real_total_balance_sums_spot_usdc_and_perpetual_equity(): void
+    {
+        $this->useRealDriver();
+        Http::fake(function ($request) {
+            if (! str_ends_with($request->url(), '/info')) {
+                return null;
+            }
+
+            return match ($request['type']) {
+                'clearinghouseState' => Http::response([
+                    'marginSummary' => ['accountValue' => '1000.00'],
+                    'withdrawable' => '1000.00',
+                    'assetPositions' => [],
+                ]),
+                'spotClearinghouseState' => Http::response([
+                    'balances' => [
+                        ['coin' => 'USDC', 'total' => '21.80'],
+                        ['coin' => 'ETH', 'total' => '1.5'],
+                    ],
+                ]),
+                'allMids' => Http::response(['BTC' => '50000.0']),
+                'meta' => Http::response(['universe' => [['name' => 'BTC', 'szDecimals' => 5, 'maxLeverage' => 40]]]),
+                default => Http::response([]),
+            };
+        });
+
+        $this->assertSame(1021.80, $this->broker->getTotalBalance(self::WALLET, self::AGENT_KEY));
+        $this->assertSame(1021.80, $this->broker->getAvailableBalance(self::WALLET, self::AGENT_KEY));
     }
 
     public function test_real_available_balance_reads_withdrawable(): void

@@ -22,6 +22,7 @@ class BalanceSnapshotFactory extends Factory
             'user_id' => User::factory(),
             'balance' => fake()->randomFloat(2, 500, 25000),
             'captured_at' => now(),
+            'trading_channel' => 'binance',
         ];
     }
 }

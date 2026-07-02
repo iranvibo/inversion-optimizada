@@ -99,6 +99,15 @@ canal original.
    Posición y contexto de última orden en caché
    (`HyperliquidBroker::mockPositionCacheKey/mockLastOrderCacheKey`).
 
+8. **Independencia de históricos y gráficos (2026-07-02)**:
+   - Para evitar que los datos históricos de Binance e Hyperliquid se mezclaran en el mismo gráfico de evolución del balance, se añadió la columna `trading_channel` a la tabla `balance_snapshots` (default 'binance').
+   - Tanto la consulta del saldo inicial (`latestSnapshot` en `DashboardController`) como el endpoint de carga del gráfico (`/dashboard/balance` en `BalanceController`) ahora filtran por el canal activo del usuario (`where('trading_channel', $user->tradingChannel())`).
+   - Se modificó la directiva de la plantilla `dashboard.blade.php` para activar el script de sondeo en vivo (`pollLiveBalance()`) cuando el canal activo del usuario esté vinculado (`isBrokerLinked()`), permitiendo que el balance de Hyperliquid se actualice en tiempo real al igual que el de Binance.
+
+9. **Soporte para saldo Spot de USDC (2026-07-02)**:
+   - Al depositar fondos en Hyperliquid, el balance de USDC se aloja inicialmente en la billetera de Spot de la red L1 (`spotClearinghouseState`) y no en la cuenta de perpetuos (`clearinghouseState`), lo que hacía que `getTotalBalance` reportara `0.0`.
+   - Se modificaron `getTotalBalance` y `getAvailableBalance` en `HyperliquidBroker` para consultar y sumar el saldo de USDC de la cuenta Spot junto con el colateral/patrimonio neto de la cuenta de derivados.
+
 ## Configuración (.env)
 
 `HYPERLIQUID_MOCK`, `HYPERLIQUID_API_URL` (mainnet `https://api.hyperliquid.xyz`,

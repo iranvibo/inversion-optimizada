@@ -2216,7 +2216,7 @@
         }
     }
 
-@if($user->isBinanceLinked())
+@if($user->isBrokerLinked())
     // Sondeo del patrimonio neto en vivo: la cabecera se mueve con el P/L de la
     // posición abierta sin esperar al snapshot programado (cada 15 min). No toca
     // el histórico del gráfico; solo refresca el número grande.
