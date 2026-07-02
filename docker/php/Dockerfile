@@ -20,7 +20,7 @@ FROM php:8.4-fpm-alpine AS base
 
 COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
 
-RUN install-php-extensions pdo_mysql bcmath pcntl opcache zip intl \
+RUN install-php-extensions pdo_mysql bcmath pcntl opcache zip intl gmp \
     && rm -rf /tmp/* /var/cache/apk/*
 
 WORKDIR /var/www/html
