@@ -79,8 +79,12 @@ class HyperliquidConnectionController extends Controller
                 'hyperliquid_wallet_address' => $e->getMessage(),
             ]);
         } catch (\Exception $e) {
+            // El detalle técnico (SQL, stack, respuestas del exchange) va al log;
+            // al usuario nunca se le muestran internals del sistema.
+            \Illuminate\Support\Facades\Log::error("Fallo al vincular Hyperliquid para el usuario ID: {$user->id}. Detalle: ".$e->getMessage());
+
             return back()->withInput()->withErrors([
-                'hyperliquid_wallet_address' => 'No se pudo verificar la conexión con Hyperliquid: '.$e->getMessage(),
+                'hyperliquid_wallet_address' => 'No se pudo verificar la conexión con Hyperliquid. Inténtalo de nuevo en unos minutos.',
             ]);
         }
     }
