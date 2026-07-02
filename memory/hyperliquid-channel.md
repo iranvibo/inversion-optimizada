@@ -107,6 +107,7 @@ canal original.
 9. **Soporte para saldo Spot de USDC (2026-07-02)**:
    - Al depositar fondos en Hyperliquid, el balance de USDC se aloja inicialmente en la billetera de Spot de la red L1 (`spotClearinghouseState`) y no en la cuenta de perpetuos (`clearinghouseState`), lo que hacía que `getTotalBalance` reportara `0.0`.
    - Se modificaron `getTotalBalance` y `getAvailableBalance` en `HyperliquidBroker` para consultar y sumar el saldo de USDC de la cuenta Spot junto con el colateral/patrimonio neto de la cuenta de derivados.
+   - Para evitar duplicar el saldo (doble contabilidad) al tener una posición abierta, se resta la cantidad retenida en spot (`hold`, que representa la garantía retenida para la posición de futuros) antes de sumar el balance neto de la cuenta de derivados (`accountValue`), manteniendo el balance preciso en tiempo real y reflejando cualquier P&L no realizado.
 
 ## Configuración (.env)
 

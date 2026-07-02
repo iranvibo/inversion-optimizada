@@ -120,7 +120,7 @@ class HyperliquidBroker implements HyperliquidBrokerInterface
             $spotBalance = 0.0;
             foreach ($spotState['balances'] ?? [] as $bal) {
                 if (($bal['coin'] ?? null) === 'USDC') {
-                    $spotBalance = (float) ($bal['total'] ?? 0);
+                    $spotBalance = (float) ($bal['total'] ?? 0) - (float) ($bal['hold'] ?? 0);
                     break;
                 }
             }
@@ -158,7 +158,7 @@ class HyperliquidBroker implements HyperliquidBrokerInterface
             $spotAvailable = 0.0;
             foreach ($spotState['balances'] ?? [] as $bal) {
                 if (($bal['coin'] ?? null) === 'USDC') {
-                    $spotAvailable = (float) ($bal['total'] ?? 0);
+                    $spotAvailable = (float) ($bal['total'] ?? 0) - (float) ($bal['hold'] ?? 0);
                     break;
                 }
             }
