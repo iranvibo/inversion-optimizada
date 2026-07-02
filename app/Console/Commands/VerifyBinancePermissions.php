@@ -40,13 +40,18 @@ class VerifyBinancePermissions extends Command
         $this->info('Iniciando auditoría de permisos de API de Binance...');
 
         // Seleccionamos usuarios con Binance verificado y bot activo en modo real
+        // cuyo canal de ejecución sea Binance: la auditoría de permisos de retiro
+        // es específica de la API de Binance y no debe pausar el bot de quien
+        // opera por Hyperliquid (allí la API wallet no puede retirar por diseño).
         $users = User::where('binance_verified', true)
             ->where('bot_active', true)
             ->where('bot_mode', 'real')
+            ->where('trading_channel', '!=', User::CHANNEL_HYPERLIQUID)
             ->get();
 
         if ($users->isEmpty()) {
             $this->info('No hay usuarios activos en modo real para auditar.');
+
             return 0;
         }
 
@@ -79,12 +84,13 @@ class VerifyBinancePermissions extends Command
 
             } catch (\Exception $e) {
                 // Errores temporales de red o API no deben pausar el bot en real, solo logueamos
-                $this->error("Error al auditar al usuario ID: {$user->id}: " . $e->getMessage());
-                Log::error("Auditoría Binance fallida para usuario ID: {$user->id}. Detalle: " . $e->getMessage());
+                $this->error("Error al auditar al usuario ID: {$user->id}: ".$e->getMessage());
+                Log::error("Auditoría Binance fallida para usuario ID: {$user->id}. Detalle: ".$e->getMessage());
             }
         }
 
         $this->info("Auditoría completada. Usuarios auditados: {$auditedCount}. Alertas disparadas: {$alertedCount}.");
+
         return 0;
     }
 

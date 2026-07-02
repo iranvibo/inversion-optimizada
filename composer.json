@@ -8,11 +8,14 @@
     "require": {
         "php": "^8.2",
         "firebase/php-jwt": "^7.1",
+        "kornrunner/keccak": "^1.1",
         "kreait/laravel-firebase": "^7.2",
         "laravel/framework": "^12.0",
         "laravel/reverb": "^1.10",
         "laravel/tinker": "^2.10.1",
-        "predis/predis": "^3.5"
+        "predis/predis": "^3.5",
+        "rybakit/msgpack": "^0.10.0",
+        "simplito/elliptic-php": "^1.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

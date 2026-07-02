@@ -56,6 +56,33 @@ return [
     ],
 
     /*
+    | Canal de ejecución Hyperliquid (DEX de futuros perpetuos on-chain).
+    | Alternativa a Binance sin las restricciones de derivados del EEE: el
+    | usuario delega una API wallet (agente) que puede operar pero no retirar.
+    */
+    'hyperliquid' => [
+        'mock' => env('HYPERLIQUID_MOCK', true),
+        // API pública. Mainnet: https://api.hyperliquid.xyz
+        //              Testnet: https://api.hyperliquid-testnet.xyz
+        'api_url' => env('HYPERLIQUID_API_URL', 'https://api.hyperliquid.xyz'),
+        // Red usada al firmar (phantom agent 'a' mainnet / 'b' testnet).
+        // Debe ser coherente con api_url o el exchange rechazará la firma.
+        'is_mainnet' => filter_var(env('HYPERLIQUID_MAINNET', true), FILTER_VALIDATE_BOOL),
+        // Activo de perpetuos operado (universe de Hyperliquid).
+        'coin' => env('HYPERLIQUID_COIN', 'BTC'),
+        // Apalancamiento objetivo (cross). BTC admite hasta 40x en Hyperliquid;
+        // por prudencia el valor por defecto es 1 (sin apalancamiento).
+        'leverage' => (int) env('HYPERLIQUID_LEVERAGE', 1),
+        // Tolerancia de deslizamiento de las "órdenes de mercado" (límite IoC
+        // con precio agresivo), como en el SDK oficial (5%).
+        'slippage' => (float) env('HYPERLIQUID_SLIPPAGE', 0.05),
+        // Fallbacks del metadato del activo si /info meta no responde.
+        // BTC: índice 0 del universe, tamaño con 5 decimales (szDecimals).
+        'asset_index' => (int) env('HYPERLIQUID_ASSET_INDEX', 0),
+        'sz_decimals' => (int) env('HYPERLIQUID_SZ_DECIMALS', 5),
+    ],
+
+    /*
     | Configuración de Firebase. Sólo se necesita el project_id para verificar
     | en el backend los ID tokens de Google. Las claves públicas que usa el SDK
     | de JavaScript se exponen al navegador mediante las variables VITE_FIREBASE_*.

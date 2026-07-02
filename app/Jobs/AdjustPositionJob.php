@@ -2,13 +2,18 @@
 
 namespace App\Jobs;
 
-use App\Core\Contracts\BinanceBrokerInterface;
+use App\Core\Contracts\BrokerInterface;
+use App\Core\Exceptions\InvalidBrokerCredentialsInterface;
+use App\Core\Trading\BrokerResolver;
+use App\Events\BalanceUpdated;
+use App\Events\BotStatusUpdated;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -29,12 +34,16 @@ class AdjustPositionJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(BinanceBrokerInterface $broker): void
+    public function handle(BrokerResolver $resolver): void
     {
         $user = User::find($this->userId);
-        if (!$user || !$user->bot_active) {
+        if (! $user || ! $user->bot_active) {
             return;
         }
+
+        // Canal de ejecución elegido por el usuario (Binance o Hyperliquid).
+        $broker = $resolver->forUser($user);
+        $channelIsMock = $resolver->isMock($user->tradingChannel());
 
         $latestSnapshot = $user->balanceSnapshots()->latest('captured_at')->first();
         $currentBalance = $latestSnapshot ? (float) $latestSnapshot->balance : (float) ($user->estimated_capital ?? 100.0);
@@ -48,8 +57,9 @@ class AdjustPositionJob implements ShouldQueue
         // de seguridad (credenciales inválidas o permisos de retiro indebidos).
 
         if ($user->bot_mode === 'real') {
-            if (!$user->isBinanceLinked()) {
-                Log::warning("AdjustPositionJob aborted: Binance not connected for real mode. User ID: {$user->id}");
+            if (! $user->isBrokerLinked()) {
+                Log::warning("AdjustPositionJob aborted: trading channel ({$user->tradingChannel()}) not connected for real mode. User ID: {$user->id}");
+
                 return;
             }
 
@@ -58,22 +68,22 @@ class AdjustPositionJob implements ShouldQueue
             // y abre la nueva en una sola llamada. Sin esto, el cierre intermedio (y su
             // P/L) se perdería en el feed porque solo registraríamos la apertura.
             $previousRealPosition = strtoupper(
-                (string) \Illuminate\Support\Facades\Cache::get("user:{$user->id}:real_position", 'CLOSE')
+                (string) Cache::get("user:{$user->id}:real_position", 'CLOSE')
             );
 
             try {
-                // Ajustar posición en Binance partiendo del estado real del exchange.
-                // Devuelve false si la operación es idempotente (la posición ya
-                // está en el estado objetivo o no hay nada que cerrar).
+                // Ajustar posición en el canal activo partiendo del estado real
+                // del exchange. Devuelve false si la operación es idempotente
+                // (la posición ya está en el estado objetivo o no hay nada que cerrar).
                 $changed = $broker->adjustPosition(
-                    $user->binance_api_key,
-                    $user->binance_secret_key,
+                    $user->brokerApiKey(),
+                    $user->brokerSecretKey(),
                     $this->newPosition,
                     $user->risk_level ?? 'balanceado'
                 );
 
                 // Registrar la posición real objetivo en caché (refleja el estado deseado).
-                \Illuminate\Support\Facades\Cache::put("user:{$user->id}:real_position", $this->newPosition);
+                Cache::put("user:{$user->id}:real_position", $this->newPosition);
 
                 // Sin cambios en el exchange: no se registra actividad ni se sincroniza balance.
                 if (! $changed) {
@@ -87,7 +97,7 @@ class AdjustPositionJob implements ShouldQueue
                     // Capital con el que se abrió la posición que se acaba de cerrar.
                     // Si no se registró (p.ej. bot reiniciado, posición abierta fuera
                     // del bot), se usa el último balance conocido como referencia.
-                    $openCapital = (float) \Illuminate\Support\Facades\Cache::pull(
+                    $openCapital = (float) Cache::pull(
                         "user:{$user->id}:open_capital",
                         $currentBalance
                     );
@@ -96,9 +106,9 @@ class AdjustPositionJob implements ShouldQueue
 
                     // Sincronizar el nuevo balance
                     $now = now()->toImmutable();
-                    // En real solo se persiste el histórico con datos reales de Binance,
+                    // En real solo se persiste el histórico con datos reales del canal,
                     // nunca valores del broker mock (evita contaminar la curva real).
-                    if (! config('services.binance.mock')) {
+                    if (! $channelIsMock) {
                         $user->balanceSnapshots()->create([
                             'balance' => $newBalance,
                             'captured_at' => $now,
@@ -106,7 +116,7 @@ class AdjustPositionJob implements ShouldQueue
                     }
 
                     // Emitir evento WebSocket para actualizar en tiempo real
-                    event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
+                    event(new BalanceUpdated($user, $newBalance, $now));
                 } else {
                     // Capital de apertura de la nueva posición. Si venimos de CLOSE,
                     // coincide con currentBalance (evitando latencia). Si es un flip,
@@ -120,7 +130,7 @@ class AdjustPositionJob implements ShouldQueue
                         // Equity tras el flip: abrir la nueva posición no altera el patrimonio
                         // neto de inmediato, así que el balance refleja el resultado del cierre.
                         $balanceAfterClose = $this->fetchSettledBalance($broker, $user, $currentBalance);
-                        $closedCapital = (float) \Illuminate\Support\Facades\Cache::pull(
+                        $closedCapital = (float) Cache::pull(
                             "user:{$user->id}:open_capital",
                             $currentBalance
                         );
@@ -131,7 +141,7 @@ class AdjustPositionJob implements ShouldQueue
                         $openCapital = $balanceAfterClose;
                     }
 
-                    \Illuminate\Support\Facades\Cache::put("user:{$user->id}:open_capital", $openCapital);
+                    Cache::put("user:{$user->id}:open_capital", $openCapital);
 
                     $user->botActivities()->create([
                         'bot_mode' => 'real',
@@ -145,8 +155,8 @@ class AdjustPositionJob implements ShouldQueue
 
                     // Sincronizar el balance de apertura (coincide con el equity actual al no cambiar la equidad al abrir)
                     $now = now()->toImmutable();
-                    // Solo se persiste el histórico real cuando Binance no está en mock.
-                    if (! config('services.binance.mock')) {
+                    // Solo se persiste el histórico real cuando el canal no está en mock.
+                    if (! $channelIsMock) {
                         $user->balanceSnapshots()->create([
                             'balance' => $openCapital,
                             'captured_at' => $now,
@@ -154,19 +164,19 @@ class AdjustPositionJob implements ShouldQueue
                     }
 
                     // Emitir evento WebSocket para actualizar en tiempo real
-                    event(new \App\Events\BalanceUpdated($user, $openCapital, $now));
+                    event(new BalanceUpdated($user, $openCapital, $now));
                 }
 
-            } catch (\App\Core\Exceptions\BinanceInvalidCredentialsException $e) {
+            } catch (InvalidBrokerCredentialsInterface $e) {
                 $user->update([
                     'bot_active' => false,
                 ]);
-                \Illuminate\Support\Facades\Cache::put("user:{$user->id}:real_position", 'CLOSE');
-                \Illuminate\Support\Facades\Cache::put("user:{$user->id}:simulation_position", 'CLOSE');
+                Cache::put("user:{$user->id}:real_position", 'CLOSE');
+                Cache::put("user:{$user->id}:simulation_position", 'CLOSE');
                 Log::warning("AdjustPositionJob: Bot pausado para el usuario ID: {$user->id} debido a credenciales inválidas.");
-                event(new \App\Events\BotStatusUpdated($user, false));
+                event(new BotStatusUpdated($user, false));
             } catch (\Exception $e) {
-                Log::error("Fallo al ajustar posición real en Binance para el usuario ID: {$user->id}. Detalle: " . $e->getMessage());
+                Log::error("Fallo al ajustar posición real en {$user->tradingChannel()} para el usuario ID: {$user->id}. Detalle: ".$e->getMessage());
             }
 
         } else {
@@ -194,7 +204,7 @@ class AdjustPositionJob implements ShouldQueue
                 ]);
 
                 // Emitir evento WebSocket para actualizar balance en tiempo real
-                event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
+                event(new BalanceUpdated($user, $newBalance, $now));
             } else {
                 $user->botActivities()->create([
                     'bot_mode' => 'simulation',
@@ -208,11 +218,11 @@ class AdjustPositionJob implements ShouldQueue
 
                 // Emitir evento WebSocket para actualizar en tiempo real
                 $now = now()->toImmutable();
-                event(new \App\Events\BalanceUpdated($user, $currentBalance, $now));
+                event(new BalanceUpdated($user, $currentBalance, $now));
             }
 
             // Registrar la posición simulada ajustada en caché
-            \Illuminate\Support\Facades\Cache::put("user:{$user->id}:simulation_position", $this->newPosition);
+            Cache::put("user:{$user->id}:simulation_position", $this->newPosition);
         }
     }
 
@@ -222,19 +232,19 @@ class AdjustPositionJob implements ShouldQueue
      * sospechosa de más del 5% respecto a la referencia, reintenta hasta 3 veces,
      * ya que puede tratarse de una discrepancia temporal de Binance.
      */
-    private function fetchSettledBalance(BinanceBrokerInterface $broker, User $user, float $referenceBalance): float
+    private function fetchSettledBalance(BrokerInterface $broker, User $user, float $referenceBalance): float
     {
         if (! app()->runningUnitTests()) {
             sleep(2);
         }
 
-        $newBalance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+        $newBalance = $broker->getTotalBalance($user->brokerApiKey(), $user->brokerSecretKey());
 
         if (! app()->runningUnitTests()) {
             $attempts = 0;
             while ($attempts < 3 && $referenceBalance > 0 && ($referenceBalance - $newBalance) / $referenceBalance > 0.05) {
                 sleep(1);
-                $newBalance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+                $newBalance = $broker->getTotalBalance($user->brokerApiKey(), $user->brokerSecretKey());
                 $attempts++;
             }
         }

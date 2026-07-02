@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BalanceController;
 use App\Http\Controllers\BinanceConnectionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\HyperliquidConnectionController;
 use App\Http\Controllers\OnboardingController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,12 +45,20 @@ Route::middleware('auth')->group(function () {
     Route::post('/bot/toggle', [DashboardController::class, 'toggleBot'])->name('bot.toggle');
     Route::post('/bot/toggle-mode', [DashboardController::class, 'toggleMode'])->name('bot.toggle-mode');
     Route::post('/bot/update-risk', [DashboardController::class, 'updateRisk'])->name('bot.update-risk');
+    // Canal por el que se ejecutan las operaciones en real (Binance ↔ Hyperliquid)
+    Route::post('/bot/switch-channel', [DashboardController::class, 'switchChannel'])->name('bot.switch-channel');
 
     // Vinculación de Binance. El alta de credenciales se limita para no permitir
     // martillear la API del exchange (y agotar su rate limit) desde una sesión.
     Route::get('/binance/link', [BinanceConnectionController::class, 'showLink'])->name('binance.link');
     Route::post('/binance/link', [BinanceConnectionController::class, 'storeLink'])->name('binance.store')->middleware('throttle:6,1');
     Route::post('/binance/disconnect', [BinanceConnectionController::class, 'disconnect'])->name('binance.disconnect');
+
+    // Vinculación de Hyperliquid (canal de ejecución on-chain alternativo).
+    // Mismo throttle que Binance para no martillear la verificación de credenciales.
+    Route::get('/hyperliquid/link', [HyperliquidConnectionController::class, 'showLink'])->name('hyperliquid.link');
+    Route::post('/hyperliquid/link', [HyperliquidConnectionController::class, 'storeLink'])->name('hyperliquid.store')->middleware('throttle:6,1');
+    Route::post('/hyperliquid/disconnect', [HyperliquidConnectionController::class, 'disconnect'])->name('hyperliquid.disconnect');
 
     // Eliminación definitiva de la cuenta (GDPR)
     Route::delete('/account', [AuthController::class, 'deleteAccount'])->name('account.delete');

@@ -38,7 +38,18 @@ class User extends Authenticatable
         'binance_withdrawal_alert',
         'estimated_capital',
         'onboarding_completed_at',
+        'trading_channel',
+        'hyperliquid_wallet_address',
+        'hyperliquid_agent_key',
+        'hyperliquid_verified',
     ];
+
+    /**
+     * Canales de ejecución del trading en real disponibles.
+     */
+    public const CHANNEL_BINANCE = 'binance';
+
+    public const CHANNEL_HYPERLIQUID = 'hyperliquid';
 
     /**
      * The attributes that should be hidden for serialization.
@@ -74,6 +85,9 @@ class User extends Authenticatable
             'binance_api_key' => 'encrypted',
             'binance_secret_key' => 'encrypted',
             'binance_verified' => 'boolean',
+            'hyperliquid_wallet_address' => 'encrypted',
+            'hyperliquid_agent_key' => 'encrypted',
+            'hyperliquid_verified' => 'boolean',
             'bot_active' => 'boolean',
             'binance_withdrawal_alert' => 'boolean',
             'estimated_capital' => 'decimal:2',
@@ -111,6 +125,60 @@ class User extends Authenticatable
     public function isBinanceLinked(): bool
     {
         return $this->binance_verified && ! empty($this->binance_api_key) && ! empty($this->binance_secret_key);
+    }
+
+    /**
+     * Determina si el usuario tiene una wallet de Hyperliquid vinculada y verificada.
+     */
+    public function isHyperliquidLinked(): bool
+    {
+        return $this->hyperliquid_verified
+            && ! empty($this->hyperliquid_wallet_address)
+            && ! empty($this->hyperliquid_agent_key);
+    }
+
+    /**
+     * Canal de ejecución activo del usuario ('binance' | 'hyperliquid').
+     * Cualquier valor desconocido colapsa al canal por defecto (Binance).
+     */
+    public function tradingChannel(): string
+    {
+        return $this->trading_channel === self::CHANNEL_HYPERLIQUID
+            ? self::CHANNEL_HYPERLIQUID
+            : self::CHANNEL_BINANCE;
+    }
+
+    /**
+     * Determina si el canal de ejecución ACTIVO del usuario está vinculado y
+     * verificado. Es el requisito para activar el bot o el modo real (regla 14).
+     */
+    public function isBrokerLinked(): bool
+    {
+        return $this->tradingChannel() === self::CHANNEL_HYPERLIQUID
+            ? $this->isHyperliquidLinked()
+            : $this->isBinanceLinked();
+    }
+
+    /**
+     * Credencial "clave" del canal activo: API Key en Binance, dirección de la
+     * wallet principal en Hyperliquid. Ver BrokerInterface.
+     */
+    public function brokerApiKey(): ?string
+    {
+        return $this->tradingChannel() === self::CHANNEL_HYPERLIQUID
+            ? $this->hyperliquid_wallet_address
+            : $this->binance_api_key;
+    }
+
+    /**
+     * Credencial "secreta" del canal activo: Secret Key en Binance, clave
+     * privada de la API wallet (agente) en Hyperliquid.
+     */
+    public function brokerSecretKey(): ?string
+    {
+        return $this->tradingChannel() === self::CHANNEL_HYPERLIQUID
+            ? $this->hyperliquid_agent_key
+            : $this->binance_secret_key;
     }
 
     /**

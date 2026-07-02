@@ -2,17 +2,18 @@
 
 namespace App\Console\Commands;
 
-use App\Core\Contracts\BinanceBrokerInterface;
-use App\Core\Exceptions\BinanceInvalidCredentialsException;
+use App\Core\Exceptions\InvalidBrokerCredentialsInterface;
+use App\Core\Trading\BrokerResolver;
 use App\Events\BalanceUpdated;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Sincronización periódica del balance de Binance (US03, Escenario 3):
- * consulta el balance consolidado de cada usuario vinculado, persiste un
- * snapshot de la serie temporal y emite el evento reactivo al dashboard.
+ * Sincronización periódica del balance (US03, Escenario 3): consulta el balance
+ * consolidado de cada usuario en su canal de ejecución activo (Binance o
+ * Hyperliquid), persiste un snapshot de la serie temporal y emite el evento
+ * reactivo al dashboard.
  */
 class SyncBinanceBalances extends Command
 {
@@ -28,10 +29,10 @@ class SyncBinanceBalances extends Command
      *
      * @var string
      */
-    protected $description = 'Sincroniza el balance consolidado de Binance de los usuarios vinculados, guarda un snapshot histórico y notifica al dashboard vía broadcast.';
+    protected $description = 'Sincroniza el balance consolidado del canal de ejecución activo (Binance o Hyperliquid) de los usuarios vinculados, guarda un snapshot histórico y notifica al dashboard vía broadcast.';
 
     public function __construct(
-        protected BinanceBrokerInterface $binanceBroker,
+        protected BrokerResolver $brokerResolver,
     ) {
         parent::__construct();
     }
@@ -41,23 +42,17 @@ class SyncBinanceBalances extends Command
      */
     public function handle(): int
     {
-        $this->info('Iniciando sincronización de balances de Binance...');
+        $this->info('Iniciando sincronización de balances del canal de ejecución...');
 
-        // El histórico real solo se persiste con datos reales: si Binance está
-        // en modo mock, no se guarda nada para no contaminar la curva real.
-        if (config('services.binance.mock')) {
-            $this->info('Binance en modo mock: se omite la persistencia de snapshots reales.');
-
-            return self::SUCCESS;
-        }
-
+        // Candidatos: usuarios con algún canal verificado. El filtro fino
+        // (canal ACTIVO vinculado) se aplica por usuario con isBrokerLinked().
         $users = User::where('binance_verified', true)
-            ->whereNotNull('binance_api_key')
-            ->whereNotNull('binance_secret_key')
-            ->get();
+            ->orWhere('hyperliquid_verified', true)
+            ->get()
+            ->filter(fn (User $user) => $user->isBrokerLinked());
 
         if ($users->isEmpty()) {
-            $this->info('No hay usuarios con Binance vinculado para sincronizar.');
+            $this->info('No hay usuarios con un canal de ejecución vinculado para sincronizar.');
 
             return self::SUCCESS;
         }
@@ -65,10 +60,18 @@ class SyncBinanceBalances extends Command
         $syncedCount = 0;
 
         foreach ($users as $user) {
+            // El histórico real solo se persiste con datos reales: si el canal
+            // del usuario está en mock, se omite para no contaminar la curva real.
+            if ($this->brokerResolver->isMock($user->tradingChannel())) {
+                $this->info("Canal {$user->tradingChannel()} en modo mock: snapshot omitido para {$user->email}.");
+
+                continue;
+            }
+
             try {
-                $balance = $this->binanceBroker->getTotalBalance(
-                    $user->binance_api_key,
-                    $user->binance_secret_key,
+                $balance = $this->brokerResolver->forUser($user)->getTotalBalance(
+                    $user->brokerApiKey(),
+                    $user->brokerSecretKey(),
                 );
 
                 $capturedAt = now();
@@ -80,10 +83,10 @@ class SyncBinanceBalances extends Command
 
                 event(new BalanceUpdated($user, $balance, $capturedAt->toImmutable()));
 
-                $this->info("Balance sincronizado para {$user->email}: {$balance} EUR");
+                $this->info("Balance sincronizado para {$user->email} ({$user->tradingChannel()}): {$balance}");
                 $syncedCount++;
 
-            } catch (BinanceInvalidCredentialsException $e) {
+            } catch (InvalidBrokerCredentialsInterface $e) {
                 // Credenciales revocadas: no se pausa el bot aquí (responsabilidad
                 // de la auditoría de permisos); solo se omite el snapshot.
                 $this->warn("Credenciales inválidas para el usuario ID: {$user->id}. Snapshot omitido.");

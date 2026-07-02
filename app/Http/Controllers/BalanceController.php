@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Core\Contracts\BinanceBrokerInterface;
 use App\Core\Portfolio\PortfolioPerformanceService;
 use App\Core\Simulation\SimulatedBalanceProjector;
+use App\Core\Trading\BrokerResolver;
 use App\Events\BalanceUpdated;
 use App\Http\Requests\BalanceHistoryRequest;
 use App\Infrastructure\Demo\FakeBalanceHistoryGenerator;
@@ -21,7 +21,7 @@ class BalanceController extends Controller
 {
     public function __construct(
         private readonly PortfolioPerformanceService $performanceService,
-        private readonly BinanceBrokerInterface $binanceBroker,
+        private readonly BrokerResolver $brokerResolver,
         private readonly SimulatedBalanceProjector $balanceProjector,
     ) {}
 
@@ -38,9 +38,9 @@ class BalanceController extends Controller
     {
         $user = Auth::user();
 
-        // Solo el modo real con Binance vinculado tiene patrimonio "en vivo":
+        // Solo el modo real con el canal vinculado tiene patrimonio "en vivo":
         // en simulación el balance no está atado a una posición real del exchange.
-        if ($user->bot_mode !== 'real' || ! $user->isBinanceLinked()) {
+        if ($user->bot_mode !== 'real' || ! $user->isBrokerLinked()) {
             return response()->json(['live' => false, 'balance' => null]);
         }
 
@@ -48,9 +48,9 @@ class BalanceController extends Controller
             $balance = Cache::remember(
                 "user:{$user->id}:live_equity",
                 now()->addSeconds(5),
-                fn () => $this->binanceBroker->getTotalBalance(
-                    $user->binance_api_key,
-                    $user->binance_secret_key,
+                fn () => $this->brokerResolver->forUser($user)->getTotalBalance(
+                    $user->brokerApiKey(),
+                    $user->brokerSecretKey(),
                 ),
             );
         } catch (\Throwable $e) {
@@ -97,10 +97,10 @@ class BalanceController extends Controller
             return response()->json($report->toArray());
         }
 
-        if ($user->isBinanceLinked() && ! $user->balanceSnapshots()->exists() && ! app()->environment('testing') && ! config('services.binance.mock')) {
+        if ($user->isBrokerLinked() && ! $user->balanceSnapshots()->exists() && ! app()->environment('testing') && ! $this->brokerResolver->isMock($user->tradingChannel())) {
             try {
-                $broker = app(BinanceBrokerInterface::class);
-                $balance = $broker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+                $broker = $this->brokerResolver->forUser($user);
+                $balance = $broker->getTotalBalance($user->brokerApiKey(), $user->brokerSecretKey());
                 $user->balanceSnapshots()->create([
                     'balance' => $balance,
                     'captured_at' => now(),

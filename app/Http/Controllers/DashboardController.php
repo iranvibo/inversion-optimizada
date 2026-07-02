@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Core\Contracts\BinanceBrokerInterface;
 use App\Core\Contracts\SignalProviderInterface;
+use App\Core\Trading\BrokerResolver;
+use App\Events\BalanceUpdated;
 use App\Events\BotStatusUpdated;
 use App\Jobs\AdjustPositionJob;
 use App\Models\BotActivity;
@@ -17,12 +18,9 @@ use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
-    protected BinanceBrokerInterface $binanceBroker;
-
-    public function __construct(BinanceBrokerInterface $binanceBroker)
-    {
-        $this->binanceBroker = $binanceBroker;
-    }
+    public function __construct(
+        protected readonly BrokerResolver $brokerResolver,
+    ) {}
 
     /**
      * Muestra el Dashboard principal de ViBo Invest.
@@ -150,9 +148,9 @@ class DashboardController extends Controller
             return back()->with('error', 'Sesión no válida.');
         }
 
-        // Si intenta encender el bot sin Binance vinculado, lo bloquea
-        if (! $user->bot_active && ! $user->isBinanceLinked()) {
-            $errorMessage = 'Operación Bloqueada: Para activar el bot debes vincular una cuenta de Binance autorizada.';
+        // Si intenta encender el bot sin el canal de ejecución vinculado, lo bloquea
+        if (! $user->bot_active && ! $user->isBrokerLinked()) {
+            $errorMessage = 'Operación Bloqueada: Para activar el bot debes vincular una cuenta autorizada en tu canal de ejecución (Binance o Hyperliquid).';
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $errorMessage], 403);
             }
@@ -166,10 +164,12 @@ class DashboardController extends Controller
             $previousPosition = $user->current_position;
             $hasOpenPosition = ($previousPosition === 'LONG' || $previousPosition === 'SHORT');
 
-            // Cierre preventivo en Binance si la cuenta está vinculada (para cualquier modo, como salvaguarda)
-            if ($user->isBinanceLinked()) {
+            // Cierre preventivo en el canal activo si está vinculado (para cualquier modo, como salvaguarda)
+            if ($user->isBrokerLinked()) {
+                $broker = $this->brokerResolver->forUser($user);
+
                 try {
-                    $this->binanceBroker->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
+                    $broker->closeOpenPositions($user->brokerApiKey(), $user->brokerSecretKey());
                     Log::info("Cierre preventivo de posiciones ejecutado para el usuario ID: {$user->id}");
 
                     if ($user->bot_mode === 'real' && $hasOpenPosition) {
@@ -180,12 +180,12 @@ class DashboardController extends Controller
                             sleep(2);
                         }
 
-                        $newBalance = $this->binanceBroker->getTotalBalance($user->binance_api_key, $user->binance_secret_key);
+                        $newBalance = $broker->getTotalBalance($user->brokerApiKey(), $user->brokerSecretKey());
 
                         // Sincronizar el nuevo balance
                         $now = now()->toImmutable();
-                        // En real solo se persiste con datos reales de Binance, nunca en mock.
-                        if (! config('services.binance.mock')) {
+                        // En real solo se persiste con datos reales del canal, nunca en mock.
+                        if (! $this->brokerResolver->isMock($user->tradingChannel())) {
                             $user->balanceSnapshots()->create([
                                 'balance' => $newBalance,
                                 'captured_at' => $now,
@@ -210,7 +210,7 @@ class DashboardController extends Controller
                         ]);
 
                         // Emitir evento para balance
-                        event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
+                        event(new BalanceUpdated($user, $newBalance, $now));
                     }
                 } catch (\Exception $e) {
                     $closeError = 'Advertencia: El bot se pausó localmente, pero hubo un problema al cerrar posiciones en Binance: '.$e->getMessage();
@@ -245,7 +245,7 @@ class DashboardController extends Controller
                 ]);
 
                 // Emitir evento WebSocket para actualizar balance en tiempo real
-                event(new \App\Events\BalanceUpdated($user, $newBalance, $now));
+                event(new BalanceUpdated($user, $newBalance, $now));
             }
         } else {
             // Transición a ACTIVO: enviar señal al motor de ejecución de órdenes (Escenario 1)
@@ -265,7 +265,7 @@ class DashboardController extends Controller
             // para que no se destaquen arriba en el feed, ya que la pausa por riesgo ha sido resuelta.
             $user->botActivities()->where('risk_alert', true)->update(['risk_alert' => false]);
 
-            if ($user->bot_mode === 'simulation' || ($user->bot_mode === 'real' && $user->isBinanceLinked())) {
+            if ($user->bot_mode === 'simulation' || ($user->bot_mode === 'real' && $user->isBrokerLinked())) {
                 // Reconciliación al activar: el motor solo reacciona a CAMBIOS de señal,
                 // así que tras un pausa→cierre la posición real o simulada queda en CLOSE
                 // mientras la señal vigente puede seguir siendo SHORT/LONG. Al encender,
@@ -349,8 +349,8 @@ class DashboardController extends Controller
         $newMode = $user->bot_mode === 'real' ? 'simulation' : 'real';
 
         // Si intenta cambiar a modo real y no está vinculado, mostrar error guiando al flujo de vinculación
-        if ($newMode === 'real' && ! $user->isBinanceLinked()) {
-            $errorMessage = 'Requisito de Seguridad: Para activar el modo REAL debes tener una cuenta de Binance vinculada y validada. Por favor, conéctala en la sección "Conexión de Binance".';
+        if ($newMode === 'real' && ! $user->isBrokerLinked()) {
+            $errorMessage = 'Requisito de Seguridad: Para activar el modo REAL debes tener vinculada y validada la cuenta de tu canal de ejecución (Binance o Hyperliquid). Por favor, conéctala desde el Panel de Control.';
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $errorMessage], 403);
             }
@@ -366,7 +366,7 @@ class DashboardController extends Controller
         // o requerir alineación inmediata con la señal vigente para no quedarnos en
         // CLOSE (mismo criterio que la activación del bot).
         if ($user->bot_active) {
-            if ($newMode === 'simulation' || ($newMode === 'real' && $user->isBinanceLinked())) {
+            if ($newMode === 'simulation' || ($newMode === 'real' && $user->isBrokerLinked())) {
                 $this->reconcilePositionWithCurrentSignal($user);
             }
         }
@@ -383,6 +383,98 @@ class DashboardController extends Controller
         }
 
         return back()->with('success', $statusMessage);
+    }
+
+    /**
+     * Cambia el canal de ejecución del trading en real (Binance ↔ Hyperliquid).
+     *
+     * Requiere que el canal destino esté vinculado y verificado. Si el usuario
+     * está en modo real, antes de cambiar se ejecuta un cierre preventivo en el
+     * canal ACTUAL (mismo criterio fail-safe que US04/US07): nunca se dejan
+     * posiciones huérfanas en un canal que el bot dejará de gestionar.
+     */
+    public function switchChannel(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Sesión no válida.'], 401);
+            }
+
+            return back()->with('error', 'Sesión no válida.');
+        }
+
+        $request->validate([
+            'trading_channel' => 'required|string|in:binance,hyperliquid',
+        ]);
+
+        $newChannel = $request->input('trading_channel');
+        $currentChannel = $user->tradingChannel();
+
+        if ($newChannel === $currentChannel) {
+            return $request->wantsJson()
+                ? response()->json(['success' => true, 'trading_channel' => $currentChannel, 'message' => 'Ese ya es tu canal de ejecución actual.'])
+                : back()->with('success', 'Ese ya es tu canal de ejecución actual.');
+        }
+
+        // El canal destino debe estar vinculado antes de poder activarse.
+        $targetLinked = $newChannel === User::CHANNEL_HYPERLIQUID
+            ? $user->isHyperliquidLinked()
+            : $user->isBinanceLinked();
+
+        if (! $targetLinked) {
+            $errorMessage = $newChannel === User::CHANNEL_HYPERLIQUID
+                ? 'Para usar Hyperliquid primero debes vincular tu wallet en la sección "Conexión Hyperliquid".'
+                : 'Para usar Binance primero debes vincular tu cuenta en la sección "Conexión Binance".';
+
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => $errorMessage], 403)
+                : back()->with('error', $errorMessage);
+        }
+
+        // Cierre preventivo en el canal actual antes de abandonarlo (solo afecta
+        // al modo real; la simulación no tiene posiciones en ningún exchange).
+        $closeError = null;
+        if ($user->bot_mode === 'real' && $user->isBrokerLinked()) {
+            try {
+                $this->brokerResolver->forUser($user)
+                    ->closeOpenPositions($user->brokerApiKey(), $user->brokerSecretKey());
+                Log::info("Cierre preventivo al cambiar de canal ({$currentChannel} → {$newChannel}) para el usuario ID: {$user->id}");
+            } catch (\Exception $e) {
+                // Fail-safe local: se registra como crítico pero el cambio continúa
+                // para no dejar al usuario atrapado en un canal con credenciales rotas.
+                $closeError = 'Advertencia: hubo un problema al cerrar posiciones en '.ucfirst($currentChannel).' antes del cambio: '.$e->getMessage();
+                Log::critical("Fallo del cierre preventivo al cambiar de canal para el usuario ID: {$user->id}. Detalle: ".$e->getMessage());
+            }
+
+            Cache::put("user:{$user->id}:real_position", 'CLOSE');
+            Cache::forget("user:{$user->id}:open_capital");
+            Cache::forget("user:{$user->id}:live_equity");
+        }
+
+        $user->update(['trading_channel' => $newChannel]);
+
+        // Con el bot activo en real, alinear la posición del canal nuevo con la
+        // señal vigente (mismo criterio que la activación y el cambio de modo).
+        if ($user->bot_active && $user->bot_mode === 'real') {
+            $this->reconcilePositionWithCurrentSignal($user);
+        }
+
+        $statusMessage = 'Canal de ejecución cambiado a: '.($newChannel === User::CHANNEL_HYPERLIQUID ? 'Hyperliquid' : 'Binance');
+        if ($closeError) {
+            $statusMessage .= ' '.$closeError;
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'trading_channel' => $newChannel,
+                'message' => $statusMessage,
+                'warning' => $closeError,
+            ]);
+        }
+
+        return back()->with($closeError ? 'error' : 'success', $statusMessage);
     }
 
     /**
@@ -409,7 +501,7 @@ class DashboardController extends Controller
         ]);
 
         if ($user->bot_active) {
-            if ($user->bot_mode === 'simulation' || ($user->bot_mode === 'real' && $user->isBinanceLinked())) {
+            if ($user->bot_mode === 'simulation' || ($user->bot_mode === 'real' && $user->isBrokerLinked())) {
                 $this->reconcilePositionWithCurrentSignal($user);
             }
         }

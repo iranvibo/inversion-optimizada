@@ -10,10 +10,10 @@
             <p class="text-sm text-slate-400">Controla tu estrategia y supervisa tu inversión en tiempo real.</p>
         </div>
         <div class="flex items-center gap-3">
-            @if($user->isBinanceLinked())
+            @if($user->isBrokerLinked())
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    Binance Conectado
+                    {{ $user->tradingChannel() === \App\Models\User::CHANNEL_HYPERLIQUID ? 'Hyperliquid Conectado' : 'Binance Conectado' }}
                 </span>
             @else
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/20">
@@ -253,7 +253,7 @@
                     </span>
                     <span id="bot-mode-desc" class="text-xs text-slate-400 block mt-1">
                         @if($user->bot_mode === 'real')
-                            Operando directamente en tu cartera de Binance.
+                            Operando directamente en tu cuenta de {{ $user->tradingChannel() === \App\Models\User::CHANNEL_HYPERLIQUID ? 'Hyperliquid' : 'Binance' }}.
                         @else
                             Operaciones simuladas con capital de prueba.
                         @endif
@@ -324,7 +324,11 @@
             </form>
         </div>
 
-        <!-- Tarjeta 4: Configuración de Binance -->
+        <!-- Tarjeta 4: Canal de Ejecución (Binance / Hyperliquid) -->
+        @php
+            $activeChannel = $user->tradingChannel();
+            $isHyperliquidChannel = $activeChannel === \App\Models\User::CHANNEL_HYPERLIQUID;
+        @endphp
         <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col justify-between min-h-[170px]">
             <div>
                 <div class="flex items-center gap-2.5">
@@ -333,23 +337,56 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
                     </span>
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Conexión Binance</span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Canal de Ejecución</span>
                 </div>
-                <div class="my-4">
-                    @if($user->isBinanceLinked())
+
+                <!-- Selector de canal: el activo se resalta; cambiar al otro canal
+                     exige tenerlo vinculado (si no, lleva a su pantalla de conexión) -->
+                <div class="flex gap-2 mt-4">
+                    @if($isHyperliquidChannel)
+                        @if($user->isBinanceLinked())
+                            <form action="{{ route('bot.switch-channel') }}" method="POST" class="m-0 p-0 flex-1">
+                                @csrf
+                                <input type="hidden" name="trading_channel" value="binance">
+                                <button type="submit" class="w-full text-[11px] font-bold py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-violet-500/50 transition duration-200">Binance</button>
+                            </form>
+                        @else
+                            <a href="{{ route('binance.link') }}" class="flex-1 text-center text-[11px] font-bold py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-violet-500/50 transition duration-200">Binance</a>
+                        @endif
+                        <span class="flex-1 text-center text-[11px] font-bold py-1.5 px-2 rounded-lg bg-violet-600/20 border border-violet-500/50 text-violet-300">Hyperliquid</span>
+                    @else
+                        <span class="flex-1 text-center text-[11px] font-bold py-1.5 px-2 rounded-lg bg-violet-600/20 border border-violet-500/50 text-violet-300">Binance</span>
+                        @if($user->isHyperliquidLinked())
+                            <form action="{{ route('bot.switch-channel') }}" method="POST" class="m-0 p-0 flex-1">
+                                @csrf
+                                <input type="hidden" name="trading_channel" value="hyperliquid">
+                                <button type="submit" class="w-full text-[11px] font-bold py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-violet-500/50 transition duration-200">Hyperliquid</button>
+                            </form>
+                        @else
+                            <a href="{{ route('hyperliquid.link') }}" class="flex-1 text-center text-[11px] font-bold py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-violet-500/50 transition duration-200">Hyperliquid</a>
+                        @endif
+                    @endif
+                </div>
+
+                <div class="my-3">
+                    @if($user->isBrokerLinked())
                         <span class="text-2xl font-extrabold block text-emerald-400 uppercase tracking-tight">Conectado</span>
                         <code class="text-[11px] text-slate-400 bg-slate-900 px-2 py-1 rounded block truncate mt-2">
-                            API: {{ substr($user->binance_api_key, 0, 8) }}...{{ substr($user->binance_api_key, -8) }}
+                            @if($isHyperliquidChannel)
+                                Wallet: {{ substr($user->hyperliquid_wallet_address, 0, 8) }}...{{ substr($user->hyperliquid_wallet_address, -6) }}
+                            @else
+                                API: {{ substr($user->binance_api_key, 0, 8) }}...{{ substr($user->binance_api_key, -8) }}
+                            @endif
                         </code>
                     @else
                         <span class="text-2xl font-extrabold block text-rose-400 uppercase tracking-tight">Sin conexión</span>
-                        <span class="text-xs text-slate-400 block mt-1">Conecta tu API para operar en real de forma segura.</span>
+                        <span class="text-xs text-slate-400 block mt-1">Conecta tu cuenta para operar en real de forma segura.</span>
                     @endif
                 </div>
             </div>
 
-            @if($user->isBinanceLinked())
-                <form action="{{ route('binance.disconnect') }}" method="POST" class="m-0 p-0">
+            @if($user->isBrokerLinked())
+                <form action="{{ $isHyperliquidChannel ? route('hyperliquid.disconnect') : route('binance.disconnect') }}" method="POST" class="m-0 p-0">
                     @csrf
                     <button type="submit"
                             class="w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30">
@@ -357,9 +394,9 @@
                     </button>
                 </form>
             @else
-                <a href="{{ route('binance.link') }}"
+                <a href="{{ $isHyperliquidChannel ? route('hyperliquid.link') : route('binance.link') }}"
                    class="w-full text-center text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-violet-600 hover:bg-violet-500 text-white inline-block">
-                    Conectar Binance
+                    {{ $isHyperliquidChannel ? 'Conectar Hyperliquid' : 'Conectar Binance' }}
                 </a>
             @endif
         </div>

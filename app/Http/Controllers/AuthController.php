@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Core\Contracts\BinanceBrokerInterface;
+use App\Core\Contracts\HyperliquidBrokerInterface;
 use App\Models\User;
 use App\Services\FirebaseTokenVerifier;
 use Illuminate\Http\JsonResponse;
@@ -174,8 +176,8 @@ class AuthController extends Controller
 
     /**
      * Elimina definitivamente la cuenta del usuario autenticado (GDPR).
-     * Cierra de forma preventiva cualquier posición abierta en Binance
-     * si el bot está activo.
+     * Cierra de forma preventiva cualquier posición abierta en los canales
+     * de ejecución vinculados (Binance y/o Hyperliquid) si el bot está activo.
      */
     public function deleteAccount(Request $request)
     {
@@ -185,18 +187,30 @@ class AuthController extends Controller
         }
 
         if ($user->bot_active) {
-            try {
-                $binanceBroker = app(\App\Core\Contracts\BinanceBrokerInterface::class);
-                if ($user->isBinanceLinked()) {
-                    $binanceBroker->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
-                    Log::info("Cierre de posiciones preventivo por eliminación de cuenta para el usuario ID: {$user->id}");
+            // Cada canal se cierra de forma independiente: el fallo de uno no
+            // impide intentar cerrar el otro ni bloquea la eliminación (GDPR).
+            if ($user->isBinanceLinked()) {
+                try {
+                    app(BinanceBrokerInterface::class)
+                        ->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
+                    Log::info("Cierre de posiciones preventivo (Binance) por eliminación de cuenta para el usuario ID: {$user->id}");
+                } catch (\Exception $e) {
+                    Log::critical("Fallo al cerrar posiciones en Binance al eliminar la cuenta del usuario ID: {$user->id}. Detalle: ".$e->getMessage());
                 }
-            } catch (\Exception $e) {
-                Log::critical("Fallo al cerrar posiciones preventivamente al eliminar la cuenta del usuario ID: {$user->id}. Detalle: " . $e->getMessage());
+            }
+
+            if ($user->isHyperliquidLinked()) {
+                try {
+                    app(HyperliquidBrokerInterface::class)
+                        ->closeOpenPositions($user->hyperliquid_wallet_address, $user->hyperliquid_agent_key);
+                    Log::info("Cierre de posiciones preventivo (Hyperliquid) por eliminación de cuenta para el usuario ID: {$user->id}");
+                } catch (\Exception $e) {
+                    Log::critical("Fallo al cerrar posiciones en Hyperliquid al eliminar la cuenta del usuario ID: {$user->id}. Detalle: ".$e->getMessage());
+                }
             }
         }
 
-        // 1. Cerrar sesión e invalidar la sesión primero para evitar que Laravel intente 
+        // 1. Cerrar sesión e invalidar la sesión primero para evitar que Laravel intente
         // actualizar el remember_token en la base de datos para un usuario eliminado
         Auth::logout();
         $request->session()->invalidate();

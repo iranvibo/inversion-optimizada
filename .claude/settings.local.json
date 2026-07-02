@@ -57,7 +57,16 @@
       "Bash(php -l app/Core/Simulation/RiskProfile.php)",
       "Bash(awk 'NR>=1 && NR<=40')",
       "Bash(DEMO_TOOLS_ENABLED=false php artisan route:list)",
-      "Bash(grep -iA3 \"POST.*login\")"
+      "Bash(grep -iA3 \"POST.*login\")",
+      "WebFetch(domain:hyperliquid.gitbook.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(php -v)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(curl -sL --max-time 30 https://raw.githubusercontent.com/hyperliquid-dex/hyperliquid-python-sdk/master/hyperliquid/utils/signing.py -o /private/tmp/claude-501/-Users-bdado-VSCode-inversion-optimizada/1c7bb671-f1fe-4bda-b30a-af9d9a53021f/scratchpad/signing.py)",
+      "Bash(curl -sL --max-time 30 https://raw.githubusercontent.com/hyperliquid-dex/hyperliquid-python-sdk/master/tests/signing_test.py -o /private/tmp/claude-501/-Users-bdado-VSCode-inversion-optimizada/1c7bb671-f1fe-4bda-b30a-af9d9a53021f/scratchpad/signing_test.py)",
+      "Bash(composer audit *)",
+      "Bash(php /private/tmp/claude-501/-Users-bdado-VSCode-inversion-optimizada/1c7bb671-f1fe-4bda-b30a-af9d9a53021f/scratchpad/verify_signer.php)",
+      "Bash(./vendor/bin/pint app/Infrastructure/Hyperliquid app/Core config/services.php app/Http/Controllers/HyperliquidConnectionController.php app/Http/Requests/LinkHyperliquidRequest.php app/Console/Commands/SyncBinanceBalances.php app/Console/Commands/VerifyBinancePermissions.php app/Jobs/AdjustPositionJob.php app/Models/User.php app/Providers/AppServiceProvider.php app/Http/Controllers/DashboardController.php app/Http/Controllers/BalanceController.php app/Http/Controllers/AuthController.php tests/Unit/HyperliquidSignerTest.php tests/Unit/HyperliquidBrokerTest.php tests/Unit/AdjustPositionJobChannelTest.php tests/Feature/HyperliquidConnectionTest.php database/migrations/2026_07_02_090000_add_hyperliquid_channel_fields_to_users_table.php)"
     ]
   }
 }

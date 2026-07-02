@@ -11,12 +11,12 @@ class BotActivityFormatter
      */
     public static function format(BotActivity $activity): string
     {
-        $percentage = $activity->profit_percentage !== null 
-            ? number_format(abs($activity->profit_percentage), 2, ',', '.') 
+        $percentage = $activity->profit_percentage !== null
+            ? number_format(abs($activity->profit_percentage), 2, ',', '.')
             : null;
-            
-        $value = $activity->profit_value !== null 
-            ? number_format(abs($activity->profit_value), 2, ',', '.') 
+
+        $value = $activity->profit_value !== null
+            ? number_format(abs($activity->profit_value), 2, ',', '.')
             : null;
 
         switch ($activity->action) {
@@ -31,6 +31,7 @@ class BotActivityFormatter
                 if ($percentage !== null && $value !== null) {
                     return "Inversión finalizada: posición cerrada con un +{$percentage}% de beneficio (+{$value}$).";
                 }
+
                 return 'Inversión finalizada: posición cerrada con beneficio.';
 
             case 'close_loss':
@@ -40,6 +41,7 @@ class BotActivityFormatter
                 if ($value !== null) {
                     return "Inversión finalizada: posición cerrada con una pérdida de -{$value}$.";
                 }
+
                 return 'Inversión finalizada: posición cerrada con pérdida.';
 
             case 'stop_loss_trigger':

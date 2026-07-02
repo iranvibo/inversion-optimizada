@@ -196,7 +196,7 @@ class BotControlTest extends TestCase
             ->post(route('bot.toggle'));
 
         $response->assertSessionHas('error');
-        $this->assertStringContainsString('Para activar el bot debes vincular una cuenta de Binance autorizada', session('error'));
+        $this->assertStringContainsString('Para activar el bot debes vincular una cuenta autorizada', session('error'));
 
         $unlinkedUser->refresh();
         $this->assertFalse($unlinkedUser->bot_active);
@@ -221,7 +221,7 @@ class BotControlTest extends TestCase
             ->post(route('bot.toggle'));
 
         $response->assertSessionHas('error');
-        $this->assertStringContainsString('Para activar el bot debes vincular una cuenta de Binance autorizada', session('error'));
+        $this->assertStringContainsString('Para activar el bot debes vincular una cuenta autorizada', session('error'));
 
         $unlinkedUser->refresh();
         $this->assertFalse($unlinkedUser->bot_active);
@@ -444,7 +444,7 @@ class BotControlTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
-        $this->assertStringContainsString('Para activar el modo REAL debes tener una cuenta de Binance vinculada', session('error'));
+        $this->assertStringContainsString('Para activar el modo REAL debes tener vinculada y validada la cuenta de tu canal', session('error'));
 
         $unlinkedUser->refresh();
         $this->assertSame('simulation', $unlinkedUser->bot_mode);

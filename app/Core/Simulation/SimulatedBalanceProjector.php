@@ -17,17 +17,16 @@ class SimulatedBalanceProjector
 {
     public function __construct(
         private readonly SignalProviderInterface $signalProvider,
-    ) {
-    }
+    ) {}
 
     /**
      * Construye la serie de balances aplicando, en orden cronológico, el
      * rendimiento de cada señal sobre el capital acumulado.
      *
      * @param  DateTimeImmutable|null  $startAt  Si se indica, antepone un punto
-     *         "Inicio" con el capital intacto en ese instante (lo usa el
-     *         dashboard para anclar el arranque de la ventana temporal). El
-     *         onboarding lo omite porque la primera señal ya parte del capital.
+     *                                           "Inicio" con el capital intacto en ese instante (lo usa el
+     *                                           dashboard para anclar el arranque de la ventana temporal). El
+     *                                           onboarding lo omite porque la primera señal ya parte del capital.
      * @return list<array{captured_at: DateTimeImmutable, balance: float}>
      */
     public function project(string $riskLevel, float $capital, ?DateTimeImmutable $startAt = null): array

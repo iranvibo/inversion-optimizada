@@ -13,7 +13,7 @@ Key constraints   :
   - Extreme simplicity: Styled as the "Netflix of automated trading", avoiding complex terminal designs.
   - Minimalist UX/UI: No advanced technical indicators (RSI, MACD, candles, order books). Use clear, human-readable terms (e.g. "caídas temporales" instead of "volatilidad").
   - Security & Trust: Highlight risk management features (daily stop loss, protected capital limit, no withdrawal permissions).
-  - Integration: Binance exchange integration via API. Las señales de trading a ejecutar en Binance se obtienen consultando (polling) una API externa al proyecto, pasándole el nivel de riesgo; responde la posición objetivo (LONG/SHORT/CLOSE) y el histórico de señales para el capital simulado. Un proveedor mock interno (mismo contrato) es el driver por defecto para desarrollo y tests.
+  - Integration: Binance exchange integration via API. Las señales de trading a ejecutar en Binance se obtienen consultando (polling) una API externa al proyecto, pasándole el nivel de riesgo; responde la posición objetivo (LONG/SHORT/CLOSE) y el histórico de señales para el capital simulado. Un proveedor mock interno (mismo contrato) es el driver por defecto para desarrollo y tests. Existe un segundo canal de ejecución opcional por usuario: Hyperliquid (DEX de perpetuos on-chain, API wallet sin permisos de retiro), seleccionable con users.trading_channel.
 Notes             : Keep features limited for the MVP (login, simulation, connecting Binance, activating/pausing bot, changing risk level, toggling simulation/real mode, and showing balance/simulated-capital evolution). Desde la app no se hacen más acciones de trading.
 ```
 

@@ -47,7 +47,9 @@ class AdjustPositionJobTest extends TestCase
 
     private function runJob(int $userId, string $position): void
     {
-        (new AdjustPositionJob($userId, $position))->handle($this->broker);
+        // El job resuelve el broker por canal a través del BrokerResolver; el
+        // canal por defecto (binance) resuelve el doble registrado en el contenedor.
+        (new AdjustPositionJob($userId, $position))->handle(app(\App\Core\Trading\BrokerResolver::class));
     }
 
     // ─── Guardas tempranas ───────────────────────────────────────────────

@@ -5,7 +5,7 @@ namespace App\Core\Contracts;
 use App\Core\Exceptions\BinanceException;
 use App\Core\Exceptions\BinanceInvalidCredentialsException;
 
-interface BinanceBrokerInterface
+interface BinanceBrokerInterface extends BrokerInterface
 {
     /**
      * Obtiene las restricciones y permisos de la API Key de Binance.
@@ -71,7 +71,7 @@ interface BinanceBrokerInterface
      *     apalancamiento configurado (10x por defecto, "de ser posible").
      *
      * @param  string  $riskLevel  Perfil de riesgo del usuario (define la fracción de capital).
-     * @return bool  true si se ejecutó un cambio de estado en el exchange; false si fue idempotente.
+     * @return bool true si se ejecutó un cambio de estado en el exchange; false si fue idempotente.
      *
      * @throws BinanceInvalidCredentialsException
      * @throws BinanceException
