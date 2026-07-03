@@ -52,6 +52,10 @@ class InvitationController extends Controller
         return response()->json([
             'email' => $invitation->email,
             'code' => $code,
+            // Enlace directo al registro con el código ya rellenado, listo para
+            // compartir con la persona invitada. Sólo lleva el código (no el
+            // email) para minimizar datos personales en historiales y logs.
+            'register_url' => route('register', ['invitation' => $code]),
             'expires_at' => $invitation->expires_at->toIso8601String(),
         ], 201);
     }

@@ -27,7 +27,7 @@
             <input type="text" name="invitation_code" id="invitation_code" form="register-form" required data-invitation-code
                    autocomplete="off" autocapitalize="characters" spellcheck="false"
                    class="w-full bg-[hsl(223,47%,10%)] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white tracking-widest focus:outline-none focus:border-violet-500 transition duration-200"
-                   placeholder="XXXX-XXXX-XXXX-XXXX" value="{{ old('invitation_code') }}">
+                   placeholder="XXXX-XXXX-XXXX-XXXX" value="{{ old('invitation_code', request()->query('invitation')) }}">
             <p class="text-[11px] text-slate-500 mt-1">El registro es solo con invitación. Introduce el código que te hemos enviado.</p>
             @error('invitation_code')
                 <span class="text-rose-400 text-xs mt-1 block">{{ $message }}</span>

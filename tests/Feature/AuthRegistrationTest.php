@@ -132,6 +132,14 @@ class AuthRegistrationTest extends TestCase
         $this->assertAuthenticated();
     }
 
+    public function test_register_page_prefills_invitation_code_from_query_string(): void
+    {
+        // La URL compartible (register_url de la API) precarga el campo.
+        $this->get(route('register', ['invitation' => 'K7KM-W3QP-9TXR-4HAB']))
+            ->assertOk()
+            ->assertSee('value="K7KM-W3QP-9TXR-4HAB"', false);
+    }
+
     public function test_registration_requires_privacy_acceptance(): void
     {
         $response = $this->post(route('register'), $this->registrationPayload([

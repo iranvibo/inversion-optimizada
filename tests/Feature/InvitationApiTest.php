@@ -31,10 +31,16 @@ class InvitationApiTest extends TestCase
             'email' => 'Invitada@Example.com',
         ], ['Authorization' => 'Bearer '.self::API_TOKEN]);
 
-        $response->assertCreated()->assertJsonStructure(['email', 'code', 'expires_at']);
+        $response->assertCreated()->assertJsonStructure(['email', 'code', 'register_url', 'expires_at']);
 
         // El email se normaliza y el código en claro nunca se persiste.
         $this->assertSame('invitada@example.com', $response->json('email'));
+
+        // La URL compartible abre el registro con el código precargado.
+        $this->assertSame(
+            route('register', ['invitation' => $response->json('code')]),
+            $response->json('register_url')
+        );
         $invitation = InvitationCode::where('email', 'invitada@example.com')->first();
         $this->assertNotNull($invitation);
         $this->assertNotSame($response->json('code'), $invitation->code_hash);
