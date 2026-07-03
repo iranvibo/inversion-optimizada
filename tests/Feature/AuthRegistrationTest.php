@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\InvitationCode;
 use App\Models\User;
 use App\Services\FirebaseTokenVerifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -10,8 +11,8 @@ use Tests\TestCase;
 
 /**
  * Pruebas del flujo de autenticación ampliado (US01):
- * registro con contraseña, aceptación de política de privacidad e
- * inicio de sesión con Google (Firebase).
+ * registro con contraseña, aceptación de política de privacidad,
+ * inicio de sesión con Google (Firebase) y registro sólo con invitación.
  */
 class AuthRegistrationTest extends TestCase
 {
@@ -21,11 +22,14 @@ class AuthRegistrationTest extends TestCase
 
     public function test_user_can_register_with_valid_data(): void
     {
+        $code = $this->issueInvitation('ada@example.com');
+
         $response = $this->post(route('register'), [
             'name' => 'Ada Lovelace',
             'email' => 'ada@example.com',
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
+            'invitation_code' => $code,
             'privacy' => '1',
             'terms' => '1',
         ]);
@@ -38,17 +42,102 @@ class AuthRegistrationTest extends TestCase
         $this->assertNotNull($user);
         $this->assertNotNull($user->accepted_privacy_at);
         $this->assertNotNull($user->accepted_terms_at);
+
+        // El código queda marcado como canjeado por el nuevo usuario.
+        $invitation = InvitationCode::where('email', 'ada@example.com')->first();
+        $this->assertNotNull($invitation->used_at);
+        $this->assertSame($user->id, $invitation->used_by);
     }
 
-    public function test_registration_requires_privacy_acceptance(): void
+    public function test_registration_requires_invitation_code(): void
     {
         $response = $this->post(route('register'), [
             'name' => 'Ada Lovelace',
             'email' => 'ada@example.com',
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
+            'privacy' => '1',
             'terms' => '1',
         ]);
+
+        $response->assertSessionHasErrors('invitation_code');
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'ada@example.com']);
+    }
+
+    public function test_registration_rejects_unknown_invitation_code(): void
+    {
+        $response = $this->post(route('register'), $this->registrationPayload([
+            'invitation_code' => 'AAAA-BBBB-CCCC-DDDD',
+        ]));
+
+        $response->assertSessionHasErrors('invitation_code');
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'ada@example.com']);
+    }
+
+    public function test_registration_rejects_code_issued_for_another_email(): void
+    {
+        $code = $this->issueInvitation('otra-persona@example.com');
+
+        $response = $this->post(route('register'), $this->registrationPayload([
+            'invitation_code' => $code,
+        ]));
+
+        $response->assertSessionHasErrors('invitation_code');
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'ada@example.com']);
+    }
+
+    public function test_registration_rejects_expired_code(): void
+    {
+        $code = $this->issueInvitation('ada@example.com');
+        InvitationCode::query()->update(['expires_at' => now()->subMinute()]);
+
+        $response = $this->post(route('register'), $this->registrationPayload([
+            'invitation_code' => $code,
+        ]));
+
+        $response->assertSessionHasErrors('invitation_code');
+        $this->assertGuest();
+    }
+
+    public function test_registration_rejects_already_used_code(): void
+    {
+        $code = $this->issueInvitation('ada@example.com');
+        InvitationCode::query()->update([
+            'used_at' => now(),
+            'used_by' => User::factory()->create()->id,
+        ]);
+
+        $response = $this->post(route('register'), $this->registrationPayload([
+            'invitation_code' => $code,
+        ]));
+
+        $response->assertSessionHasErrors('invitation_code');
+        $this->assertDatabaseMissing('users', ['email' => 'ada@example.com']);
+    }
+
+    public function test_invitation_code_is_forgiving_with_format(): void
+    {
+        // Minúsculas, sin guiones y con espacios alrededor: debe aceptarse.
+        $code = $this->issueInvitation('ada@example.com');
+        $sloppy = ' '.strtolower(str_replace('-', '', $code)).' ';
+
+        $response = $this->post(route('register'), $this->registrationPayload([
+            'invitation_code' => $sloppy,
+        ]));
+
+        $response->assertRedirect(route('onboarding.show'));
+        $this->assertAuthenticated();
+    }
+
+    public function test_registration_requires_privacy_acceptance(): void
+    {
+        $response = $this->post(route('register'), $this->registrationPayload([
+            'invitation_code' => $this->issueInvitation('ada@example.com'),
+            'privacy' => null,
+        ]));
 
         $response->assertSessionHasErrors('privacy');
         $this->assertGuest();
@@ -57,13 +146,10 @@ class AuthRegistrationTest extends TestCase
 
     public function test_registration_requires_terms_acceptance(): void
     {
-        $response = $this->post(route('register'), [
-            'name' => 'Ada Lovelace',
-            'email' => 'ada@example.com',
-            'password' => 'secret123',
-            'password_confirmation' => 'secret123',
-            'privacy' => '1',
-        ]);
+        $response = $this->post(route('register'), $this->registrationPayload([
+            'invitation_code' => $this->issueInvitation('ada@example.com'),
+            'terms' => null,
+        ]));
 
         $response->assertSessionHasErrors('terms');
         $this->assertGuest();
@@ -72,22 +158,21 @@ class AuthRegistrationTest extends TestCase
 
     public function test_registration_rejects_weak_or_mismatched_password(): void
     {
-        $this->post(route('register'), [
-            'name' => 'Ada',
-            'email' => 'ada@example.com',
+        $this->post(route('register'), $this->registrationPayload([
+            'invitation_code' => $this->issueInvitation('ada@example.com'),
             'password' => 'short',
             'password_confirmation' => 'mismatch',
-            'privacy' => '1',
-            'terms' => '1',
-        ])->assertSessionHasErrors('password');
+        ]))->assertSessionHasErrors('password');
 
         $this->assertGuest();
     }
 
     // ─── Inicio de sesión con Google (Firebase) ──────────────────────────
 
-    public function test_google_login_creates_user_from_verified_token(): void
+    public function test_google_login_creates_user_with_valid_invitation(): void
     {
+        $code = $this->issueInvitation('nuevo@gmail.com');
+
         $this->mockVerifier([
             'sub' => 'firebase-uid-123',
             'email' => 'nuevo@gmail.com',
@@ -96,7 +181,10 @@ class AuthRegistrationTest extends TestCase
             'picture' => 'https://example.com/photo.png',
         ]);
 
-        $response = $this->postJson(route('auth.google'), ['id_token' => 'fake-token']);
+        $response = $this->postJson(route('auth.google'), [
+            'id_token' => 'fake-token',
+            'invitation_code' => $code,
+        ]);
 
         $response->assertOk()->assertJsonStructure(['redirect']);
         $this->assertAuthenticated();
@@ -106,7 +194,43 @@ class AuthRegistrationTest extends TestCase
         ]);
     }
 
-    public function test_google_login_links_existing_email_account(): void
+    public function test_google_registration_requires_invitation_code(): void
+    {
+        $this->mockVerifier([
+            'sub' => 'firebase-uid-123',
+            'email' => 'nuevo@gmail.com',
+            'email_verified' => true,
+            'name' => 'Nuevo Usuario',
+        ]);
+
+        $this->postJson(route('auth.google'), ['id_token' => 'fake-token'])
+            ->assertStatus(422);
+
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'nuevo@gmail.com']);
+    }
+
+    public function test_google_registration_rejects_invitation_for_another_email(): void
+    {
+        $code = $this->issueInvitation('otra-persona@example.com');
+
+        $this->mockVerifier([
+            'sub' => 'firebase-uid-123',
+            'email' => 'nuevo@gmail.com',
+            'email_verified' => true,
+            'name' => 'Nuevo Usuario',
+        ]);
+
+        $this->postJson(route('auth.google'), [
+            'id_token' => 'fake-token',
+            'invitation_code' => $code,
+        ])->assertStatus(422);
+
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'nuevo@gmail.com']);
+    }
+
+    public function test_google_login_links_existing_email_account_without_invitation(): void
     {
         $existing = User::factory()->create([
             'email' => 'existente@gmail.com',
@@ -120,6 +244,7 @@ class AuthRegistrationTest extends TestCase
             'name' => 'Existente',
         ]);
 
+        // Iniciar sesión en una cuenta ya creada no requiere invitación.
         $this->postJson(route('auth.google'), ['id_token' => 'fake-token'])->assertOk();
 
         $this->assertEquals('firebase-uid-456', $existing->fresh()->firebase_uid);
@@ -134,7 +259,8 @@ class AuthRegistrationTest extends TestCase
         ]);
 
         // Token con un email NO verificado por Google: no debe poder apropiarse
-        // de la cuenta de correo existente vinculándose a ella.
+        // de la cuenta de correo existente vinculándose a ella, ni crear una
+        // cuenta nueva (sin email verificado no se puede casar la invitación).
         $this->mockVerifier([
             'sub' => 'firebase-uid-789',
             'email' => 'victima@gmail.com',
@@ -142,10 +268,12 @@ class AuthRegistrationTest extends TestCase
             'name' => 'Atacante',
         ]);
 
-        $this->postJson(route('auth.google'), ['id_token' => 'fake-token']);
+        $this->postJson(route('auth.google'), ['id_token' => 'fake-token'])
+            ->assertStatus(422);
 
         // La cuenta original sigue sin identidad de Google vinculada.
         $this->assertNull($existing->fresh()->firebase_uid);
+        $this->assertGuest();
     }
 
     public function test_google_login_rejects_invalid_token(): void
@@ -158,6 +286,36 @@ class AuthRegistrationTest extends TestCase
             ->assertStatus(422);
 
         $this->assertGuest();
+    }
+
+    // ─── Auxiliares ───────────────────────────────────────────────────────
+
+    /**
+     * Emite un código de invitación válido para el email dado y devuelve el
+     * código en claro, como haría la API interna de invitaciones.
+     */
+    private function issueInvitation(string $email): string
+    {
+        return InvitationCode::issueFor($email)['code'];
+    }
+
+    /**
+     * Payload completo de registro tradicional; las claves con valor null se
+     * eliminan para simular campos ausentes.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function registrationPayload(array $overrides = []): array
+    {
+        return array_filter(array_merge([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+            'privacy' => '1',
+            'terms' => '1',
+        ], $overrides), fn ($value) => $value !== null);
     }
 
     /**

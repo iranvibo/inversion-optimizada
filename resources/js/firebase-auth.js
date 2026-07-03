@@ -62,6 +62,10 @@ async function handleGoogleSignIn(button) {
         const result = await signInWithPopup(auth, provider);
         const idToken = await result.user.getIdToken();
 
+        // En la página de registro existe el campo de código de invitación,
+        // obligatorio para crear cuentas nuevas; se envía junto al token.
+        const invitationCode = document.querySelector('[data-invitation-code]')?.value?.trim() || null;
+
         const response = await fetch('/auth/google', {
             method: 'POST',
             headers: {
@@ -69,7 +73,7 @@ async function handleGoogleSignIn(button) {
                 'X-CSRF-TOKEN': csrfToken,
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ id_token: idToken }),
+            body: JSON.stringify({ id_token: idToken, invitation_code: invitationCode }),
         });
 
         if (!response.ok) {

@@ -4,14 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Core\Contracts\BinanceBrokerInterface;
 use App\Core\Contracts\HyperliquidBrokerInterface;
+use App\Models\InvitationCode;
 use App\Models\User;
 use App\Services\FirebaseTokenVerifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class AuthController extends Controller
@@ -73,6 +76,7 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'invitation_code' => ['required', 'string', 'max:255'],
             'privacy' => ['accepted'],
             'terms' => ['accepted'],
         ], [
@@ -82,9 +86,10 @@ class AuthController extends Controller
             'name' => 'nombre',
             'email' => 'correo electrónico',
             'password' => 'contraseña',
+            'invitation_code' => 'código de invitación',
         ]);
 
-        $user = User::create([
+        $user = $this->createInvitedUser($data['email'], $data['invitation_code'], [
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => $data['password'],
@@ -108,6 +113,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'id_token' => ['required', 'string'],
+            'invitation_code' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
 
         try {
@@ -134,6 +140,7 @@ class AuthController extends Controller
 
         if ($user) {
             // Vincula una cuenta de correo existente con su identidad de Google.
+            // Iniciar sesión en una cuenta ya creada no requiere invitación.
             $user->forceFill([
                 'firebase_uid' => $claims['sub'],
                 'avatar' => $claims['picture'] ?? $user->avatar,
@@ -141,17 +148,29 @@ class AuthController extends Controller
                 'accepted_terms_at' => $user->accepted_terms_at ?? now(),
             ])->save();
         } else {
-            // Solo se asocia el email a la cuenta nueva si Google lo verificó; en
-            // caso contrario se usa un correo sintético no colisionable para no
-            // chocar con (ni suplantar) una cuenta existente con ese mismo correo.
-            $user = User::create([
-                'name' => $claims['name'] ?? Str::before($email ?? 'Usuario', '@'),
-                'email' => $email ?? $claims['sub'].'@google.local',
-                'firebase_uid' => $claims['sub'],
-                'avatar' => $claims['picture'] ?? null,
-                'accepted_privacy_at' => now(),
-                'accepted_terms_at' => now(),
-            ]);
+            // Cuenta nueva: el registro exige un código de invitación emitido
+            // para el email verificado por Google. Sin email verificado no hay
+            // forma segura de casarlo con una invitación, así que se rechaza.
+            if (! $email) {
+                return response()->json([
+                    'message' => 'Tu cuenta de Google no tiene un correo verificado, así que no podemos validar tu invitación. Regístrate con correo y contraseña.',
+                ], 422);
+            }
+
+            try {
+                $user = $this->createInvitedUser($email, (string) $request->string('invitation_code'), [
+                    'name' => $claims['name'] ?? Str::before($email, '@'),
+                    'email' => $email,
+                    'firebase_uid' => $claims['sub'],
+                    'avatar' => $claims['picture'] ?? null,
+                    'accepted_privacy_at' => now(),
+                    'accepted_terms_at' => now(),
+                ]);
+            } catch (ValidationException $e) {
+                return response()->json([
+                    'message' => 'Necesitas un código de invitación válido para crear tu cuenta. Introdúcelo en el formulario de registro y vuelve a intentarlo.',
+                ], 422);
+            }
         }
 
         Auth::login($user, true);
@@ -160,6 +179,41 @@ class AuthController extends Controller
         return response()->json([
             'redirect' => $this->afterLoginUrl(),
         ]);
+    }
+
+    /**
+     * Crea un usuario canjeando su código de invitación de forma atómica.
+     * El registro sólo es válido con un código vigente emitido para ese email;
+     * si el código no existe, caducó o ya se usó, se aborta con un error de
+     * validación sobre el campo invitation_code.
+     *
+     * @param  array<string, mixed>  $attributes
+     *
+     * @throws ValidationException
+     */
+    private function createInvitedUser(string $email, string $plainCode, array $attributes): User
+    {
+        $invitation = InvitationCode::findRedeemable($email, $plainCode);
+
+        if (! $invitation) {
+            throw ValidationException::withMessages([
+                'invitation_code' => 'El código de invitación no es válido para este correo o ya no está vigente.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($invitation, $attributes) {
+            $user = User::create($attributes);
+
+            // Si otro registro simultáneo ganó la carrera por el mismo código,
+            // la transacción revierte también la creación del usuario.
+            if (! $invitation->redeemFor($user)) {
+                throw ValidationException::withMessages([
+                    'invitation_code' => 'El código de invitación no es válido para este correo o ya no está vigente.',
+                ]);
+            }
+
+            return $user;
+        });
     }
 
     /**
