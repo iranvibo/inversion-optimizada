@@ -31,6 +31,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Administración
+    |--------------------------------------------------------------------------
+    |
+    | Correo del usuario administrador de la plataforma. El Gate 'admin' y la
+    | pestaña de administración de usuarios del dashboard solo se habilitan
+    | para la cuenta cuyo email coincida con este valor.
+    |
+    */
+
+    'admin_email' => env('ADMIN_EMAIL', 'vicenteiran@gmail.com'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

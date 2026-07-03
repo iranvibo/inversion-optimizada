@@ -2,16 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Core\Contracts\BinanceBrokerInterface;
-use App\Core\Contracts\HyperliquidBrokerInterface;
 use App\Models\InvitationCode;
 use App\Models\User;
 use App\Services\FirebaseTokenVerifier;
+use App\Services\UserAccountDeleter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -240,38 +238,15 @@ class AuthController extends Controller
             return redirect()->route('login');
         }
 
-        if ($user->bot_active) {
-            // Cada canal se cierra de forma independiente: el fallo de uno no
-            // impide intentar cerrar el otro ni bloquea la eliminación (GDPR).
-            if ($user->isBinanceLinked()) {
-                try {
-                    app(BinanceBrokerInterface::class)
-                        ->closeOpenPositions($user->binance_api_key, $user->binance_secret_key);
-                    Log::info("Cierre de posiciones preventivo (Binance) por eliminación de cuenta para el usuario ID: {$user->id}");
-                } catch (\Exception $e) {
-                    Log::critical("Fallo al cerrar posiciones en Binance al eliminar la cuenta del usuario ID: {$user->id}. Detalle: ".$e->getMessage());
-                }
-            }
-
-            if ($user->isHyperliquidLinked()) {
-                try {
-                    app(HyperliquidBrokerInterface::class)
-                        ->closeOpenPositions($user->hyperliquid_wallet_address, $user->hyperliquid_agent_key);
-                    Log::info("Cierre de posiciones preventivo (Hyperliquid) por eliminación de cuenta para el usuario ID: {$user->id}");
-                } catch (\Exception $e) {
-                    Log::critical("Fallo al cerrar posiciones en Hyperliquid al eliminar la cuenta del usuario ID: {$user->id}. Detalle: ".$e->getMessage());
-                }
-            }
-        }
-
         // 1. Cerrar sesión e invalidar la sesión primero para evitar que Laravel intente
         // actualizar el remember_token en la base de datos para un usuario eliminado
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        // 2. Eliminar el usuario definitivamente (borrado en cascada configurado en BD)
-        $user->delete();
+        // 2. Cerrar posiciones abiertas y eliminar el usuario definitivamente
+        // (borrado en cascada configurado en BD)
+        app(UserAccountDeleter::class)->delete($user);
 
         return redirect()->route('login')->with('success', 'Tu cuenta y todos tus datos personales han sido eliminados de forma permanente.');
     }

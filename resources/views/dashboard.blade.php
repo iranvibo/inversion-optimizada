@@ -39,6 +39,11 @@
         <button type="button" id="tab-btn-panel" class="tab-btn shrink-0 border-b-2 border-violet-500 pb-3 px-1 text-sm font-semibold text-white focus:outline-none transition duration-200">
             Panel de Control
         </button>
+        @can('admin')
+        <button type="button" id="tab-btn-users" class="tab-btn shrink-0 border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
+            Usuarios (<span id="users-count">{{ $registeredUsersCount }}</span>)
+        </button>
+        @endcan
         <button type="button" id="tab-btn-activity" class="tab-btn shrink-0 border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
             Actividad
         </button>
@@ -535,6 +540,41 @@
     </div>
 
     </div>
+
+    @can('admin')
+    <!-- Contenido de la pestaña de administración de Usuarios -->
+    <div id="tab-content-users" class="tab-content space-y-8 hidden animate-fade-in">
+        <div class="bg-slate-900/50 border border-slate-800/60 rounded-2xl overflow-hidden">
+            <div class="p-6 border-b border-slate-800/60 flex items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white">Usuarios Registrados</h3>
+                    <p class="text-xs text-slate-400 mt-1">Administración de las cuentas de la plataforma. La eliminación es permanente y cierra antes las posiciones abiertas del usuario.</p>
+                </div>
+                <button type="button" id="admin-users-refresh-btn" class="shrink-0 text-xs font-bold py-2 px-4 rounded-xl transition duration-200 bg-slate-800/60 hover:bg-slate-700 text-slate-300 border border-slate-700/60 cursor-pointer">
+                    Actualizar
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800/60">
+                            <th class="px-6 py-3 font-semibold">Usuario</th>
+                            <th class="px-6 py-3 font-semibold">Registro</th>
+                            <th class="px-6 py-3 font-semibold">Bot</th>
+                            <th class="px-6 py-3 font-semibold">Canal</th>
+                            <th class="px-6 py-3 font-semibold text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-users-table-body" class="divide-y divide-slate-800/40">
+                        <tr>
+                            <td colspan="5" class="px-6 py-10 text-center text-slate-500 text-xs">Cargando usuarios…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @endcan
 
     <!-- Contenido de la pestaña de Actividad (US05) -->
     <div id="tab-content-activity" class="tab-content space-y-8 hidden animate-fade-in">
@@ -2388,17 +2428,19 @@
 
     // Gestión de pestañas (US05)
     const tabBtnPanel = document.getElementById('tab-btn-panel');
+    const tabBtnUsers = document.getElementById('tab-btn-users');
     const tabBtnActivity = document.getElementById('tab-btn-activity');
     const tabBtnInfo = document.getElementById('tab-btn-info');
     const tabBtnHelp = document.getElementById('tab-btn-help');
     const tabContentPanel = document.getElementById('tab-content-panel');
+    const tabContentUsers = document.getElementById('tab-content-users');
     const tabContentActivity = document.getElementById('tab-content-activity');
     const tabContentInfo = document.getElementById('tab-content-info');
     const tabContentHelp = document.getElementById('tab-content-help');
 
     function switchTab(target) {
         // Remover clases activas de todos los botones
-        [tabBtnPanel, tabBtnActivity, tabBtnInfo, tabBtnHelp].forEach(btn => {
+        [tabBtnPanel, tabBtnUsers, tabBtnActivity, tabBtnInfo, tabBtnHelp].forEach(btn => {
             if (btn) {
                 btn.classList.remove('border-violet-500', 'text-white');
                 btn.classList.add('border-transparent', 'text-slate-400');
@@ -2406,14 +2448,19 @@
                 btn.classList.add('font-medium');
             }
         });
-        
+
         // Ocultar todos los contenidos
-        [tabContentPanel, tabContentActivity, tabContentInfo, tabContentHelp].forEach(content => {
+        [tabContentPanel, tabContentUsers, tabContentActivity, tabContentInfo, tabContentHelp].forEach(content => {
             if (content) content.classList.add('hidden');
         });
 
         // Activar el objetivo
-        if (target === 'activity' && tabBtnActivity && tabContentActivity) {
+        if (target === 'users' && tabBtnUsers && tabContentUsers) {
+            tabBtnUsers.classList.remove('border-transparent', 'text-slate-400', 'font-medium');
+            tabBtnUsers.classList.add('border-violet-500', 'text-white', 'font-semibold');
+            tabContentUsers.classList.remove('hidden');
+            refreshAdminUsers();
+        } else if (target === 'activity' && tabBtnActivity && tabContentActivity) {
             tabBtnActivity.classList.remove('border-transparent', 'text-slate-400', 'font-medium');
             tabBtnActivity.classList.add('border-violet-500', 'text-white', 'font-semibold');
             tabContentActivity.classList.remove('hidden');
@@ -2434,9 +2481,138 @@
     }
 
     if (tabBtnPanel) tabBtnPanel.addEventListener('click', () => switchTab('panel'));
+    if (tabBtnUsers) tabBtnUsers.addEventListener('click', () => switchTab('users'));
     if (tabBtnActivity) tabBtnActivity.addEventListener('click', () => switchTab('activity'));
     if (tabBtnInfo) tabBtnInfo.addEventListener('click', () => switchTab('info'));
     if (tabBtnHelp) tabBtnHelp.addEventListener('click', () => switchTab('help'));
+
+    @can('admin')
+    // Administración de usuarios (pestaña "Usuarios", solo admin)
+    const adminUsersTableBody = document.getElementById('admin-users-table-body');
+    const adminUsersCountBadge = document.getElementById('users-count');
+    const adminUsersRefreshBtn = document.getElementById('admin-users-refresh-btn');
+
+    // Los nombres y correos los introduce el usuario: se escapan siempre
+    // antes de inyectarlos con innerHTML para evitar XSS almacenado.
+    function escapeHtml(value) {
+        const div = document.createElement('div');
+        div.textContent = value ?? '';
+        return div.innerHTML;
+    }
+
+    function updateUsersCount(total) {
+        if (adminUsersCountBadge && typeof total === 'number') {
+            adminUsersCountBadge.textContent = total;
+        }
+    }
+
+    async function refreshAdminUsers() {
+        if (!adminUsersTableBody) return;
+
+        try {
+            const response = await fetch("{{ route('admin.users.index') }}", {
+                headers: { 'Accept': 'application/json' },
+            });
+
+            if (!response.ok) {
+                throw new Error('No se pudo cargar la lista de usuarios.');
+            }
+
+            const data = await response.json();
+            const users = data.users || [];
+            updateUsersCount(data.total);
+
+            if (users.length === 0) {
+                adminUsersTableBody.innerHTML = `
+                    <tr><td colspan="5" class="px-6 py-10 text-center text-slate-500 text-xs">No hay usuarios registrados.</td></tr>
+                `;
+                return;
+            }
+
+            adminUsersTableBody.innerHTML = users.map(u => `
+                <tr class="hover:bg-slate-800/20 transition duration-150">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-violet-500/15 border border-violet-500/20 text-violet-300 flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden">
+                                ${u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="" class="w-full h-full object-cover" referrerpolicy="no-referrer">` : escapeHtml((u.name || '?').charAt(0).toUpperCase())}
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-white truncate">${escapeHtml(u.name)}${u.is_admin ? ' <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300 border border-violet-500/20 align-middle">Admin</span>' : ''}</p>
+                                <p class="text-xs text-slate-400 truncate">${escapeHtml(u.email)}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-xs text-slate-400" title="${escapeHtml(u.created_at_formatted || '')}">
+                        ${escapeHtml(u.created_at_human || '—')}
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${u.bot_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}">
+                            <span class="w-1.5 h-1.5 rounded-full ${u.bot_active ? 'bg-emerald-500' : 'bg-slate-500'}"></span>
+                            ${u.bot_active ? 'Activo' : 'Pausado'} · ${u.bot_mode === 'real' ? 'Real' : 'Simulación'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-xs ${u.broker_linked ? 'text-emerald-400' : 'text-slate-500'}">
+                        ${u.trading_channel === 'hyperliquid' ? 'Hyperliquid' : 'Binance'}${u.broker_linked ? ' · Conectado' : ' · Sin conexión'}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        ${u.is_admin ? '' : `
+                            <button type="button"
+                                    class="admin-user-delete-btn text-[11px] font-bold py-1.5 px-3.5 rounded-lg transition duration-200 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 border border-rose-500/30 cursor-pointer"
+                                    data-user-id="${u.id}" data-user-email="${escapeHtml(u.email)}">
+                                Eliminar
+                            </button>
+                        `}
+                    </td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            adminUsersTableBody.innerHTML = `
+                <tr><td colspan="5" class="px-6 py-10 text-center text-rose-400 text-xs">${escapeHtml(err.message)}</td></tr>
+            `;
+        }
+    }
+
+    if (adminUsersRefreshBtn) adminUsersRefreshBtn.addEventListener('click', refreshAdminUsers);
+
+    if (adminUsersTableBody) {
+        adminUsersTableBody.addEventListener('click', async (e) => {
+            const deleteBtn = e.target.closest('.admin-user-delete-btn');
+            if (!deleteBtn) return;
+
+            const email = deleteBtn.dataset.userEmail;
+            if (!confirm(`¿Eliminar permanentemente al usuario ${email}?\n\nSe cerrarán sus posiciones abiertas y se borrarán todos sus datos. Esta acción es irreversible.`)) {
+                return;
+            }
+
+            deleteBtn.disabled = true;
+            deleteBtn.classList.add('opacity-50');
+
+            try {
+                const response = await fetch(`{{ route('admin.users.index') }}/${deleteBtn.dataset.userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'No se pudo eliminar el usuario.');
+                }
+
+                updateUsersCount(data.total);
+                showToast(data.message || 'Usuario eliminado.');
+                refreshAdminUsers();
+            } catch (err) {
+                showToast(err.message, true);
+                deleteBtn.disabled = false;
+                deleteBtn.classList.remove('opacity-50');
+            }
+        });
+    }
+    @endcan
 
     // Configuración de videos explicativos para cada paso (vacio por defecto)
     const HELP_VIDEOS = {

@@ -47,6 +47,7 @@ Ampliación del flujo de login/registro de ViBo Invest (US01), cumplimiento GDPR
 6. **Eliminación definitiva de cuenta y Derecho al Olvido (Art. 17 GDPR)**:
    - *Decisión*: Implementar una sección "Zona de Peligro" en el Panel de Control del Dashboard que permita la supresión de la cuenta del usuario de forma irreversible.
    - *Cierre preventivo de Binance:* Si el bot de futuros (apalancamiento 10x) está activo, se invoca automáticamente al broker `closeOpenPositions()` antes de eliminar los datos para evitar dejar posiciones reales expuestas sin control automatizado. Si la API de Binance falla, la eliminación local del usuario prosigue para garantizar su derecho legal de supresión de datos de carácter personal.
+   - *Refactor 2026-07-03:* la lógica de cierre preventivo + borrado vive ahora en `App\Services\UserAccountDeleter`, compartida con la administración de usuarios (ver [admin-users.md](admin-users.md)); `AuthController@deleteAccount` sigue haciendo logout/invalidación de sesión antes de llamarla.
    - *Borrado en cascada:* Los snapshots de balance y el historial de actividades del bot se borran automáticamente mediante las claves foráneas en cascada en la base de datos sqlite.
 
 ## Evitar Bug de Re-inserción del Usuario al Eliminar (Laravel Remember Token)

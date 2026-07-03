@@ -85,7 +85,11 @@ class DashboardController extends Controller
 
         $signalProviderUnstable = Cache::has('signal_provider_unstable:'.strtolower($user->risk_level));
 
-        return view('dashboard', compact('user', 'latestSnapshot', 'activities', 'riskAlerts', 'signalProviderUnstable'));
+        // Contador de la pestaña de administración "Usuarios"; solo se
+        // consulta para el administrador, que es el único que la ve.
+        $registeredUsersCount = $user->isAdmin() ? User::count() : null;
+
+        return view('dashboard', compact('user', 'latestSnapshot', 'activities', 'riskAlerts', 'signalProviderUnstable', 'registeredUsersCount'));
     }
 
     /**

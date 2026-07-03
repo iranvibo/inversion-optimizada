@@ -9,6 +9,8 @@ use App\Infrastructure\Binance\BinanceBroker;
 use App\Infrastructure\Hyperliquid\HyperliquidBroker;
 use App\Infrastructure\Signals\HttpSignalProvider;
 use App\Infrastructure\Signals\MockSignalProvider;
+use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -35,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Acceso de administración (pestaña "Usuarios" del dashboard y sus rutas).
+        Gate::define('admin', fn (User $user) => $user->isAdmin());
     }
 }

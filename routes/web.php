@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BalanceController;
 use App\Http\Controllers\BinanceConnectionController;
@@ -62,6 +63,13 @@ Route::middleware('auth')->group(function () {
 
     // Eliminación definitiva de la cuenta (GDPR)
     Route::delete('/account', [AuthController::class, 'deleteAccount'])->name('account.delete');
+
+    // Administración de usuarios (pestaña "Usuarios" del dashboard). Solo
+    // accesible para el administrador definido en config('app.admin_email').
+    Route::middleware('can:admin')->group(function () {
+        Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users.index');
+        Route::delete('/admin/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
+    });
 
     // Herramientas de simulación / QA. MUTAN datos y credenciales reales del
     // usuario (p. ej. la simulación de alerta sobrescribe la API Key cifrada),

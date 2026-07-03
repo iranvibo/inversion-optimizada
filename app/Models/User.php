@@ -96,6 +96,19 @@ class User extends Authenticatable
     }
 
     /**
+     * Determina si el usuario es el administrador de la plataforma
+     * (config 'app.admin_email'). Habilita el Gate 'admin'.
+     */
+    public function isAdmin(): bool
+    {
+        $adminEmail = config('app.admin_email');
+
+        return is_string($adminEmail)
+            && $adminEmail !== ''
+            && strcasecmp($this->email, $adminEmail) === 0;
+    }
+
+    /**
      * Serie temporal de snapshots del balance consolidado (US03).
      */
     public function balanceSnapshots(): HasMany
