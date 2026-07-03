@@ -293,4 +293,33 @@ class DashboardBalanceTest extends TestCase
         $this->assertCount(1, $response->json('series'));
         $this->assertEquals(2000.00, $response->json('current_balance'));
     }
+
+    public function test_dashboard_renders_live_balance_synchronously_in_real_mode(): void
+    {
+        $this->user->update([
+            'bot_mode' => 'real',
+            'email' => 'test-live-dashboard@vibo.com'
+        ]);
+
+        $this->fakeRealBroker(9876.54);
+
+        $response = $this->actingAs($this->user)->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('9.876,54');
+    }
+
+    public function test_dashboard_renders_simulated_balance_synchronously_in_simulation_mode(): void
+    {
+        $this->user->update([
+            'bot_mode' => 'simulation',
+            'email' => 'test-live-dashboard@vibo.com',
+            'estimated_capital' => 1000,
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertDontSee('Sin datos todavía');
+    }
 }

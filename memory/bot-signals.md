@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-06-22
+updated: 2026-07-03
 ---
 
 # Origen de las Señales del Bot
@@ -91,7 +91,10 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 * **"Honestidad ante todo" = cifra fija por perfil**: ya no es el drawdown calculado sobre la serie. `RiskProfile::honestyDrawdownPercent()` devuelve **15% (Conservador), 30% (Balanceado), 50% (Agresivo)** y `honestyDrawdownMessage()` arma el texto. La respuesta JSON del onboarding mantiene la clave `max_drawdown_percent` con esa cifra.
 * **Gráfico del onboarding con ejes**: `resources/views/onboarding/simulation.blade.php` ahora dibuja eje Y de precios ($) con cuadrícula y eje X temporal (etiquetas inicio/medio/fin, formato "12 jun"), replicando el estilo del gráfico principal del dashboard. La serie usa la clave `t` (ISO) en vez de `period`; se quitó `preserveAspectRatio="none"` del SVG para no deformar el texto de los ejes.
 
-### Evolución del Gráfico con Valor en Vivo (Junio 2026)
+### Evolución del Gráfico con Valor en Vivo (Julio 2026)
 * **Visualización del Saldo en Vivo en la Gráfica**: Para evitar discrepancias entre el balance numérico de la cabecera (que fluctúa en vivo en modo real cada 5 segundos mediante sondeo de la API o eventos de WebSocket) y la curva de la gráfica de rendimiento, el valor en vivo se inyecta dinámicamente en el cliente como el último punto de la serie de datos (`isLive: true`).
 * **Sondeo Dinámico Resiliente al Cambio de Modo**: Para asegurar que el sondeo comience automáticamente al pasar del modo Simulación al modo Real sin requerir una recarga completa de la página, la directiva de compilación de Blade se condiciona únicamente a la existencia de la cuenta vinculada de Binance (`@if($user->isBinanceLinked())`), delegando la inactividad durante el modo Simulación al backend (que responde `live: false`). Al alternar de modo, el estado de la serie se actualiza y el gráfico se adapta de inmediato.
+* **Carga Inicial Síncrona del Balance (Julio 2026)**: Para evitar el parpadeo de saldo antiguo al cargar el dashboard, `DashboardController@index` calcula de forma síncrona el balance real en vivo (modo real) o proyectado vía `SimulatedBalanceProjector` (modo simulación). El servidor inyecta este balance en la renderización inicial del HTML y en las variables JavaScript `liveBalance` y `originalBalance`.
+* **Actualización del Gráfico Completo en Tiempo Real (Julio 2026)**: En `pollLiveBalance()`, cuando el balance obtenido difiere del anterior (`changed === true`), en lugar de alterar únicamente el último punto en memoria del cliente, se llama a `refreshHistory()`. Esto descarga todo el historial actualizado del servidor, redibuja la gráfica completa recalculando el eje Y interactivo, y actualiza los porcentajes/textos de rendimiento.
+
 

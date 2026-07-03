@@ -1443,10 +1443,10 @@
     const botToggleBtn = document.getElementById('bot-toggle-btn');
 
     let currentRange = 'month';
-    let originalBalance = null;
+    let originalBalance = @json($latestSnapshot?->balance ?? null);
     let originalChangeMessage = null;
     let chartHovering = false;
-    let liveBalance = null;
+    let liveBalance = @json($latestSnapshot?->balance ?? null);
     let currentSeries = [];
     // Modo actual del bot en el cliente: solo el modo real tiene patrimonio "en
     // vivo". Sirve para descartar respuestas del sondeo en vivo que lleguen tarde,
@@ -1739,7 +1739,11 @@
             const data = await response.json();
             
             // Guardar valores originales para restaurar tras el hover interactivo (US03)
-            originalBalance = data.current_balance;
+            if (currentBotMode === 'real' && liveBalance !== null) {
+                originalBalance = liveBalance;
+            } else {
+                originalBalance = data.current_balance;
+            }
             originalChangeMessage = data.change_message;
 
             currentSeries = data.series || [];
@@ -1751,7 +1755,10 @@
             }
             changeEl.textContent = data.change_message;
 
-            if (data.current_balance !== null) {
+            if (currentBotMode === 'real' && liveBalance !== null) {
+                renderBalance(liveBalance);
+                if (pulse) pulseBalance();
+            } else if (data.current_balance !== null) {
                 renderBalance(data.current_balance);
                 if (pulse) pulseBalance();
             }
@@ -2244,7 +2251,11 @@
                 if (changed) pulseBalance();
             }
 
-            updateChartWithLive(data.balance);
+            if (changed) {
+                refreshHistory();
+            } else {
+                updateChartWithLive(data.balance);
+            }
 
             if (data.current_position) {
                 updateBotPositionUi(data.current_position);
