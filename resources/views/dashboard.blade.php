@@ -129,7 +129,13 @@
 
         <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-6 relative">
             <div>
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Balance Total</span>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Balance Total</span>
+                    <span id="balance-sync-status" class="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800/40 text-slate-400 border border-slate-700/30 transition-all duration-300 select-none">
+                        <span id="balance-sync-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500 transition-all duration-300"></span>
+                        <span id="balance-sync-text">Cargando</span>
+                    </span>
+                </div>
                 <!-- Balance grande y legible, sin jerga técnica (Escenario 1) -->
                 <div id="balance-amount"
                      class="text-5xl md:text-6xl font-extrabold tracking-tight text-white my-2 transition-all duration-500"
@@ -1442,12 +1448,18 @@
     const botToggleForm = document.getElementById('bot-toggle-form');
     const botToggleBtn = document.getElementById('bot-toggle-btn');
 
+    const syncStatusEl = document.getElementById('balance-sync-status');
+    const syncDotEl = document.getElementById('balance-sync-dot');
+    const syncTextEl = document.getElementById('balance-sync-text');
+
     let currentRange = 'month';
     let originalBalance = @json($latestSnapshot?->balance ?? null);
     let originalChangeMessage = null;
     let chartHovering = false;
     let liveBalance = @json($latestSnapshot?->balance ?? null);
     let currentSeries = [];
+    let lastUpdatedTime = @json($latestSnapshot?->captured_at ? \Carbon\Carbon::parse($latestSnapshot->captured_at)->toISOString() : null) ? new Date(@json($latestSnapshot?->captured_at ? \Carbon\Carbon::parse($latestSnapshot->captured_at)->toISOString() : null)) : null;
+    let activeSyncRequests = 0;
     // Modo actual del bot en el cliente: solo el modo real tiene patrimonio "en
     // vivo". Sirve para descartar respuestas del sondeo en vivo que lleguen tarde,
     // después de cambiar a simulación, y que de otro modo añadirían el valor real
@@ -1459,6 +1471,70 @@
 
     const formatDollarShort = (val) =>
         new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(val) + '$';
+
+    function startSync() {
+        activeSyncRequests++;
+        updateSyncStatusLabel();
+    }
+
+    function endSync() {
+        activeSyncRequests = Math.max(0, activeSyncRequests - 1);
+        updateSyncStatusLabel();
+    }
+
+    function updateSyncStatusLabel() {
+        if (!syncStatusEl) return;
+
+        if (activeSyncRequests > 0) {
+            syncStatusEl.className = "inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/25 transition-all duration-300 select-none animate-pulse";
+            if (syncDotEl) {
+                syncDotEl.className = "w-1.5 h-1.5 rounded-full bg-violet-400 animate-ping transition-all duration-300";
+            }
+            if (syncTextEl) {
+                syncTextEl.textContent = "Sincronizando...";
+            }
+            return;
+        }
+
+        if (!lastUpdatedTime) {
+            syncStatusEl.className = "inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800/40 text-slate-500 border border-slate-700/20 transition-all duration-300 select-none";
+            if (syncDotEl) {
+                syncDotEl.className = "w-1.5 h-1.5 rounded-full bg-slate-600 transition-all duration-300";
+            }
+            if (syncTextEl) {
+                syncTextEl.textContent = "Sin datos";
+            }
+            return;
+        }
+
+        const now = new Date();
+        const diffMs = now - lastUpdatedTime;
+        const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+
+        let relativeTimeStr = "";
+        if (diffSec < 5) {
+            relativeTimeStr = "justo ahora";
+        } else if (diffSec < 60) {
+            relativeTimeStr = `hace ${diffSec}s`;
+        } else if (diffSec < 3600) {
+            const mins = Math.floor(diffSec / 60);
+            relativeTimeStr = `hace ${mins} min`;
+        } else if (diffSec < 86400) {
+            const hrs = Math.floor(diffSec / 3600);
+            relativeTimeStr = `hace ${hrs}h`;
+        } else {
+            const days = Math.floor(diffSec / 86400);
+            relativeTimeStr = `hace ${days}d`;
+        }
+
+        syncStatusEl.className = "inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400/90 border border-emerald-500/20 transition-all duration-300 select-none";
+        if (syncDotEl) {
+            syncDotEl.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 transition-all duration-300";
+        }
+        if (syncTextEl) {
+            syncTextEl.textContent = `Actualizado ${relativeTimeStr}`;
+        }
+    }
 
     function formatDateXAxis(dateStr, range) {
         const date = new Date(dateStr);
@@ -1725,6 +1801,7 @@
 
     async function refreshHistory(pulse = false) {
         errorEl.classList.add('hidden');
+        startSync();
 
         try {
             const response = await fetch(`{{ route('dashboard.balance') }}?range=${currentRange}`, {
@@ -1737,6 +1814,8 @@
             }
 
             const data = await response.json();
+            
+            lastUpdatedTime = new Date();
             
             // Guardar valores originales para restaurar tras el hover interactivo (US03)
             if (currentBotMode === 'real' && liveBalance !== null) {
@@ -1765,6 +1844,8 @@
         } catch (err) {
             errorEl.textContent = err.message;
             errorEl.classList.remove('hidden');
+        } finally {
+            endSync();
         }
     }
 
@@ -2231,6 +2312,7 @@
         // No malgastar peticiones si la pestaña está oculta.
         if (document.hidden) return;
 
+        startSync();
         try {
             const response = await fetch(`{{ route('dashboard.balance.live') }}`, {
                 headers: { 'Accept': 'application/json' },
@@ -2239,6 +2321,8 @@
 
             const data = await response.json();
             if (!data.live || data.balance === null || data.balance === undefined) return;
+
+            lastUpdatedTime = new Date();
 
             const changed = liveBalance !== null && data.balance !== liveBalance;
             liveBalance = data.balance;
@@ -2262,6 +2346,8 @@
             }
         } catch (err) {
             // Silencioso: la cabecera conserva el último valor mostrado.
+        } finally {
+            endSync();
         }
     }
 
@@ -2269,10 +2355,16 @@
     pollLiveBalance();
 @endif
 
+    setInterval(updateSyncStatusLabel, 2000);
+    updateSyncStatusLabel();
+
     // Actualización reactiva vía WebSockets (Escenario 3)
     if (window.Echo) {
         window.Echo.private('App.Models.User.{{ $user->id }}')
             .listen('.balance.updated', (event) => {
+                lastUpdatedTime = new Date();
+                updateSyncStatusLabel();
+                
                 renderBalance(event.balance);
                 pulseBalance();
                 
