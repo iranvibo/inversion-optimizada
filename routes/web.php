@@ -6,6 +6,7 @@ use App\Http\Controllers\BalanceController;
 use App\Http\Controllers\BinanceConnectionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HyperliquidConnectionController;
+use App\Http\Controllers\MoonPayController;
 use App\Http\Controllers\OnboardingController;
 use Illuminate\Support\Facades\Route;
 
@@ -60,6 +61,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/hyperliquid/link', [HyperliquidConnectionController::class, 'showLink'])->name('hyperliquid.link');
     Route::post('/hyperliquid/link', [HyperliquidConnectionController::class, 'storeLink'])->name('hyperliquid.store')->middleware('throttle:6,1');
     Route::post('/hyperliquid/disconnect', [HyperliquidConnectionController::class, 'disconnect'])->name('hyperliquid.disconnect');
+
+    // Rampa fiat ↔ USDC (widget de MoonPay). Páginas GET que solo construyen
+    // la URL firmada del widget; el pago y el KYC ocurren dentro de MoonPay.
+    Route::get('/fondos/anadir', [MoonPayController::class, 'buy'])->name('moonpay.buy');
+    Route::get('/fondos/retirar', [MoonPayController::class, 'sell'])->name('moonpay.sell');
 
     // Eliminación definitiva de la cuenta (GDPR)
     Route::delete('/account', [AuthController::class, 'deleteAccount'])->name('account.delete');

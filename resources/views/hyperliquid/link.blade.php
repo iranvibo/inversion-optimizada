@@ -16,6 +16,13 @@
         </div>
     </div>
 
+    <!-- Aviso genérico (p. ej. llegar a la rampa de fondos sin wallet vinculada) -->
+    @if(session('error'))
+        <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm animate-fade-in">
+            {{ session('error') }}
+        </div>
+    @endif
+
     <!-- ALERTA: la clave pegada corresponde a la wallet principal (puede retirar) -->
     @if(session('withdrawal_error'))
         <div class="p-6 rounded-2xl bg-rose-500/10 border-2 border-rose-500/30 text-rose-200 shadow-xl space-y-4 relative overflow-hidden animate-fade-in">

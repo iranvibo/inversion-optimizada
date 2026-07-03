@@ -5,4 +5,5 @@
 - [hyperliquid-channel.md](hyperliquid-channel.md) — Canal de ejecución Hyperliquid: abstracción BrokerInterface/BrokerResolver, firma EIP-712/msgpack en PHP validada con vectores oficiales, API wallets sin retiros, cambio de canal | tags: hyperliquid, dex, perpetuos, canal, broker, firma, eip712, msgpack, on-chain, seguridad, defi
 - [auth-firebase.md](auth-firebase.md) — Login/registro, registro sólo con código de invitación (API interna con Bearer), cookies, GDPR, términos y eliminación de cuenta | tags: auth, login, registro, invitacion, codigo, firebase, google, jwt, privacidad, seguridad, terminos, gdpr, cookies, eliminacion-cuenta
 - [admin-users.md](admin-users.md) — Administración de usuarios: admin por config('app.admin_email') + Gate 'admin', pestaña "Usuarios (N)" del dashboard y UserAccountDeleter compartido | tags: admin, usuarios, gate, autorizacion, eliminacion, dashboard, seguridad
+- [moonpay-ramp.md](moonpay-ramp.md) — Rampa fiat↔USDC con widget MoonPay: URLs firmadas HMAC, usdc_arbitrum a la wallet de Hyperliquid, sin webhooks | tags: moonpay, onramp, offramp, fiat, usdc, arbitrum, hyperliquid, fondos, kyc, seguridad
 

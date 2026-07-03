@@ -397,13 +397,28 @@
             </div>
 
             @if($user->isBrokerLinked())
-                <form action="{{ $isHyperliquidChannel ? route('hyperliquid.disconnect') : route('binance.disconnect') }}" method="POST" class="m-0 p-0">
-                    @csrf
-                    <button type="submit"
-                            class="w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                        Desvincular Cuenta
-                    </button>
-                </form>
+                <div class="space-y-2">
+                    @if($isHyperliquidChannel)
+                        <!-- Rampa fiat ↔ USDC (MoonPay): comprar con tarjeta/banco o retirar a IBAN -->
+                        <div class="flex gap-2">
+                            <a href="{{ route('moonpay.buy') }}"
+                               class="flex-1 text-center text-xs font-bold py-2.5 px-2 rounded-xl transition duration-200 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                Añadir fondos
+                            </a>
+                            <a href="{{ route('moonpay.sell') }}"
+                               class="flex-1 text-center text-xs font-bold py-2.5 px-2 rounded-xl transition duration-200 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800">
+                                Retirar
+                            </a>
+                        </div>
+                    @endif
+                    <form action="{{ $isHyperliquidChannel ? route('hyperliquid.disconnect') : route('binance.disconnect') }}" method="POST" class="m-0 p-0">
+                        @csrf
+                        <button type="submit"
+                                class="w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                            Desvincular Cuenta
+                        </button>
+                    </form>
+                </div>
             @else
                 <a href="{{ $isHyperliquidChannel ? route('hyperliquid.link') : route('binance.link') }}"
                    class="w-full text-center text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-violet-600 hover:bg-violet-500 text-white inline-block">

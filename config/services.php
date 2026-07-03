@@ -83,6 +83,29 @@ return [
     ],
 
     /*
+    | Rampa fiat ↔ cripto (MoonPay). El widget alojado por MoonPay procesa el
+    | pago con tarjeta/banco y el KYC del usuario; ViBo Invest nunca ve datos
+    | bancarios. El backend solo construye la URL del widget y la firma con la
+    | secret key para que la dirección de destino no pueda manipularse.
+    */
+    'moonpay' => [
+        // Clave publicable (pk_live_*/pk_test_*): viaja en la URL del widget.
+        'api_key' => env('MOONPAY_API_KEY'),
+        // Clave secreta (sk_live_*/sk_test_*): NUNCA sale del backend, solo
+        // firma las URLs (HMAC-SHA256). Sin ambas claves la rampa se desactiva.
+        'secret_key' => env('MOONPAY_SECRET_KEY'),
+        // Widgets alojados. Sandbox: https://buy-sandbox.moonpay.com y
+        // https://sell-sandbox.moonpay.com (con claves pk_test_/sk_test_).
+        'buy_url' => env('MOONPAY_BUY_URL', 'https://buy.moonpay.com'),
+        'sell_url' => env('MOONPAY_SELL_URL', 'https://sell.moonpay.com'),
+        // USDC en Arbitrum: la red por la que se deposita en Hyperliquid.
+        // (El plan antiguo con Optimism quedó descartado junto a Synthetix.)
+        'currency_code' => env('MOONPAY_CURRENCY_CODE', 'usdc_arbitrum'),
+        // Divisa fiat por defecto del widget (el usuario paga/recibe en esta).
+        'base_currency_code' => env('MOONPAY_BASE_CURRENCY_CODE', 'eur'),
+    ],
+
+    /*
     | Configuración de Firebase. Sólo se necesita el project_id para verificar
     | en el backend los ID tokens de Google. Las claves públicas que usa el SDK
     | de JavaScript se exponen al navegador mediante las variables VITE_FIREBASE_*.
