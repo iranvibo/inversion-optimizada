@@ -3214,6 +3214,9 @@
             tabBtnPanel.classList.add('border-violet-500', 'text-white', 'font-semibold');
             tabContentPanel.classList.remove('hidden');
         }
+
+        // Guardar la pestaña activa en localStorage
+        localStorage.setItem('activeTab', target);
     }
 
     if (tabBtnPanel) tabBtnPanel.addEventListener('click', () => switchTab('panel'));
@@ -3227,7 +3230,14 @@
     // rampa de MoonPay). Cualquier valor desconocido cae en el panel.
     const hashTabs = { fondos: 'funds', actividad: 'activity' };
     const initialHash = window.location.hash.replace('#', '');
-    if (hashTabs[initialHash]) switchTab(hashTabs[initialHash]);
+    if (hashTabs[initialHash]) {
+        switchTab(hashTabs[initialHash]);
+    } else {
+        const savedTab = localStorage.getItem('activeTab');
+        if (savedTab) {
+            switchTab(savedTab);
+        }
+    }
 
     @can('admin')
     // Administración de usuarios (pestaña "Usuarios", solo admin)
