@@ -2297,9 +2297,16 @@
             relativeTimeStr = `hace ${days}d`;
         }
 
-        syncStatusEl.className = "inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400/90 border border-emerald-500/20 transition-all duration-300 select-none";
-        if (syncDotEl) {
-            syncDotEl.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 transition-all duration-300";
+        if (relativeTimeStr === "justo ahora") {
+            syncStatusEl.className = "inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400/90 border border-emerald-500/20 transition-all duration-300 select-none";
+            if (syncDotEl) {
+                syncDotEl.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 transition-all duration-300";
+            }
+        } else {
+            syncStatusEl.className = "inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 transition-all duration-300 select-none";
+            if (syncDotEl) {
+                syncDotEl.className = "w-1.5 h-1.5 rounded-full bg-slate-400 transition-all duration-300";
+            }
         }
         if (syncTextEl) {
             syncTextEl.textContent = `Actualizado ${relativeTimeStr}`;
