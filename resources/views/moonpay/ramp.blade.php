@@ -9,7 +9,7 @@
 
     <!-- Encabezado de la página -->
     <div class="flex items-center gap-3">
-        <a href="{{ route('dashboard') }}" class="text-slate-400 hover:text-white transition duration-200">
+        <a href="{{ route('dashboard') }}#fondos" class="text-slate-400 hover:text-white transition duration-200">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
@@ -51,7 +51,7 @@
                     <p class="text-xs text-slate-400 max-w-sm">
                         La {{ $isBuy ? 'compra' : 'retirada' }} de fondos no está activa en este momento. Inténtalo de nuevo más tarde.
                     </p>
-                    <a href="{{ route('dashboard') }}" class="mt-2 text-xs font-bold py-2.5 px-6 rounded-xl bg-violet-600 hover:bg-violet-500 text-white transition duration-200">
+                    <a href="{{ route('dashboard') }}#fondos" class="mt-2 text-xs font-bold py-2.5 px-6 rounded-xl bg-violet-600 hover:bg-violet-500 text-white transition duration-200">
                         Volver al panel
                     </a>
                 </div>

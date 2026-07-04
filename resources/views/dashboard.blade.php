@@ -44,6 +44,9 @@
             Usuarios (<span id="users-count">{{ $registeredUsersCount }}</span>)
         </button>
         @endcan
+        <button type="button" id="tab-btn-funds" class="tab-btn shrink-0 border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
+            Fondos
+        </button>
         <button type="button" id="tab-btn-activity" class="tab-btn shrink-0 border-b-2 border-transparent pb-3 px-1 text-sm font-medium text-slate-400 hover:text-white focus:outline-none transition duration-200">
             Actividad
         </button>
@@ -397,28 +400,13 @@
             </div>
 
             @if($user->isBrokerLinked())
-                <div class="space-y-2">
-                    @if($isHyperliquidChannel)
-                        <!-- Rampa fiat ↔ USDC (MoonPay): comprar con tarjeta/banco o retirar a IBAN -->
-                        <div class="flex gap-2">
-                            <a href="{{ route('moonpay.buy') }}"
-                               class="flex-1 text-center text-xs font-bold py-2.5 px-2 rounded-xl transition duration-200 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                Añadir fondos
-                            </a>
-                            <a href="{{ route('moonpay.sell') }}"
-                               class="flex-1 text-center text-xs font-bold py-2.5 px-2 rounded-xl transition duration-200 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800">
-                                Retirar
-                            </a>
-                        </div>
-                    @endif
-                    <form action="{{ $isHyperliquidChannel ? route('hyperliquid.disconnect') : route('binance.disconnect') }}" method="POST" class="m-0 p-0">
-                        @csrf
-                        <button type="submit"
-                                class="w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                            Desvincular Cuenta
-                        </button>
-                    </form>
-                </div>
+                <form action="{{ $isHyperliquidChannel ? route('hyperliquid.disconnect') : route('binance.disconnect') }}" method="POST" class="m-0 p-0">
+                    @csrf
+                    <button type="submit"
+                            class="w-full text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                        Desvincular Cuenta
+                    </button>
+                </form>
             @else
                 <a href="{{ $isHyperliquidChannel ? route('hyperliquid.link') : route('binance.link') }}"
                    class="w-full text-center text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-violet-600 hover:bg-violet-500 text-white inline-block">
@@ -553,6 +541,150 @@
             Eliminar mi Cuenta
         </button>
     </div>
+
+    </div>
+
+    <!-- Contenido de la pestaña Fondos: rampa fiat ↔ USDC (MoonPay) -->
+    <div id="tab-content-funds" class="tab-content space-y-8 hidden animate-fade-in">
+
+        <div>
+            <h2 class="text-2xl font-bold text-white tracking-tight">Tus fondos, siempre en tu wallet</h2>
+            <p class="text-sm text-slate-400 mt-1 max-w-2xl">
+                Añade dinero con tarjeta o transferencia y retíralo a tu banco cuando quieras.
+                Los fondos viven en tu propia wallet: ViBo Invest solo puede operar con ellos, nunca moverlos.
+            </p>
+        </div>
+
+        @if($user->isHyperliquidLinked())
+
+            <!-- Wallet vinculada -->
+            <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-5 shadow-md flex flex-col sm:flex-row sm:items-center gap-4">
+                <span class="w-11 h-11 rounded-xl bg-violet-500/10 text-violet-300 border border-violet-500/20 flex items-center justify-center shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                </span>
+                <div class="min-w-0 flex-1">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 block">Tu wallet vinculada</span>
+                    <code class="text-sm text-white block truncate mt-0.5">{{ substr($user->hyperliquid_wallet_address, 0, 10) }}…{{ substr($user->hyperliquid_wallet_address, -8) }}</code>
+                </div>
+                <span class="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.031 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    Solo tú puedes mover tus fondos
+                </span>
+            </div>
+
+            <!-- Acciones principales: comprar y vender -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Añadir fondos (on-ramp) -->
+                <div class="bg-[hsl(223,47%,14%)] border border-emerald-500/20 rounded-2xl p-6 shadow-md hover-lift flex flex-col relative overflow-hidden">
+                    <div class="absolute -right-16 -top-16 w-44 h-44 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                    <span class="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                    </span>
+                    <h3 class="text-lg font-bold text-white">Añadir fondos</h3>
+                    <p class="text-xs text-slate-400 mt-1.5 flex-1">
+                        Compra USDC (un dólar digital estable) pagando en euros con tarjeta o transferencia.
+                        Llegan directamente a tu wallet en unos minutos.
+                    </p>
+                    <div class="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold uppercase tracking-wide my-4 flex-wrap">
+                        <span class="bg-slate-900 border border-slate-800 rounded-md px-2 py-1">Pagas en €</span>
+                        <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <span class="bg-slate-900 border border-slate-800 rounded-md px-2 py-1">Recibes USDC</span>
+                        <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <span class="bg-slate-900 border border-slate-800 rounded-md px-2 py-1">El bot opera</span>
+                    </div>
+                    <a href="{{ route('moonpay.buy') }}"
+                       class="w-full text-center text-sm font-bold py-3 px-4 rounded-xl transition duration-200 bg-emerald-600 hover:bg-emerald-500 text-white">
+                        Comprar USDC
+                    </a>
+                </div>
+
+                <!-- Retirar fondos (off-ramp) -->
+                <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md hover-lift flex flex-col relative overflow-hidden">
+                    <div class="absolute -right-16 -top-16 w-44 h-44 bg-violet-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                    <span class="w-11 h-11 rounded-xl bg-violet-500/10 text-violet-300 border border-violet-500/20 flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                        </svg>
+                    </span>
+                    <h3 class="text-lg font-bold text-white">Retirar fondos</h3>
+                    <p class="text-xs text-slate-400 mt-1.5 flex-1">
+                        Convierte tus USDC de vuelta a euros y recíbelos en tu cuenta bancaria (IBAN).
+                        Tú decides cuánto y cuándo.
+                    </p>
+                    <div class="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold uppercase tracking-wide my-4 flex-wrap">
+                        <span class="bg-slate-900 border border-slate-800 rounded-md px-2 py-1">Envías USDC</span>
+                        <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <span class="bg-slate-900 border border-slate-800 rounded-md px-2 py-1">Se convierten a €</span>
+                        <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <span class="bg-slate-900 border border-slate-800 rounded-md px-2 py-1">Llegan a tu banco</span>
+                    </div>
+                    <a href="{{ route('moonpay.sell') }}"
+                       class="w-full text-center text-sm font-bold py-3 px-4 rounded-xl transition duration-200 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700">
+                        Vender USDC
+                    </a>
+                </div>
+
+            </div>
+
+            <!-- Garantías de seguridad -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-[hsl(223,47%,10%)] border border-slate-800 rounded-xl p-4 flex items-start gap-3">
+                    <svg class="w-4 h-4 text-violet-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <p class="text-[11px] text-slate-400"><strong class="text-white block mb-0.5">Sin custodia</strong> Tus fondos están en tu wallet, no en ViBo Invest. Nadie más puede moverlos.</p>
+                </div>
+                <div class="bg-[hsl(223,47%,10%)] border border-slate-800 rounded-xl p-4 flex items-start gap-3">
+                    <svg class="w-4 h-4 text-violet-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    <p class="text-[11px] text-slate-400"><strong class="text-white block mb-0.5">Pagos con MoonPay</strong> El pago y la verificación de identidad los procesa MoonPay: nunca vemos tu tarjeta ni tu IBAN.</p>
+                </div>
+                <div class="bg-[hsl(223,47%,10%)] border border-slate-800 rounded-xl p-4 flex items-start gap-3">
+                    <svg class="w-4 h-4 text-violet-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.031 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <p class="text-[11px] text-slate-400"><strong class="text-white block mb-0.5">El bot no puede retirar</strong> La conexión del bot solo permite operar; retirar fondos es imposible por diseño.</p>
+                </div>
+            </div>
+
+        @else
+
+            <!-- Sin wallet vinculada: guiar a la vinculación de Hyperliquid -->
+            <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-10 shadow-md text-center flex flex-col items-center gap-4">
+                <span class="w-14 h-14 rounded-2xl bg-violet-500/10 text-violet-300 border border-violet-500/20 flex items-center justify-center">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                </span>
+                <div class="max-w-md">
+                    <h3 class="text-lg font-bold text-white">Vincula tu wallet para gestionar fondos</h3>
+                    <p class="text-xs text-slate-400 mt-2">
+                        Para añadir dinero con tarjeta o retirarlo a tu banco necesitas tu propia wallet
+                        vinculada a través del canal Hyperliquid. Se crea en un par de minutos y tus fondos
+                        quedan siempre bajo tu control.
+                    </p>
+                </div>
+                <a href="{{ route('hyperliquid.link') }}"
+                   class="text-sm font-bold py-3 px-8 rounded-xl transition duration-200 bg-violet-600 hover:bg-violet-500 text-white hover-lift">
+                    Vincular wallet de Hyperliquid
+                </a>
+                @if($user->isBinanceLinked())
+                    <p class="text-[11px] text-slate-500 max-w-md">
+                        ¿Operas con Binance? Los depósitos y retiradas de esa cuenta se gestionan desde la propia
+                        app de Binance: tienes la guía paso a paso en la pestaña "Ayuda".
+                    </p>
+                @endif
+            </div>
+
+        @endif
 
     </div>
 
@@ -2443,11 +2575,13 @@
 
     // Gestión de pestañas (US05)
     const tabBtnPanel = document.getElementById('tab-btn-panel');
+    const tabBtnFunds = document.getElementById('tab-btn-funds');
     const tabBtnUsers = document.getElementById('tab-btn-users');
     const tabBtnActivity = document.getElementById('tab-btn-activity');
     const tabBtnInfo = document.getElementById('tab-btn-info');
     const tabBtnHelp = document.getElementById('tab-btn-help');
     const tabContentPanel = document.getElementById('tab-content-panel');
+    const tabContentFunds = document.getElementById('tab-content-funds');
     const tabContentUsers = document.getElementById('tab-content-users');
     const tabContentActivity = document.getElementById('tab-content-activity');
     const tabContentInfo = document.getElementById('tab-content-info');
@@ -2455,7 +2589,7 @@
 
     function switchTab(target) {
         // Remover clases activas de todos los botones
-        [tabBtnPanel, tabBtnUsers, tabBtnActivity, tabBtnInfo, tabBtnHelp].forEach(btn => {
+        [tabBtnPanel, tabBtnFunds, tabBtnUsers, tabBtnActivity, tabBtnInfo, tabBtnHelp].forEach(btn => {
             if (btn) {
                 btn.classList.remove('border-violet-500', 'text-white');
                 btn.classList.add('border-transparent', 'text-slate-400');
@@ -2465,12 +2599,16 @@
         });
 
         // Ocultar todos los contenidos
-        [tabContentPanel, tabContentUsers, tabContentActivity, tabContentInfo, tabContentHelp].forEach(content => {
+        [tabContentPanel, tabContentFunds, tabContentUsers, tabContentActivity, tabContentInfo, tabContentHelp].forEach(content => {
             if (content) content.classList.add('hidden');
         });
 
         // Activar el objetivo
-        if (target === 'users' && tabBtnUsers && tabContentUsers) {
+        if (target === 'funds' && tabBtnFunds && tabContentFunds) {
+            tabBtnFunds.classList.remove('border-transparent', 'text-slate-400', 'font-medium');
+            tabBtnFunds.classList.add('border-violet-500', 'text-white', 'font-semibold');
+            tabContentFunds.classList.remove('hidden');
+        } else if (target === 'users' && tabBtnUsers && tabContentUsers) {
             tabBtnUsers.classList.remove('border-transparent', 'text-slate-400', 'font-medium');
             tabBtnUsers.classList.add('border-violet-500', 'text-white', 'font-semibold');
             tabContentUsers.classList.remove('hidden');
@@ -2496,10 +2634,17 @@
     }
 
     if (tabBtnPanel) tabBtnPanel.addEventListener('click', () => switchTab('panel'));
+    if (tabBtnFunds) tabBtnFunds.addEventListener('click', () => switchTab('funds'));
     if (tabBtnUsers) tabBtnUsers.addEventListener('click', () => switchTab('users'));
     if (tabBtnActivity) tabBtnActivity.addEventListener('click', () => switchTab('activity'));
     if (tabBtnInfo) tabBtnInfo.addEventListener('click', () => switchTab('info'));
     if (tabBtnHelp) tabBtnHelp.addEventListener('click', () => switchTab('help'));
+
+    // Apertura directa por hash (p. ej. /dashboard#fondos al volver de la
+    // rampa de MoonPay). Cualquier valor desconocido cae en el panel.
+    const hashTabs = { fondos: 'funds', actividad: 'activity' };
+    const initialHash = window.location.hash.replace('#', '');
+    if (hashTabs[initialHash]) switchTab(hashTabs[initialHash]);
 
     @can('admin')
     // Administración de usuarios (pestaña "Usuarios", solo admin)

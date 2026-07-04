@@ -80,17 +80,19 @@ class MoonPayRampTest extends TestCase
             ->assertDontSee('<iframe', false);
     }
 
-    public function test_dashboard_shows_funding_shortcuts_only_for_active_hyperliquid_channel(): void
+    public function test_funds_tab_offers_ramp_when_hyperliquid_wallet_is_linked(): void
     {
-        // Canal Hyperliquid activo y vinculado → accesos visibles.
-        $user = $this->linkedUser();
-        $user->update(['trading_channel' => User::CHANNEL_HYPERLIQUID]);
-
-        $this->actingAs($user)
+        // Con wallet vinculada la pestaña Fondos ofrece comprar y vender.
+        $this->actingAs($this->linkedUser())
             ->get(route('dashboard'))
-            ->assertSee(route('moonpay.buy'), false);
+            ->assertSee('Fondos')
+            ->assertSee(route('moonpay.buy'), false)
+            ->assertSee(route('moonpay.sell'), false);
+    }
 
-        // Canal Binance activo → sin accesos a la rampa.
+    public function test_funds_tab_guides_to_wallet_linking_when_not_linked(): void
+    {
+        // Sin wallet (p. ej. usuario solo de Binance) la pestaña guía a vincular.
         $binanceUser = User::factory()->create([
             'binance_api_key' => 'valid_key',
             'binance_secret_key' => 'valid_secret',
@@ -99,6 +101,8 @@ class MoonPayRampTest extends TestCase
 
         $this->actingAs($binanceUser)
             ->get(route('dashboard'))
-            ->assertDontSee(route('moonpay.buy'), false);
+            ->assertDontSee(route('moonpay.buy'), false)
+            ->assertSee('Vincula tu wallet para gestionar fondos')
+            ->assertSee(route('hyperliquid.link'), false);
     }
 }

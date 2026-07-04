@@ -1,6 +1,6 @@
 ---
 created: 2026-07-03
-updated: 2026-07-03
+updated: 2026-07-04
 ---
 
 # Rampa fiat ↔ USDC con MoonPay (on/off ramp)
@@ -37,10 +37,17 @@ custodia fondos: el backend solo construye y firma la URL del widget.
    Withdraw en app.hyperliquid.xyz hacia su wallet (acción user-signed, la
    API wallet no puede) y después envía los USDC a la dirección que le indica
    el widget de venta. La UI lo explica en 3 pasos.
-6. **UI**: botones "Añadir fondos"/"Retirar" en la tarjeta Canal de Ejecución
-   del dashboard, solo visibles con canal Hyperliquid activo y vinculado.
-   Vista única `resources/views/moonpay/ramp.blade.php` parametrizada por
-   `$direction` ('buy'|'sell').
+6. **UI: pestaña "Fondos" del dashboard** (2026-07-04, a petición del usuario:
+   no quería los botones dentro de la tarjeta Canal de Ejecución). Pestaña
+   visible para todos; su contenido depende de `isHyperliquidLinked()` (no del
+   canal activo): con wallet → tarjetas "Añadir fondos"/"Retirar fondos" que
+   llevan a las páginas del widget, wallet truncada y garantías de seguridad;
+   sin wallet → estado vacío con CTA a `/hyperliquid/link` (y nota para
+   usuarios de Binance apuntando a la pestaña Ayuda). El sistema de pestañas
+   soporta apertura por hash (`/dashboard#fondos`), que usan los enlaces de
+   vuelta de las páginas de la rampa. Vista única
+   `resources/views/moonpay/ramp.blade.php` parametrizada por `$direction`
+   ('buy'|'sell').
 
 ## Configuración (.env)
 
