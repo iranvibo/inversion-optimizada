@@ -880,6 +880,20 @@
                 </p>
             </div>
 
+            @if($isHyperliquidChannel)
+            <!-- ¿Qué es Hyperliquid? -->
+            <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 hover:border-violet-500/30 transition duration-300 group shadow-md">
+                <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/20 mb-4 group-hover:scale-105 transition-transform duration-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-white mb-2">¿Qué es Hyperliquid?</h3>
+                <p class="text-sm text-slate-300 leading-relaxed">
+                    Hyperliquid es el exchange descentralizado (DEX) de contratos perpetuos con mayor liquidez del mercado on-chain. A diferencia de un exchange tradicional, no hay empresa custodiando tu dinero: tus fondos permanecen siempre en tu propia wallet y cada operación queda registrada en la blockchain de forma transparente.
+                </p>
+            </div>
+            @else
             <!-- ¿Qué es Binance y su prestigio? -->
             <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 hover:border-violet-500/30 transition duration-300 group shadow-md">
                 <div class="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/20 mb-4 group-hover:scale-105 transition-transform duration-300">
@@ -892,6 +906,7 @@
                     Binance es el exchange (casa de cambio) de criptomonedas más grande, seguro y de mayor prestigio en el mundo. Tus fondos nunca se transfieren a ViBo Invest; siempre se quedan bajo tu custodia directa dentro de tu cuenta personal de Binance.
                 </p>
             </div>
+            @endif
         </div>
 
 
@@ -922,7 +937,11 @@
                         <div>
                             <h4 class="text-sm font-bold text-white mb-1">Validación y Filtro de Seguridad</h4>
                             <p class="text-xs text-slate-300 leading-relaxed">
+                                @if($isHyperliquidChannel)
+                                El sistema actúa como un guardián de seguridad (Gatekeeper). Antes de emitir cualquier orden, confirma que el bot esté encendido, verifica tus credenciales y comprueba que la clave vinculada sea una API wallet de solo operativa, **sin** capacidad de retiro.
+                                @else
                                 El sistema actúa como un guardián de seguridad (Gatekeeper). Antes de emitir cualquier orden, confirma que el bot esté encendido, verifica tus credenciales y comprueba que **no** existan permisos de retiro activos.
+                                @endif
                             </p>
                         </div>
                     </div>
@@ -932,7 +951,11 @@
                         <div>
                             <h4 class="text-sm font-bold text-white mb-1">Ejecución en Tiempo Real</h4>
                             <p class="text-xs text-slate-300 leading-relaxed">
+                                @if($isHyperliquidChannel)
+                                Si la señal cambia y la cuenta es segura, ViBo firma digitalmente la orden con tu API wallet cifrada y la envía a Hyperliquid (comprar BTC, vender BTC o cerrar posición a USDC). La operación se ejecuta on-chain en milisegundos y queda registrada de forma transparente en la blockchain.
+                                @else
                                 Si la señal cambia y la cuenta es segura, ViBo procesa y envía la orden a Binance (comprar BTC, vender BTC o cerrar posición a USDC). Esto se ejecuta localmente mediante claves API cifradas en nuestro servidor.
+                                @endif
                             </p>
                         </div>
                     </div>
@@ -952,6 +975,20 @@
                 </h3>
 
                 <div class="space-y-4 text-xs text-slate-300 leading-relaxed">
+                    @if($isHyperliquidChannel)
+                    <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
+                        <strong class="text-white block mb-1">Retiros imposibles por diseño</strong>
+                        La API wallet que vinculas a ViBo solo puede abrir y cerrar operaciones. Retirar o transferir fondos exige la firma de tu wallet principal, que **nunca** compartes con nosotros. Es una garantía del propio protocolo, no una promesa.
+                    </div>
+                    <div class="bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
+                        <strong class="text-white block mb-1">Rechazo de Claves Maestras</strong>
+                        Si al vincular detectamos que la clave pegada corresponde a tu wallet principal (con capacidad de retiro), la vinculación se **rechaza en el acto** por seguridad absoluta.
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-3">
+                        <strong class="text-white block mb-1">Cifrado de Llaves (AES-256)</strong>
+                        Tu dirección de wallet y la clave de tu API wallet se guardan completamente cifradas en el servidor y nunca se comparten con la API de señales ni terceros.
+                    </div>
+                    @else
                     <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
                         <strong class="text-white block mb-1">Sin permisos de retiro</strong>
                         Para conectar ViBo, es obligatorio desactivar la casilla "Enable Withdrawals" (Permitir Retiros) al crear tu API Key en Binance. ViBo **nunca** podrá retirar tus fondos.
@@ -964,6 +1001,7 @@
                         <strong class="text-white block mb-1">Cifrado de Llaves (AES-256)</strong>
                         Tus API Keys y Secret Keys se guardan completamente cifradas en el servidor y nunca se comparten con la API de señales ni terceros.
                     </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -1003,6 +1041,550 @@
 
     <!-- Contenido de la pestaña de Ayuda -->
     <div id="tab-content-help" class="tab-content hidden animate-fade-in space-y-8">
+        @if($isHyperliquidChannel)
+        <!-- Guía de configuración para el canal Hyperliquid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Columna Izquierda: Lista de Pasos -->
+            <div id="help-steps-list" class="lg:col-span-5 space-y-4 lg:block transition-all duration-300">
+                <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 shadow-md sticky top-24">
+                    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 px-2">Guía de Configuración</h3>
+                    <div class="space-y-2">
+                        <!-- Botón Paso 1 -->
+                        <button type="button" data-step="1" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border text-left transition duration-200 bg-violet-600/10 border-violet-500/30 text-white font-semibold">
+                            <span class="step-num w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md transition-colors duration-200">01</span>
+                            <span class="text-sm font-semibold truncate">Crear cuenta en Hyperliquid</span>
+                        </button>
+                        <!-- Botón Paso 2 -->
+                        <button type="button" data-step="2" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">02</span>
+                            <span class="text-sm truncate">Cargar fondos (USDC)</span>
+                        </button>
+                        <!-- Botón Paso 3 -->
+                        <button type="button" data-step="3" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">03</span>
+                            <span class="text-sm truncate">Crear tu API Wallet</span>
+                        </button>
+                        <!-- Botón Paso 4 -->
+                        <button type="button" data-step="4" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">04</span>
+                            <span class="text-sm truncate">Vincular wallet</span>
+                        </button>
+                        <!-- Botón Paso 5 -->
+                        <button type="button" data-step="5" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">05</span>
+                            <span class="text-sm truncate">Activar Bot de trading</span>
+                        </button>
+                        <!-- Botón Paso 6 -->
+                        <button type="button" data-step="6" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">06</span>
+                            <span class="text-sm truncate">Monitorización</span>
+                        </button>
+                        <!-- Botón Paso 7 -->
+                        <button type="button" data-step="7" class="step-nav-btn w-full flex items-center gap-4 p-4 rounded-xl border border-transparent text-left hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 transition duration-200 font-medium">
+                            <span class="step-num w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shrink-0 transition-colors duration-200">07</span>
+                            <span class="text-sm truncate">Realizar un Retiro</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Detalle del Paso y Video -->
+            <div id="help-step-details" class="lg:col-span-7 hidden lg:block transition-all duration-300">
+                <!-- Botón Volver (solo visible en móvil) -->
+                <div class="lg:hidden mb-6">
+                    <button type="button" id="back-to-steps-btn" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] text-xs font-bold text-slate-300 hover:text-white transition duration-200 shadow-md">
+                        <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Volver a la lista de temas
+                    </button>
+                </div>
+                <!-- Contenido Paso 1 -->
+                <div id="help-step-content-1" class="help-step-content space-y-6">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">1</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Crear cuenta en Hyperliquid</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Para poder utilizar el bot en modo Real, necesitas una cuenta en la plataforma Hyperliquid. En Hyperliquid tu wallet **es** tu cuenta: no hay registro tradicional y estarás listo en un par de minutos:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <div>
+                                    Entra en la aplicación oficial:
+                                    <a href="https://app.hyperliquid.xyz" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-violet-400 hover:text-violet-300 font-semibold underline underline-offset-2 transition-all duration-200 ml-1">
+                                        abrir Hyperliquid
+                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    Haz clic en **Connect** y elige cómo entrar: conecta una wallet que ya tengas (por ejemplo MetaMask) o crea una nueva al instante usando solo tu **correo electrónico**.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    Guarda a mano la **dirección de tu wallet** (empieza por 0x...): la necesitarás más adelante para vincularla con ViBo Invest.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-1" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Crear cuenta en Hyperliquid</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(2)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Cargar fondos (USDC)
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 2 -->
+                <div id="help-step-content-2" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">2</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Cargar fondos para operar</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Para que el bot pueda abrir inversiones, es necesario tener saldo disponible en tu cuenta de Hyperliquid en la moneda estable **USDC**. Tienes dos caminos:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Comprar USDC con euros (recomendado):</strong> Ve a la pestaña **Fondos** de tu panel y haz clic en **Añadir fondos**. Podrás pagar con tarjeta o transferencia y los USDC llegarán directamente a tu wallet a través de la red **Arbitrum**.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <div class="flex-grow">
+                                    <span><strong>Depositar en Hyperliquid:</strong> Con USDC ya en tu wallet, entra en app.hyperliquid.xyz, pulsa el botón **Deposit** y confirma la transferencia con estos datos:</span>
+                                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-xs mt-3 text-slate-400 space-y-1.5 max-w-md">
+                                        <div class="flex justify-between border-b border-slate-800/40 pb-1.5">
+                                            <span class="font-semibold text-slate-300">Red (Network):</span>
+                                            <span>Arbitrum</span>
+                                        </div>
+                                        <div class="flex justify-between border-b border-slate-800/40 pb-1.5">
+                                            <span class="font-semibold text-slate-300">Moneda (Coin):</span>
+                                            <span class="text-violet-400 font-bold">USDC</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="font-semibold text-slate-300">Destino:</span>
+                                            <span>Tu cuenta de Hyperliquid</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Importe mínimo:</strong> Deposita al menos el capital que quieras poner a operar. Ten en cuenta que Hyperliquid exige un mínimo de **10 USDC** por orden; con menos saldo el bot no podrá abrir posiciones.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-2" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Cargar fondos</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(3)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Crear tu API Wallet
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 3 -->
+                <div id="help-step-content-3" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">3</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Crear tu API Wallet</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Para que el bot pueda leer tu balance y lanzar órdenes en modo Real, necesitas crear una **API Wallet** (también llamada "agente"): una credencial especial que solo puede operar y que, por diseño del protocolo, jamás puede retirar tus fondos:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Abrir el panel de API:</strong> En app.hyperliquid.xyz, ve al menú superior **More** &rarr; **API**. Ahí se gestionan las API wallets de tu cuenta.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Generar la API Wallet:</strong> Pulsa **Generate**, ponle un nombre (por ejemplo: "ViBo Bot") y elige la **validez máxima** disponible (las API wallets caducan, hasta unos 180 días; al caducar solo tendrás que crear una nueva y volver a vincularla).
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Aprobar con tu wallet:</strong> Confirma la autorización (**Approve**) firmando con tu wallet principal. Esta firma solo concede permiso de operativa, nunca de retiro.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <div class="flex-grow">
+                                    <span><strong>Guardar la clave:</strong> Copia la **clave privada de la API wallet** en ese mismo momento. <em>(Atención: solo se muestra una vez; si la pierdes tendrás que generar una nueva).</em> Qué puede hacer esa clave:</span>
+                                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3 text-xs mt-3 text-slate-400 space-y-1.5">
+                                        <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span> Abrir y cerrar operaciones (permitido)</div>
+                                        <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Retirar o transferir fondos (imposible por diseño)</div>
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+
+                        <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
+                            <strong>REGLA DE SEGURIDAD ABSOLUTA:</strong> Nunca pegues en ViBo la clave privada de tu **wallet principal**; usa siempre la de la API wallet recién creada. Si nuestro sistema detecta que la clave introducida tiene capacidad de retiro, rechazará la vinculación en el acto para proteger tu capital.
+                        </div>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-3" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Crear API Wallet</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(4)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Vincular wallet
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 4 -->
+                <div id="help-step-content-4" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">4</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Vincular wallet de Hyperliquid</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Establece el enlace entre Hyperliquid y tu panel de trading en ViBo Invest de manera encriptada y 100% segura:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    Haz clic en **Hyperliquid** en la tarjeta "Canal de Ejecución" del Panel de Control (o en el botón **Conectar Hyperliquid** si aún no tienes ningún canal vinculado).
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    Pega la **dirección de tu wallet principal** (0x...) y la **clave privada de la API wallet** generada en el paso anterior en los campos del formulario.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    Presiona en **Verificar y Vincular Wallet**. El sistema realizará una validación automática inmediata (rechazando cualquier clave con capacidad de retiro) y, si todo está correcto, tu wallet quedará vinculada de forma segura.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-4" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Vincular wallet</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(5)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Activar Bot de trading
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 5 -->
+                <div id="help-step-content-5" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">5</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Activar Bot de trading</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Una vez completada la vinculación de tu wallet de Hyperliquid, pon a operar la estrategia en mercado real:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Confirmar el canal:</strong> En la tarjeta "Canal de Ejecución", comprueba que **Hyperliquid** aparece resaltado como canal activo.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Seleccionar Riesgo:</strong> En la tarjeta "Nivel de Riesgo" de tu Panel de Control, selecciona el perfil (Conservador, Balanceado o Agresivo) en el menú y haz clic en el botón **Cambiar**.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Cambiar a Modo Real:</strong> En la tarjeta de Modo de Operación, haz clic en **Cambiar a modo Real** para conmutar del entorno de simulación al dinero real.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Activar Bot:</strong> En la tarjeta "Estado del Bot", presiona en **Activar Bot**. Confirma tu decisión en el popup interactivo de seguridad. El bot empezará a seguir automáticamente las señales vigentes del proveedor, firmando cada orden con tu API wallet.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-5" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Activar Bot</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(6)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Monitorización
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 6 -->
+                <div id="help-step-content-6" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">6</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Monitorización</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            Supervisa el comportamiento del bot sin tecnicismos complejos:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Confirmación de conexión:</strong> En la cabecera del panel de control verás la insignia verde **Hyperliquid Conectado**.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Identificar inversiones activas:</strong> Revisa el distintivo superior para conocer el estado actual de tu balance: **Comprando-BTC** (cuando hay una operación al alza abierta), **Vendiendo-BTC** (cuando hay una posición a la baja abierta) o **Fuera del Mercado** (cuando no hay posiciones abiertas y tu dinero está refugiado en USDC sin riesgo de precio).
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Evolución y saldos:</strong> El valor en la sección **Balance Total** fluctúa en tiempo real y suma tu saldo USDC disponible más el patrimonio de tu cuenta de operaciones (incluidas las ganancias o pérdidas no realizadas), reflejado también de forma simplificada en el gráfico de evolución.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Verificación independiente:</strong> Al ser un exchange on-chain, puedes entrar en cualquier momento en app.hyperliquid.xyz con tu wallet y comprobar por ti mismo tu saldo y tus posiciones, sin depender de ViBo.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-6" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Monitorización</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enlace al Siguiente Tema -->
+                        <div class="pt-6 border-t border-slate-800/60 flex justify-end">
+                            <button type="button" onclick="selectHelpStep(7)" class="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition duration-200 cursor-pointer">
+                                Siguiente: Realizar un Retiro
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido Paso 7 -->
+                <div id="help-step-content-7" class="help-step-content space-y-6 hidden">
+                    <div class="bg-[hsl(223,47%,14%)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 md:p-8 shadow-md">
+                        <div class="flex items-center gap-3.5 mb-6">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold text-sm shrink-0">7</span>
+                            <h2 class="text-2xl font-bold text-white tracking-tight">Para hacer un retiro</h2>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                            La API wallet vinculada a ViBo Invest no puede retirar: cualquier retiro debe autorizarlo tu wallet principal directamente en Hyperliquid. Cuando decidas retirar fondos, sigue estos pasos ordenados de seguridad:
+                        </p>
+                        <ul class="space-y-4 mb-8 text-sm text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Pausar Bot:</strong> Ve al Panel de Control de ViBo Invest y haz clic en **Pausar Bot**. Esto asegura el cierre de cualquier operación activa y consolida tu patrimonio en USDC, previniendo que el bot abra transacciones durante el retiro.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Retirar de Hyperliquid:</strong> Entra en app.hyperliquid.xyz con tu wallet, pulsa **Withdraw** y confirma la operación con tu firma. Los USDC llegarán a tu wallet a través de la red **Arbitrum** en unos minutos.
+                                </span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-5 h-5 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs shrink-0 mt-0.5">&rarr;</span>
+                                <span>
+                                    <strong>Convertir a euros (opcional):</strong> Si quieres recibir el dinero en tu cuenta bancaria, ve a la pestaña **Fondos** de tu panel y usa **Retirar fondos** para vender los USDC de tu wallet y recibir EUR en tu IBAN.
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Video Player Card -->
+                        <div class="pt-6 border-t border-slate-800/60 space-y-3">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Guía Visual en Video</span>
+                            <div class="video-container relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 aspect-video shadow-2xl flex items-center justify-center group">
+                                <video id="help-video-7" controls class="w-full h-full hidden absolute inset-0 z-10" src=""></video>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-slate-950 to-violet-950/20 flex flex-col items-center justify-center p-6 text-center space-y-4 z-0 transition-opacity duration-300">
+                                    <div class="w-16 h-16 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 transition duration-300 shadow-lg">
+                                        <svg class="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white mb-1">Videotutorial — Realizar retiros</h4>
+                                        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Este video explicativo estará disponible próximamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @else
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <!-- Columna Izquierda: Lista de Pasos -->
             <div id="help-steps-list" class="lg:col-span-5 space-y-4 lg:block transition-all duration-300">
@@ -1535,6 +2117,7 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
     </div> <!-- Closes #tab-content-help -->
     </div> <!-- Closes the main wrapper (line 4) -->
