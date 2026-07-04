@@ -1,6 +1,6 @@
 ---
 created: 2026-07-02
-updated: 2026-07-02
+updated: 2026-07-04
 ---
 
 # Canal de ejecución Hyperliquid (DEX de perpetuos on-chain)
@@ -104,10 +104,10 @@ canal original.
    - Tanto la consulta del saldo inicial (`latestSnapshot` en `DashboardController`) como el endpoint de carga del gráfico (`/dashboard/balance` en `BalanceController`) ahora filtran por el canal activo del usuario (`where('trading_channel', $user->tradingChannel())`).
    - Se modificó la directiva de la plantilla `dashboard.blade.php` para activar el script de sondeo en vivo (`pollLiveBalance()`) cuando el canal activo del usuario esté vinculado (`isBrokerLinked()`), permitiendo que el balance de Hyperliquid se actualice en tiempo real al igual que el de Binance.
 
-9. **Soporte para saldo Spot de USDC (2026-07-02)**:
+9. **Soporte para saldo Spot de USDC y Corrección de Doble Contabilidad (2026-07-02 / 2026-07-04)**:
    - Al depositar fondos en Hyperliquid, el balance de USDC se aloja inicialmente en la billetera de Spot de la red L1 (`spotClearinghouseState`) y no en la cuenta de perpetuos (`clearinghouseState`), lo que hacía que `getTotalBalance` reportara `0.0`.
    - Se modificaron `getTotalBalance` y `getAvailableBalance` en `HyperliquidBroker` para consultar y sumar el saldo de USDC de la cuenta Spot junto con el colateral/patrimonio neto de la cuenta de derivados.
-   - Para evitar duplicar el saldo (doble contabilidad) al tener una posición abierta, se resta la cantidad retenida en spot (`hold`, que representa la garantía retenida para la posición de futuros) antes de sumar el balance neto de la cuenta de derivados (`accountValue`), manteniendo el balance preciso en tiempo real y reflejando cualquier P&L no realizado.
+   - **Corrección de Doble Contabilidad (2026-07-04):** En las cuentas unificadas de Hyperliquid (*Unified Accounts*), la billetera de Spot reporta el total de USDC de la billetera L1 (el cual incluye el margen comprometido en futuros, puesto que la clave `hold` de Spot solo cuenta órdenes abiertas de spot y no de futuros). Para evitar duplicar esa garantía al sumar el `accountValue` de perpetuos, se resta explícitamente `$state['marginSummary']['totalMarginUsed']` (margen real en uso por futuros) de la suma total. Esto soluciona la discrepancia por la cual el balance "en vivo" flotaba inflado durante una operación y caía repentinamente al cerrar la posición y liberarse el margen.
    - **Requisito ext-gmp**: La librería de firmas elípticas utilizada para conectarse con Hyperliquid (`simplito/elliptic-php`) requiere de forma obligatoria la extensión GMP de PHP. Se actualizó `docker/php/Dockerfile` agregando `gmp` a la directiva `install-php-extensions` para permitir la correcta compilación y evitar el fallo del build de producción.
 
 ## Configuración (.env)

@@ -107,10 +107,12 @@ class HyperliquidBroker implements HyperliquidBrokerInterface
         }
 
         $wallet = $this->normalizedAddress($apiKey);
+        $marginUsed = 0.0;
 
         try {
             $state = $this->fetchClearinghouseState($wallet);
             $perpBalance = (float) ($state['marginSummary']['accountValue'] ?? 0);
+            $marginUsed = (float) ($state['marginSummary']['totalMarginUsed'] ?? 0);
         } catch (\Exception $e) {
             $perpBalance = 0.0;
         }
@@ -128,7 +130,7 @@ class HyperliquidBroker implements HyperliquidBrokerInterface
             $spotBalance = 0.0;
         }
 
-        return round($perpBalance + $spotBalance, 2);
+        return round($perpBalance + $spotBalance - $marginUsed, 2);
     }
 
     /**
@@ -145,10 +147,12 @@ class HyperliquidBroker implements HyperliquidBrokerInterface
         }
 
         $wallet = $this->normalizedAddress($apiKey);
+        $marginUsed = 0.0;
 
         try {
             $state = $this->fetchClearinghouseState($wallet);
             $perpAvailable = (float) ($state['withdrawable'] ?? 0);
+            $marginUsed = (float) ($state['marginSummary']['totalMarginUsed'] ?? 0);
         } catch (\Exception $e) {
             $perpAvailable = 0.0;
         }
@@ -166,7 +170,7 @@ class HyperliquidBroker implements HyperliquidBrokerInterface
             $spotAvailable = 0.0;
         }
 
-        return round($perpAvailable + $spotAvailable, 2);
+        return round($perpAvailable + $spotAvailable - $marginUsed, 2);
     }
 
     /**
