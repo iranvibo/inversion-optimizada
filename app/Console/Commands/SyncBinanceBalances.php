@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Core\Exceptions\InvalidBrokerCredentialsInterface;
 use App\Core\Trading\BrokerResolver;
+use App\Core\Trading\PositionReconciler;
 use App\Events\BalanceUpdated;
 use App\Models\User;
 use Illuminate\Console\Command;
@@ -33,6 +34,7 @@ class SyncBinanceBalances extends Command
 
     public function __construct(
         protected BrokerResolver $brokerResolver,
+        protected PositionReconciler $positionReconciler,
     ) {
         parent::__construct();
     }
@@ -74,15 +76,22 @@ class SyncBinanceBalances extends Command
                     $user->brokerSecretKey(),
                 );
 
+                // Reconciliar la posición real del exchange y registrar cierres (TP/SL)
+                $closed = $this->positionReconciler->reconcile($user, $balance);
+
                 $capturedAt = now();
 
-                $user->balanceSnapshots()->create([
-                    'balance' => $balance,
-                    'captured_at' => $capturedAt,
-                    'trading_channel' => $user->tradingChannel(),
-                ]);
+                // Si la posición se cerró durante la reconciliación, esta ya generó
+                // un snapshot de balance actualizado, por lo que evitamos crear uno duplicado.
+                if (! $closed) {
+                    $user->balanceSnapshots()->create([
+                        'balance' => $balance,
+                        'captured_at' => $capturedAt,
+                        'trading_channel' => $user->tradingChannel(),
+                    ]);
 
-                event(new BalanceUpdated($user, $balance, $capturedAt->toImmutable()));
+                    event(new BalanceUpdated($user, $balance, $capturedAt->toImmutable()));
+                }
 
                 $this->info("Balance sincronizado para {$user->email} ({$user->tradingChannel()}): {$balance}");
                 $syncedCount++;

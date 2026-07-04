@@ -528,4 +528,48 @@ class AdjustPositionJobTest extends TestCase
         $this->assertSame(0, $user->balanceSnapshots()->count());
         Event::assertNotDispatched(BalanceUpdated::class);
     }
+
+    public function test_real_mode_records_close_activity_when_already_closed_in_exchange_but_cached_as_open(): void
+    {
+        Event::fake([BalanceUpdated::class]);
+
+        $user = User::factory()->create([
+            'bot_active' => true,
+            'bot_mode' => 'real',
+            'binance_api_key' => 'key',
+            'binance_secret_key' => 'secret',
+            'binance_verified' => true,
+            'risk_level' => 'balanceado',
+            'estimated_capital' => 1000,
+        ]);
+
+        // Caché figura como LONG, pero el exchange ya se cerró (adjustPosition devuelve false)
+        Cache::put("user:{$user->id}:real_position", 'LONG');
+        Cache::put("user:{$user->id}:open_capital", 1000.0);
+
+        $this->broker->shouldReceive('adjustPosition')
+            ->once()
+            ->with($user->binance_api_key, $user->binance_secret_key, 'CLOSE', 'balanceado')
+            ->andReturn(false); // false = no hay cambios en el exchange
+
+        $this->broker->shouldReceive('getTotalBalance')
+            ->once()
+            ->with($user->binance_api_key, $user->binance_secret_key)
+            ->andReturn(1050.0); // 1050 de balance final
+
+        $this->runJob($user->id, 'CLOSE');
+
+        // Debería haberse registrado la actividad de cierre a pesar de que el exchange no sufrió cambios en esta llamada
+        $this->assertDatabaseHas('bot_activities', [
+            'user_id' => $user->id,
+            'bot_mode' => 'real',
+            'type' => 'close',
+            'action' => 'close_profit',
+            'profit_value' => 50.0,
+            'profit_percentage' => 5.0,
+        ]);
+
+        $this->assertSame('CLOSE', Cache::get("user:{$user->id}:real_position"));
+        Event::assertDispatched(BalanceUpdated::class);
+    }
 }

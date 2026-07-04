@@ -87,7 +87,15 @@ class AdjustPositionJob implements ShouldQueue
 
                 // Sin cambios en el exchange: no se registra actividad ni se sincroniza balance.
                 if (! $changed) {
-                    return;
+                    // EXCEPCIÓN: Si la posición ya se cerró en el exchange (por ejemplo,
+                    // por un Take Profit o Stop Loss colocado en la plataforma) pero en nuestra
+                    // caché figuraba abierta (LONG/SHORT) y ahora se solicita cerrar (CLOSE),
+                    // procedemos para registrar la actividad de cierre y actualizar el balance.
+                    if ($this->newPosition === 'CLOSE' && $previousRealPosition !== 'CLOSE') {
+                        // Continuamos para procesar el cierre.
+                    } else {
+                        return;
+                    }
                 }
 
                 if ($this->newPosition === 'CLOSE') {

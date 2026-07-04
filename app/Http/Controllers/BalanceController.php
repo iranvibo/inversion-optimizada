@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Core\Portfolio\PortfolioPerformanceService;
 use App\Core\Simulation\SimulatedBalanceProjector;
 use App\Core\Trading\BrokerResolver;
+use App\Core\Trading\PositionReconciler;
 use App\Events\BalanceUpdated;
 use App\Http\Requests\BalanceHistoryRequest;
 use App\Infrastructure\Demo\FakeBalanceHistoryGenerator;
@@ -23,6 +24,7 @@ class BalanceController extends Controller
         private readonly PortfolioPerformanceService $performanceService,
         private readonly BrokerResolver $brokerResolver,
         private readonly SimulatedBalanceProjector $balanceProjector,
+        private readonly PositionReconciler $positionReconciler,
     ) {}
 
     /**
@@ -53,6 +55,9 @@ class BalanceController extends Controller
                     $user->brokerSecretKey(),
                 ),
             );
+
+            // Reconciliar la posición real del exchange y registrar cierres (TP/SL)
+            $this->positionReconciler->reconcile($user, $balance);
         } catch (\Throwable $e) {
             // Fallo transitorio (red/API/permisos): la UI conserva el último valor.
             return response()->json(['live' => false, 'balance' => null]);
