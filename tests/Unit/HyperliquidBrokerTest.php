@@ -31,6 +31,8 @@ class HyperliquidBrokerTest extends TestCase
     {
         parent::setUp();
 
+        Cache::flush();
+
         config(['services.hyperliquid.mock' => true]);
 
         $this->broker = $this->app->make(HyperliquidBrokerInterface::class);
@@ -250,6 +252,41 @@ class HyperliquidBrokerTest extends TestCase
         Http::fake($this->fakeInfoResponses(withdrawable: 321.994));
 
         $this->assertSame(321.99, $this->broker->getAvailableBalance(self::WALLET, self::AGENT_KEY));
+    }
+
+    public function test_real_balance_for_unified_account(): void
+    {
+        $this->useRealDriver();
+
+        Http::fake(function ($request) {
+            if (! str_ends_with($request->url(), '/info')) {
+                return null;
+            }
+
+            return match ($request['type']) {
+                'clearinghouseState' => Http::response([
+                    'marginSummary' => [
+                        'accountValue' => '85.19',
+                        'totalMarginUsed' => '83.61',
+                    ],
+                    'withdrawable' => '1.58',
+                    'assetPositions' => [],
+                ]),
+                'spotClearinghouseState' => Http::response([
+                    'balances' => [
+                        ['coin' => 'USDC', 'total' => '1000.00', 'hold' => '83.61'],
+                    ],
+                ]),
+                'allMids' => Http::response(['BTC' => '50000.0']),
+                'meta' => Http::response(['universe' => [['name' => 'BTC', 'szDecimals' => 5, 'maxLeverage' => 40]]]),
+                default => Http::response([]),
+            };
+        });
+
+        // Total: perpBalance (85.19) + spotBalance (1000.00 - 83.61) = 1001.58
+        // Available: perpAvailable (1.58) + spotAvailable (1000.00 - 83.61) = 917.97
+        $this->assertSame(1001.58, $this->broker->getTotalBalance(self::WALLET, self::AGENT_KEY));
+        $this->assertSame(917.97, $this->broker->getAvailableBalance(self::WALLET, self::AGENT_KEY));
     }
 
     public function test_real_rejects_malformed_wallet_address(): void
