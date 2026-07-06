@@ -120,6 +120,7 @@ class AdjustPositionJob implements ShouldQueue
                         $user->balanceSnapshots()->create([
                             'balance' => $newBalance,
                             'captured_at' => $now,
+                            'trading_channel' => $user->tradingChannel(),
                         ]);
                     }
 
@@ -168,6 +169,7 @@ class AdjustPositionJob implements ShouldQueue
                         $user->balanceSnapshots()->create([
                             'balance' => $openCapital,
                             'captured_at' => $now,
+                            'trading_channel' => $user->tradingChannel(),
                         ]);
                     }
 
@@ -209,6 +211,7 @@ class AdjustPositionJob implements ShouldQueue
                 $user->balanceSnapshots()->create([
                     'balance' => $newBalance,
                     'captured_at' => $now,
+                    'trading_channel' => $user->tradingChannel(),
                 ]);
 
                 // Emitir evento WebSocket para actualizar balance en tiempo real
