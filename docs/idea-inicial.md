@@ -191,10 +191,10 @@ Pantalla 3 — Capital estimado
 
 Slider:
 
-* 100€
-* 500€
-* 1000€
-* 5000€
+* 100$
+* 500$
+* 1000$
+* 5000$
 
 Para personalizar simulación.
 
@@ -305,11 +305,11 @@ Card 5 — Protección
 
 Mostrar:
 
-* stop diario,
-* capital protegido,
-* límite máximo.
+* estado del bot (activo/pausado),
+* botón de pausa inmediata,
+* protección de seguridad de credenciales (sin permisos de retiro).
 
-Esto da seguridad psicológica.
+Esto da seguridad psicológica. *(Actualizado 2026-06-21: se descartó el stop diario / capital protegido como reglas propias de ViBo; el control de riesgo de trading lo aporta el proveedor externo de señales.)*
 
 ⸻
 
@@ -500,4 +500,4 @@ Origen de las Señales del Bot
 
 * El bot que ejecuta las señales de trading en Binance obtiene la información y los datos correspondientes desde una API externa al proyecto.
 * **Seguridad y Aislamiento de Credenciales**: Las claves de API de Binance del usuario nunca se transmiten al proveedor externo de señales. El proveedor de señales se limita a emitir las señales a ViBo Invest.
-* **Rol de Gatekeeper**: El backend de ViBo Invest recibe las señales, verifica localmente si la cuenta del usuario cumple las reglas de riesgo (como el stop loss diario o el capital protegido) y, si es seguro operar, ejecuta la orden directamente en Binance mediante las credenciales que se custodian cifradas localmente.
+* **Rol de Gatekeeper**: El backend de ViBo Invest recibe las señales, comprueba que el bot del usuario siga activo y que la cuenta cumpla las verificaciones de **seguridad** (bloqueo de permisos de retiro, credenciales válidas) y, si es seguro operar, ejecuta la orden directamente en Binance mediante las credenciales que se custodian cifradas localmente. *(Actualizado 2026-06-21: ViBo no aplica reglas de riesgo de trading propias —stop loss diario / capital protegido—; replica la señal del proveedor externo.)*

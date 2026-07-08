@@ -10,7 +10,7 @@ ViBo Invest (Inversión Optimizada)
 
 0.3. Descripción breve del proyecto:
 
-Plataforma web B2C de automatización de trading de criptomonedas inspirada en el concepto del "Netflix del trading automatizado". Diseñada con una UX/UI radicalmente simple y enfocada en inversores minoristas no técnicos (entre 35 y 55 años). La plataforma integra de forma segura la API de Binance, cifra localmente las credenciales de los usuarios, consume de forma segura señales de trading desde un proveedor externo y proporciona un control de riesgo ineludible (Stop Loss diario, Capital Protegido) y un historial de actividad redactado enteramente en lenguaje humano.
+Plataforma web B2C de automatización de trading de criptomonedas inspirada en el concepto del "Netflix del trading automatizado". Diseñada con una UX/UI radicalmente simple y enfocada en inversores minoristas no técnicos (entre 35 y 55 años). La plataforma integra de forma segura la API de Binance, cifra localmente las credenciales de los usuarios, consume de forma segura señales de trading desde un proveedor externo y proporciona un control de seguridad ineludible sobre las credenciales (bloqueo de permisos de retiro), la posibilidad de pausar el bot al instante y un historial de actividad redactado enteramente en lenguaje humano. ViBo Invest no toma decisiones de trading propias: se limita a replicar la posición que indica el proveedor externo de señales.
 
 0.4. URL del proyecto:
 
@@ -30,7 +30,7 @@ El propósito de **ViBo Invest** es eliminar la fricción técnica y la barrera 
 
 *   **Simplicidad radical**: Oculta por completo la complejidad de los gráficos técnicos tradicionales (velas japonesas, libros de órdenes, RSI, MACD, etc.).
 *   **Confianza y Control**: Garantiza que el usuario mantenga el control sobre su capital en Binance, impidiendo de forma activa que la plataforma adquiera permisos de retiro.
-*   **Paz Mental**: Ofrece mecanismos ineludibles de protección de pérdidas (Stop Loss diario y límite de capital protegido) visibles y configurables.
+*   **Paz Mental**: El usuario puede pausar el bot al instante en cualquier momento y ve en lenguaje humano cada acción ejecutada. ViBo no aplica reglas de trading propias: la lógica de entrada/salida (incluido cuándo conviene cerrar para limitar pérdidas) reside en el proveedor externo de señales.
 *   **Educación sin riesgo**: Incorpora un onboarding con simulación en tiempo real (Shadow Mode) utilizando datos históricos del mercado para probar el bot de forma interactiva.
 
 ### 1.2. Características y funcionalidades principales
@@ -63,14 +63,14 @@ El propósito de **ViBo Invest** es eliminar la fricción técnica y la barrera 
 
 La plataforma utiliza una arquitectura moderna desacoplada en contenedores y optimizada para procesar datos en tiempo real de manera asíncrona.
 
-*   **Backend / Framework principal**: [Laravel 11](https://laravel.com/) (PHP 8.3+)
+*   **Backend / Framework principal**: [Laravel 12](https://laravel.com/) (PHP 8.4+)
     *   Gestión de colas robusta y estructura minimalista.
     *   Cifrado simétrico robusto **AES-256-GCM** para el almacenamiento seguro de las API Keys de los usuarios en la base de datos MySQL.
 *   **Frontend**: Plantillas Blade compiladas con [Vite](https://vitejs.dev/)
     *   Reactividad del lado del cliente mediante JavaScript Vanilla y Alpine.js.
     *   Estilos integrados con **Tailwind CSS 4** y **Vanilla CSS** para el diseño premium personalizado.
 *   **WebSockets & Tiempo Real**: [Laravel Reverb](https://laravel.com/docs/11.x/reverb)
-    *   Servidor de WebSockets de alto rendimiento integrado nativamente en Laravel 11.
+    *   Servidor de WebSockets de alto rendimiento integrado nativamente en Laravel 12.
     *   Permite empujar actualizaciones en vivo del saldo, estado del bot y alertas de seguridad directamente al navegador del usuario sin necesidad de recurrir a servicios de pago externos (ej. Pusher).
 *   **Mensajería, Colas y Caché**: [Redis 7](https://redis.io/)
     *   Gestiona los workers de tareas en segundo plano (auditoría de llaves, procesamiento inmediato de órdenes) y actúa como el broker Pub/Sub de Laravel Reverb.
@@ -94,7 +94,7 @@ Las credenciales de Binance (API Key y Secret Key) de los usuarios están almace
 *   El backend de ViBo Invest actúa como el único **Gatekeeper**:
     1.  El scheduler sondea la API de señales una vez por nivel de riesgo activo y detecta cambios de posición.
     2.  Ante un cambio, encola un trabajo asíncrono de ajuste de posición en Redis.
-    3.  El worker extrae la tarea, realiza las validaciones de riesgo locales (Stop Loss diario, Capital Protegido, Bot activo) y, en modo real, descifra las llaves API del usuario y ajusta la posición directamente en Binance; en modo simulación registra la operación simulada.
+    3.  El worker extrae la tarea, comprueba que el bot siga activo y, en modo real, descifra las llaves API del usuario y ajusta la posición directamente en Binance; en modo simulación registra la operación simulada. (El backend ya **no** aplica reglas de riesgo de trading locales: solo replica la señal externa. La única pausa automática es por seguridad: permisos de retiro indebidos o credenciales inválidas.)
     4.  La API externa también suministra el **histórico de señales** (fecha, hora, posición y profit), con el que el backend calcula localmente la evolución del capital simulado para el gráfico de progreso del dashboard.
 
 ---

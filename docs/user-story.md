@@ -3,7 +3,7 @@
 Este documento define las 7 User Stories principales para el MVP de **ViBo Invest**, estructuradas bajo el criterio **INVEST** y utilizando el formato de desarrollo guiado por comportamiento (**BDD**) para sus criterios de aceptación.
 
 > [!NOTE]
-> **Origen de las Señales y Aislamiento de Credenciales**: El bot de trading obtiene las señales consultando (polling) una API externa al proyecto, pasándole como parámetro el nivel de riesgo configurado por el usuario. La API responde con la posición objetivo actual (`LONG`, `SHORT` o `CLOSE`). Las API Keys de Binance del usuario permanecen aisladas en el backend de ViBo Invest y **nunca** se envían al proveedor de señales. ViBo Invest actúa como *gatekeeper*: compara la señal recibida con la última posición conocida, valida los límites de riesgo locales (como el Stop Loss diario) y ejecuta los ajustes de posición de manera directa y segura en Binance. Por defecto, el sistema utiliza un **proveedor de señales mock interno** (mismo contrato que la API real) para desarrollo y tests.
+> **Origen de las Señales y Aislamiento de Credenciales**: El bot de trading obtiene las señales consultando (polling) una API externa al proyecto, pasándole como parámetro el nivel de riesgo configurado por el usuario. La API responde con la posición objetivo actual (`LONG`, `SHORT` o `CLOSE`). Las API Keys de Binance del usuario permanecen aisladas en el backend de ViBo Invest y **nunca** se envían al proveedor de señales. ViBo Invest actúa como *gatekeeper* de **seguridad**: compara la señal recibida con la última posición conocida, comprueba que el bot siga activo y que la cuenta supere las verificaciones de seguridad (sin permisos de retiro, credenciales válidas) y ejecuta los ajustes de posición de manera directa y segura en Binance. No aplica reglas de riesgo de trading propias: replica la señal del proveedor externo. Por defecto, el sistema utiliza un **proveedor de señales mock interno** (mismo contrato que la API real) para desarrollo y tests.
 
 ---
 
@@ -48,7 +48,7 @@ Este documento define las 7 User Stories principales para el MVP de **ViBo Inves
 * **Criterios de Aceptación (BDD):**
   * **Escenario 1: Generación de proyección dinámica según parámetros del usuario**
     * **Dado que** he completado mi registro e iniciado el onboarding,
-    * **cuando** selecciono un perfil de riesgo (Conservador, Balanceado, Agresivo) y ajusto el slider de capital estimado a un valor específico (ej. 1000€),
+    * **cuando** selecciono un perfil de riesgo (Conservador, Balanceado, Agresivo) y ajusto el slider de capital estimado a un valor específico (ej. 1000$),
     * **entonces** el sistema debe proyectar dinámicamente un gráfico histórico con la evolución de la inversión basado en esos parámetros.
   * **Escenario 2: Transparencia en la visualización de caídas temporales (Drawdowns)**
     * **Dado que** estoy interactuando con el gráfico de simulación en el onboarding,
@@ -143,11 +143,11 @@ Este documento define las 7 User Stories principales para el MVP de **ViBo Inves
   * **Escenario 2: Visualización amigable de rendimientos individuales**
     * **Dado que** una posición se ha cerrado con beneficio o pérdida,
     * **cuando** se lista en el historial de actividad,
-    * **entonces** debe mostrarse de forma explícita el resultado neto (ej. "Posición cerrada con un +1.5% de beneficio (+15€)" o "Protección de pérdida activada para asegurar tu capital").
-  * **Escenario 3: Resaltado visual de eventos de protección de riesgo**
-    * **Dado que** el bot activa una protección automática de riesgo (como el stop-loss diario),
+    * **entonces** debe mostrarse de forma explícita el resultado neto (ej. "Posición cerrada con un +1.5% de beneficio (+15$)" o "Protección de pérdida activada para asegurar tu capital").
+  * **Escenario 3: Resaltado visual de eventos de protección de seguridad**
+    * **Dado que** el bot activa una protección automática de **seguridad** (p. ej. se detectan permisos de retiro indebidos o credenciales inválidas en la cuenta de Binance),
     * **cuando** este evento se registra en el feed de actividad,
-    * **entonces** el sistema debe destacarlo visualmente con un diseño de alerta en la parte superior del historial (ej. "Protección diaria activada: El bot se pausó automáticamente para proteger tu capital").
+    * **entonces** el sistema debe destacarlo visualmente con un diseño de alerta en la parte superior del historial (ej. "Protección diaria activada: El bot se pausó automáticamente para proteger tu capital"). *(Actualizado 2026-06-21: estas alertas ya solo se generan por seguridad; se retiró el gatekeeper de riesgo de trading —stop-loss diario / capital protegido—.)*
 * **Estimación de complejidad:** S (Small)
 * **Evaluación contra INVEST:**
   * **I (Independiente):** Es independiente de la ejecución en vivo del trading o del onboarding; actúa de manera retrospectiva leyendo registros de base de datos.
@@ -164,12 +164,12 @@ Este documento define las 7 User Stories principales para el MVP de **ViBo Inves
 * **Fórmula de Historia:**
   * **Como** usuario con el bot activo,
   * **quiero** que la plataforma consulte en tiempo real la API externa de señales con mi nivel de riesgo configurado y ajuste automáticamente mi posición en Binance solo cuando la señal cambie,
-  * **para** que mis operaciones sigan la estrategia del proveedor sin intervención manual y siempre respetando mis límites de protección.
+  * **para** que mis operaciones sigan la estrategia del proveedor sin intervención manual.
 * **Criterios de Aceptación (BDD):**
   * **Escenario 1: Detección de cambio de señal y ajuste de posición en Binance**
     * **Dado que** mi bot está "Activo" en modo real con nivel de riesgo "Balanceado" y la última posición conocida es `LONG`,
     * **cuando** el ciclo de sondeo (polling) consulta la API externa con `risk_level=balanceado` y esta responde `CLOSE`,
-    * **entonces** el sistema debe validar mis reglas de riesgo locales (Stop Loss diario, Capital Protegido), encolar el trabajo de ajuste, cerrar la posición en Binance, registrar el evento en lenguaje humano en el historial y notificar el cambio al dashboard vía WebSocket.
+    * **entonces** el sistema debe comprobar que el bot siga activo, encolar el trabajo de ajuste, cerrar la posición en Binance, registrar el evento en lenguaje humano en el historial y notificar el cambio al dashboard vía WebSocket. *(Actualizado 2026-06-21: ya no se validan reglas de riesgo de trading locales —Stop Loss diario/Capital Protegido—; el bot solo replica la señal externa.)*
   * **Escenario 2: Señal sin cambios (idempotencia del sondeo)**
     * **Dado que** la última posición conocida para mi nivel de riesgo es `LONG`,
     * **cuando** el ciclo de sondeo recibe nuevamente `LONG` de la API externa,

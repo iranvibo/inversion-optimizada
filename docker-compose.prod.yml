@@ -1,0 +1,151 @@
+# =============================================================================
+# ViBo Invest — Stack de PRODUCCIÓN
+#
+# Imágenes inmutables construidas con el Dockerfile multietapa (sin bind
+# mounts de código). Solo `web` (80/443) y `websocket` (8080) exponen puertos.
+#
+# Uso:
+#   docker compose -f docker-compose.prod.yml build
+#   docker compose -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
+# =============================================================================
+
+name: vibo-invest-prod
+
+# Build args VITE_* compartidos: DEBEN ser idénticos en `app` (target production)
+# y `web` (target web). Ambos targets ejecutan la etapa `assets` (Vite), y si los
+# args difieren BuildKit la compila por separado generando hashes distintos: el
+# manifest que lee PHP-FPM apuntaría a archivos que Nginx no tiene → 404 de JS.
+x-vite-args: &vite-args
+  VITE_REVERB_APP_KEY: ${REVERB_APP_KEY}
+  VITE_REVERB_HOST: ${VITE_REVERB_HOST:-localhost}
+  VITE_REVERB_PORT: ${VITE_REVERB_PORT:-8080}
+  VITE_REVERB_SCHEME: ${VITE_REVERB_SCHEME:-http}
+  VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+  VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+  VITE_FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+  VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+  VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+  VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+
+x-app-image: &app-image
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+    target: production
+    args:
+      <<: *vite-args
+  image: vibo-invest/app:latest
+  env_file: .env
+  restart: unless-stopped
+  networks:
+    - vibo-network
+
+services:
+  # 1. Nginx — único punto de entrada HTTP público
+  web:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: web
+      args:
+        <<: *vite-args
+    image: vibo-invest/web:latest
+    ports:
+      - "127.0.0.1:8091:80"
+      # TLS (443) se termina aquí o en un balanceador/CDN por delante
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - vibo-network
+
+  # 2. Laravel App — PHP-FPM
+  app:
+    <<: *app-image
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # 3. Laravel Reverb — WebSockets
+  websocket:
+    <<: *app-image
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - "127.0.0.1:8092:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # 4. Queue Worker — órdenes asíncronas hacia Binance
+  queue-worker:
+    <<: *app-image
+    command: php artisan queue:work redis --sleep=1 --tries=3 --max-time=3600
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # 5. Scheduler — sondeo de señales (~5s) y auditoría diaria de API keys
+  scheduler-worker:
+    <<: *app-image
+    command: php artisan schedule:work
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # 6. Redis — interno, sin puertos publicados
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - vibo-network
+
+  # 7. MySQL — interno, sin puertos publicados
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Definir DB_ROOT_PASSWORD en .env}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD}", "-u", "${DB_USERNAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks:
+      - vibo-network
+
+networks:
+  vibo-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  app-storage:

@@ -1,0 +1,139 @@
+# =============================================================================
+# ViBo Invest — Stack de DESARROLLO
+#
+# El código fuente se monta como volumen en todos los contenedores PHP.
+# Los assets de frontend se sirven con Vite en el host: `npm run dev`
+# (o `npm run build` para generar el manifest una sola vez).
+#
+# Uso:
+#   docker compose up -d --build
+#   docker compose exec app php artisan migrate
+# =============================================================================
+
+name: vibo-invest
+
+services:
+  # 1. Nginx — proxy inverso y archivos estáticos (puerto público 80)
+  web:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - vibo-network
+
+  # 2. Laravel App — PHP-FPM 8.3
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: dev
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vibo-network
+
+  # 3. Laravel Reverb — servidor WebSocket (puerto público 8080)
+  websocket:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: dev
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - vibo-network
+
+  # 4. Queue Worker — consume jobs de Redis (órdenes hacia Binance)
+  queue-worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: dev
+    restart: always
+    command: php artisan queue:work redis --sleep=1 --tries=3 --max-time=3600
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vibo-network
+
+  # 5. Scheduler — planificador de Laravel (sondeo de señales sub-minuto)
+  scheduler-worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: dev
+    restart: always
+    command: php artisan schedule:work
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vibo-network
+
+  # 6. Redis 7 — colas, caché y Pub/Sub para Reverb (solo red interna)
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - vibo-network
+
+  # 7. MySQL 8.0 — persistencia (expuesto solo en loopback para tooling local)
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: vibo_invest
+      MYSQL_USER: vibo
+      MYSQL_PASSWORD: vibo_secret_local
+      MYSQL_ROOT_PASSWORD: root_secret_local
+    ports:
+      # 33060 en el host (3306 ya lo usa otro contenedor local)
+      - "127.0.0.1:33060:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pvibo_secret_local", "-u", "vibo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - vibo-network
+
+networks:
+  vibo-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:

@@ -1,0 +1,74 @@
+name: Deploy to IONOS VPS
+
+on:
+  push:
+    branches: [master, feature-entrega2-IVB]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH Key & Known Hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p ${{ secrets.VPS_PORT || 22 }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy via rsync
+        run: |
+          rsync -azP --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            --exclude='database/database.sqlite' \
+            --exclude='storage/logs/*' \
+            --exclude='storage/framework/cache/data/*' \
+            --exclude='storage/framework/sessions/*' \
+            --exclude='storage/framework/views/*' \
+            --exclude='storage/app/*' \
+            --exclude='public/storage' \
+            --exclude='tests' \
+            --exclude='phpunit.xml' \
+            --exclude='.editorconfig' \
+            --exclude='specs' \
+            --exclude='.specify' \
+            --exclude='CLAUDE.md' \
+            --exclude='AGENTS.md' \
+            --exclude='prompts.md' \
+            --exclude='memory/' \
+            --exclude='docs/' \
+            --exclude='vendor/' \
+            -e "ssh -p ${{ secrets.VPS_PORT || 22 }}" \
+            ./ \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/vibo-invest/
+
+      - name: Run post-deploy commands (Docker Compose)
+        run: |
+          ssh -p ${{ secrets.VPS_PORT || 22 }} \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'ENDSSH'
+            cd /var/www/vibo-invest
+
+            # Levantar y reconstruir los contenedores Docker
+            docker compose -f docker-compose.prod.yml up -d --build
+
+            # Ejecutar migraciones dentro de la app
+            docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force
+
+            # Optimizar caché de Laravel
+            docker compose -f docker-compose.prod.yml exec -T app php artisan config:cache
+            docker compose -f docker-compose.prod.yml exec -T app php artisan route:cache
+            docker compose -f docker-compose.prod.yml exec -T app php artisan view:cache
+
+            # Crear enlace simbólico de storage
+            docker compose -f docker-compose.prod.yml exec -T app php artisan storage:link 2>/dev/null || true
+
+            echo "Deploy complete!"
+          ENDSSH
