@@ -115,19 +115,53 @@ class HyperliquidBroker implements HyperliquidBrokerInterface
             $perpBalance = 0.0;
         }
 
+        // Si la cuenta es unificada, el saldo de spot USDC se considera colateral
+        // y ya se incluye dentro del accountValue devuelto por clearinghouseState.
+        // Cacheamos por 1 día para evitar peticiones redundantes en cada sondeo.
+        $isUnified = false;
+        try {
+            $isUnified = Cache::remember('hl_unified_account_'.$wallet, 86400, function () use ($wallet) {
+                try {
+                    $response = Http::post($this->apiUrl().'/info', [
+                        'type' => 'userAbstraction',
+                        'user' => $wallet,
+                    ]);
+                    if ($response->successful()) {
+                        $mode = $response->json();
+                        return $mode === 'unifiedAccount' || $mode === 'portfolioMargin';
+                    }
+                } catch (\Exception $e) {
+                    // Ignorar error y retornar false
+                }
+                return false;
+            });
+        } catch (\Exception $e) {
+            // Fallback en caso de error de red o de API
+        }
+
         try {
             $spotState = $this->fetchSpotClearinghouseState($wallet);
-            $spotBalance = 0.0;
+            $spotTotal = 0.0;
+            $spotHold = 0.0;
             foreach ($spotState['balances'] ?? [] as $bal) {
                 if (($bal['coin'] ?? null) === 'USDC') {
-                    $spotBalance = (float) ($bal['total'] ?? 0) - (float) ($bal['hold'] ?? 0);
+                    $spotTotal = (float) ($bal['total'] ?? 0);
+                    $spotHold = (float) ($bal['hold'] ?? 0);
                     break;
                 }
             }
         } catch (\Exception $e) {
-            $spotBalance = 0.0;
+            $spotTotal = 0.0;
+            $spotHold = 0.0;
         }
 
+        if ($isUnified) {
+            // En cuenta unificada, el Total Equity del portfolio es el USDC total en Spot.
+            return round($spotTotal, 2);
+        }
+
+        // En cuenta estándar, sumamos el colateral de perps y el saldo libre de spot.
+        $spotBalance = $spotTotal - $spotHold;
         return round($perpBalance + $spotBalance, 2);
     }
 

@@ -263,7 +263,8 @@ class HyperliquidBrokerTest extends TestCase
                 return null;
             }
 
-            return match ($request['type']) {
+            return match ($request['type'] ?? null) {
+                'userAbstraction' => Http::response('"unifiedAccount"'),
                 'clearinghouseState' => Http::response([
                     'marginSummary' => [
                         'accountValue' => '85.19',
@@ -283,9 +284,10 @@ class HyperliquidBrokerTest extends TestCase
             };
         });
 
-        // Total: perpBalance (85.19) + spotBalance (1000.00 - 83.61) = 1001.58
-        // Available: perpAvailable (1.58) + spotAvailable (1000.00 - 83.61) = 917.97
-        $this->assertSame(1001.58, $this->broker->getTotalBalance(self::WALLET, self::AGENT_KEY));
+        // En cuenta unificada: el Total Equity del portfolio es el USDC total en Spot (1000.00).
+        // getAvailableBalance sigue sumando el saldo libre en Spot (1000.00 - 83.61 = 916.39)
+        // al withdrawable de perps (1.58) = 917.97.
+        $this->assertSame(1000.00, $this->broker->getTotalBalance(self::WALLET, self::AGENT_KEY));
         $this->assertSame(917.97, $this->broker->getAvailableBalance(self::WALLET, self::AGENT_KEY));
     }
 
