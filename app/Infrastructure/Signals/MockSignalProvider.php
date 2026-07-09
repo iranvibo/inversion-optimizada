@@ -41,49 +41,49 @@ class MockSignalProvider implements SignalProviderInterface
 
         $baseHistory = [
             [
-                'date' => '2026-05-15',
+                'date' => now()->subDays(25)->format('Y-m-d'),
                 'time' => '10:00:00',
                 'position' => 'LONG',
                 'profit' => 0.00,
             ],
             [
-                'date' => '2026-05-18',
+                'date' => now()->subDays(22)->format('Y-m-d'),
                 'time' => '16:00:00',
                 'position' => 'CLOSE',
                 'profit' => $this->getProfitForRisk($riskLevel, 1),
             ],
             [
-                'date' => '2026-05-20',
+                'date' => now()->subDays(20)->format('Y-m-d'),
                 'time' => '09:00:00',
                 'position' => 'SHORT',
                 'profit' => 0.00,
             ],
             [
-                'date' => '2026-05-22',
+                'date' => now()->subDays(18)->format('Y-m-d'),
                 'time' => '14:00:00',
                 'position' => 'CLOSE',
                 'profit' => $this->getProfitForRisk($riskLevel, 2),
             ],
             [
-                'date' => '2026-05-25',
+                'date' => now()->subDays(15)->format('Y-m-d'),
                 'time' => '11:00:00',
                 'position' => 'LONG',
                 'profit' => 0.00,
             ],
             [
-                'date' => '2026-05-28',
+                'date' => now()->subDays(12)->format('Y-m-d'),
                 'time' => '17:00:00',
                 'position' => 'CLOSE',
                 'profit' => $this->getProfitForRisk($riskLevel, 3),
             ],
             [
-                'date' => '2026-06-05',
+                'date' => now()->subDays(4)->format('Y-m-d'),
                 'time' => '10:00:00',
                 'position' => 'LONG',
                 'profit' => 0.00,
             ],
             [
-                'date' => '2026-06-08',
+                'date' => now()->subDays(1)->format('Y-m-d'),
                 'time' => '12:00:00',
                 'position' => 'CLOSE',
                 'profit' => $this->getProfitForRisk($riskLevel, 4),

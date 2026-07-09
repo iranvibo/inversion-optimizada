@@ -162,10 +162,6 @@
                     <span id="position-profit-badge"
                           title="Rendimiento de la inversión en curso"
                           class="inline-flex items-center gap-1 text-sm font-bold px-2.5 py-1 rounded-full border transition-all duration-300 select-none {{ $signalProfit === null ? 'hidden' : ($signalProfit >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20') }}">
-                        {{-- Rotación y tamaño con estilo inline: `rotate-180`/`w-3.5` no están en el CSS compilado --}}
-                        <svg id="position-profit-arrow" style="width: 0.875rem; height: 0.875rem; transition: transform .3s;{{ ($signalProfit ?? 0) < 0 ? ' transform: rotate(180deg);' : '' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-                        </svg>
                         <span id="position-profit-value">
                             @if($signalProfit !== null)
                                 {{ ($signalProfit >= 0 ? '+' : '−') . number_format(abs($signalProfit), 2, ',', '.') }}&nbsp;%
