@@ -69,7 +69,16 @@
       "Bash(./vendor/bin/pint app/Infrastructure/Hyperliquid app/Core config/services.php app/Http/Controllers/HyperliquidConnectionController.php app/Http/Requests/LinkHyperliquidRequest.php app/Console/Commands/SyncBinanceBalances.php app/Console/Commands/VerifyBinancePermissions.php app/Jobs/AdjustPositionJob.php app/Models/User.php app/Providers/AppServiceProvider.php app/Http/Controllers/DashboardController.php app/Http/Controllers/BalanceController.php app/Http/Controllers/AuthController.php tests/Unit/HyperliquidSignerTest.php tests/Unit/HyperliquidBrokerTest.php tests/Unit/AdjustPositionJobChannelTest.php tests/Feature/HyperliquidConnectionTest.php database/migrations/2026_07_02_090000_add_hyperliquid_channel_fields_to_users_table.php)",
       "Bash(./vendor/bin/pint --test app/Http/Controllers/AuthController.php app/Http/Controllers/Api app/Http/Middleware/EnsureInvitationApiToken.php app/Models/InvitationCode.php routes/api.php config/invitations.php tests/Feature/InvitationApiTest.php tests/Feature/AuthRegistrationTest.php database/migrations/2026_07_03_090000_create_invitation_codes_table.php)",
       "Bash(python3 -)",
-      "Bash(./vendor/bin/pint --test app/Http/Controllers/Api/InvitationController.php tests/Feature/InvitationApiTest.php tests/Feature/AuthRegistrationTest.php)"
+      "Bash(./vendor/bin/pint --test app/Http/Controllers/Api/InvitationController.php tests/Feature/InvitationApiTest.php tests/Feature/AuthRegistrationTest.php)",
+      "Bash(git -C /Users/bdado/VSCode/inversion-optimizada log --oneline -20)",
+      "Bash(git -C /Users/bdado/VSCode/inversion-optimizada log --oneline -15 --follow -- app/Infrastructure/Hyperliquid/HyperliquidBroker.php)",
+      "Bash(git -C /Users/bdado/VSCode/inversion-optimizada log --oneline -S \"leverage\" -i --all -- ':!node_modules')",
+      "Bash(git -C /Users/bdado/VSCode/inversion-optimizada log -p --all -S \"HYPERLIQUID_LEVERAGE\" --oneline -- ':!node_modules')",
+      "Read(//Users/bdado/VSCode/**)",
+      "Read(//Users/bdado/VSCode/btc-signals/api/**)",
+      "Bash(grep -rn \"profit\" /Users/bdado/VSCode/btc-signals/api --include=\"*.php\" -l 2>/dev/null | head; ls /Users/bdado/VSCode/btc-signals)",
+      "Read(//Users/bdado/VSCode/btc-signals/**)",
+      "Bash(git stash *)"
     ]
   }
 }

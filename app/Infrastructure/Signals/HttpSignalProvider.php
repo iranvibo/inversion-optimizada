@@ -61,6 +61,7 @@ class HttpSignalProvider implements SignalProviderInterface
                 'position' => strtoupper($data['position']),
                 'issued_at' => $data['issued_at'] ?? now()->toIso8601String(),
                 'signal_id' => $data['signal_id'] ?? uniqid('sig-'),
+                'profit' => (float) ($data['profit'] ?? 0.0),
             ];
         } catch (Exception $e) {
             Log::error("HttpSignalProvider connection failed: " . $e->getMessage());

@@ -19,10 +19,16 @@ class MockSignalProvider implements SignalProviderInterface
         $riskLevel = strtolower($riskLevel);
         $position = strtoupper(Cache::get("mock_signal:{$riskLevel}", 'LONG'));
 
+        // Rendimiento no realizado de la posición abierta, en porcentaje sobre
+        // el margen (mismo contrato que la API real). Sobrescribible en tests.
+        $defaultProfit = $position === 'CLOSE' ? 0.0 : 1.25;
+        $profit = (float) Cache::get("mock_signal_profit:{$riskLevel}", $defaultProfit);
+
         return [
             'position' => $position,
             'issued_at' => now()->toIso8601String(),
             'signal_id' => 'mock-sig-' . $riskLevel . '-' . now()->format('YmdH'),
+            'profit' => $profit,
         ];
     }
 

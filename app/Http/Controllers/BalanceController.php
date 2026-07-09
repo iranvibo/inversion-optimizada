@@ -67,6 +67,9 @@ class BalanceController extends Controller
             'live' => true,
             'balance' => $balance,
             'current_position' => $user->current_position,
+            // Rendimiento (%) de la posición en curso según el proveedor de
+            // señales; null si está fuera de mercado (la UI oculta el badge).
+            'signal_profit' => $user->current_signal_profit,
         ]);
     }
 

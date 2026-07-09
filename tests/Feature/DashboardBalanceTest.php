@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Events\BalanceUpdated;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
@@ -177,7 +178,7 @@ class DashboardBalanceTest extends TestCase
             return $event->user->is($this->user)
                 && $event->balance > 0
                 && $event->broadcastAs() === 'balance.updated'
-                && array_keys($event->broadcastWith()) === ['balance', 'captured_at', 'current_position'];
+                && array_keys($event->broadcastWith()) === ['balance', 'captured_at', 'current_position', 'signal_profit'];
         });
     }
 
@@ -261,6 +262,46 @@ class DashboardBalanceTest extends TestCase
     public function test_live_endpoint_requires_authentication(): void
     {
         $this->getJson(route('dashboard.balance.live'))->assertUnauthorized();
+    }
+
+    public function test_live_endpoint_exposes_profit_of_current_open_position(): void
+    {
+        $this->user->update(['bot_mode' => 'real', 'bot_active' => true, 'risk_level' => 'balanceado']);
+
+        Cache::put("user:{$this->user->id}:real_position", 'LONG');
+        Cache::put('signal:current_profit:balanceado', -1.0);
+
+        $response = $this->actingAs($this->user)->getJson(route('dashboard.balance.live'));
+
+        $response->assertOk();
+        $response->assertJson(['live' => true, 'signal_profit' => -1.0]);
+    }
+
+    public function test_live_endpoint_returns_null_signal_profit_when_out_of_market(): void
+    {
+        $this->user->update(['bot_mode' => 'real', 'bot_active' => true, 'risk_level' => 'balanceado']);
+
+        Cache::put("user:{$this->user->id}:real_position", 'CLOSE');
+        Cache::put('signal:current_profit:balanceado', -1.0);
+
+        $response = $this->actingAs($this->user)->getJson(route('dashboard.balance.live'));
+
+        $response->assertOk();
+        $this->assertNull($response->json('signal_profit'));
+    }
+
+    public function test_dashboard_renders_current_position_profit_next_to_balance(): void
+    {
+        $this->user->update(['bot_mode' => 'simulation', 'bot_active' => true, 'risk_level' => 'balanceado']);
+
+        Cache::put('signal:last_known_position:balanceado', 'LONG');
+        Cache::put('signal:current_profit:balanceado', -1.0);
+
+        $response = $this->actingAs($this->user)->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('inversión en curso');
+        $response->assertSee('−1,00');
     }
 
     public function test_history_endpoint_separates_channels_and_returns_only_active_channel_snapshots(): void

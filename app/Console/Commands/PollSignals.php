@@ -85,6 +85,11 @@ class PollSignals extends Command
             // Limpiar marca de inestabilidad si la consulta fue exitosa
             Cache::forget("signal_provider_unstable:{$riskLevel}");
 
+            // El profit de la posición en curso cambia en cada ciclo aunque la
+            // señal no lo haga, así que se cachea siempre (lo lee la cabecera
+            // del dashboard junto al Balance Total).
+            Cache::put("signal:current_profit:{$riskLevel}", (float) ($signal['profit'] ?? 0.0));
+
             // 3. Comprobar si la señal difiere de la última conocida (Idempotencia)
             $cacheKey = "signal:last_known_position:{$riskLevel}";
             $lastKnownPosition = Cache::get($cacheKey);

@@ -230,4 +230,31 @@ class User extends Authenticatable
 
         return Cache::get("user:{$this->id}:real_position", 'CLOSE');
     }
+
+    /**
+     * Rendimiento no realizado (en %) de la posición en curso según el proveedor
+     * de señales. Devuelve null si el bot está pausado o fuera de mercado, para
+     * que la UI oculte el indicador en vez de mostrar un 0 % engañoso.
+     */
+    public function getCurrentSignalProfitAttribute(): ?float
+    {
+        if ($this->current_position === 'CLOSE') {
+            return null;
+        }
+
+        $riskLevel = strtolower($this->risk_level ?? 'balanceado');
+        $profit = Cache::get("signal:current_profit:{$riskLevel}");
+
+        if ($profit === null) {
+            try {
+                $signal = app(SignalProviderInterface::class)->getCurrentSignal($riskLevel);
+                $profit = (float) ($signal['profit'] ?? 0.0);
+                Cache::put("signal:current_profit:{$riskLevel}", $profit);
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        return (float) $profit;
+    }
 }

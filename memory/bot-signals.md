@@ -1,6 +1,6 @@
 ---
 created: 2026-06-10
-updated: 2026-07-04
+updated: 2026-07-09
 ---
 
 # Origen de las Señales del Bot
@@ -25,7 +25,11 @@ El bot de trading utilizado en **ViBo Invest** para ejecutar operaciones en Bina
 
 ### Contrato de Señales y Drivers
 * **Interfaz**: `App\Core\Contracts\SignalProviderInterface` con dos métodos:
-  * `getCurrentSignal(string $riskLevel): array` → `['position' => string, 'issued_at' => string, 'signal_id' => string|int]`
+  * `getCurrentSignal(string $riskLevel): array` → `['position' => string, 'issued_at' => string, 'signal_id' => string|int, 'profit' => float]`
+  * **OJO con las unidades de `profit` (2026-07-09)**: en `getCurrentSignal` es el rendimiento no realizado de la posición abierta **ya en porcentaje sobre el margen** (`-1.0` = −1 %, calculado en `btc-signals/api/v1/signal/index.php` como `netUnrealized/amount*100`; `0.0` si CLOSE). En `getSignalHistory` en cambio es una **fracción** (`0.01` = 1 %). No confundirlas.
+  * **Badge de profit junto al Balance Total (2026-07-09)**: `PollSignals` cachea el profit en cada ciclo (aunque la señal no cambie) en `signal:current_profit:{riskLevel}`; el accesor `User::getCurrentSignalProfitAttribute` lo lee (null si bot pausado o posición CLOSE, con fallback al proveedor si el caché está vacío). Lo muestran el render inicial del dashboard, `BalanceController@live` y el broadcast `BalanceUpdated` (`signal_profit` en ambos payloads), de modo que el badge se refresca en cada actualización de balance (sondeo cada 5 s y WebSocket); en el cliente lo pinta `updatePositionProfitBadge()` y se oculta al pasar a CLOSE. Solo flecha + porcentaje, sin texto (se pidió quitar "inversión en curso"). En el mock es sobrescribible con `Cache::put("mock_signal_profit:{riskLevel}", x)`.
+  * **Blade gotcha**: la forma inline `@php($x = ...)` se compiló mal en `dashboard.blade.php` (dejó `<?php(` sin cerrar y rompió el render con "Undefined variable" aguas abajo); usar siempre el bloque `@php ... @endphp`.
+  * **CSS compilado desactualizado**: utilidades Tailwind nuevas en las vistas (p. ej. `rotate-180`, `w-3.5`) no existen en `public/build` hasta correr `npm run build`; para la flecha del badge se usó estilo inline (`transform: rotate(180deg)`) para no depender del rebuild.
   * `getSignalHistory(string $riskLevel): array` → `array<int, array{date: string, time: string, position: string, profit: float}>`
 * **Drivers**:
   * `mock` (`App\Infrastructure\Signals\MockSignalProvider`): Driver por defecto. Carga retornos deterministas históricos diferenciados por perfil. Permite simular cambios de señal en tests sobrescribiendo el cache mediante `Cache::put("mock_signal:{$riskLevel}", 'CLOSE')`.

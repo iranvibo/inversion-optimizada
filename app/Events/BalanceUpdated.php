@@ -46,6 +46,9 @@ class BalanceUpdated implements ShouldBroadcast
             'balance' => round($this->balance, 2),
             'captured_at' => $this->capturedAt->format(DATE_ATOM),
             'current_position' => $this->user->current_position,
+            // Rendimiento (%) de la posición en curso; null si está fuera de
+            // mercado, para que el badge junto al balance se oculte.
+            'signal_profit' => $this->user->current_signal_profit,
         ];
     }
 }

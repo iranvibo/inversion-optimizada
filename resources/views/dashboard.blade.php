@@ -145,14 +145,33 @@
                     </span>
                 </div>
                 <!-- Balance grande y legible, sin jerga técnica (Escenario 1) -->
-                <div id="balance-amount"
-                     class="text-5xl md:text-6xl font-extrabold tracking-tight text-white my-2 transition-all duration-500"
-                     data-balance="{{ $latestSnapshot?->balance ?? '' }}">
-                    @if($latestSnapshot)
-                        {{ number_format($latestSnapshot->balance, 2, ',', '.') }}<span class="text-3xl text-slate-400 font-semibold">$</span>
-                    @else
-                        <span class="text-3xl text-slate-500 font-semibold">Sin datos todavía</span>
-                    @endif
+                @php
+                    $signalProfit = $user->current_signal_profit;
+                @endphp
+                <div class="flex items-center gap-3 flex-wrap my-2">
+                    <div id="balance-amount"
+                         class="text-5xl md:text-6xl font-extrabold tracking-tight text-white transition-all duration-500"
+                         data-balance="{{ $latestSnapshot?->balance ?? '' }}">
+                        @if($latestSnapshot)
+                            {{ number_format($latestSnapshot->balance, 2, ',', '.') }}<span class="text-3xl text-slate-400 font-semibold">$</span>
+                        @else
+                            <span class="text-3xl text-slate-500 font-semibold">Sin datos todavía</span>
+                        @endif
+                    </div>
+                    <!-- Rendimiento de la inversión en curso (señal actual del bot) -->
+                    <span id="position-profit-badge"
+                          title="Rendimiento de la inversión en curso"
+                          class="inline-flex items-center gap-1 text-sm font-bold px-2.5 py-1 rounded-full border transition-all duration-300 select-none {{ $signalProfit === null ? 'hidden' : ($signalProfit >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20') }}">
+                        {{-- Rotación y tamaño con estilo inline: `rotate-180`/`w-3.5` no están en el CSS compilado --}}
+                        <svg id="position-profit-arrow" style="width: 0.875rem; height: 0.875rem; transition: transform .3s;{{ ($signalProfit ?? 0) < 0 ? ' transform: rotate(180deg);' : '' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                        </svg>
+                        <span id="position-profit-value">
+                            @if($signalProfit !== null)
+                                {{ ($signalProfit >= 0 ? '+' : '−') . number_format(abs($signalProfit), 2, ',', '.') }}&nbsp;%
+                            @endif
+                        </span>
+                    </span>
                 </div>
                 <p id="balance-change" class="text-sm text-slate-400">
                     @if(!$latestSnapshot)
@@ -2357,6 +2376,34 @@
         amountEl.innerHTML = formatDollar(value) + '<span class="text-3xl text-slate-400 font-semibold">$</span>';
     }
 
+    // Badge junto al Balance Total con el rendimiento (%) de la inversión en
+    // curso según la señal del proveedor; null/undefined = fuera de mercado.
+    const profitBadgeEl = document.getElementById('position-profit-badge');
+    const profitArrowEl = document.getElementById('position-profit-arrow');
+    const profitValueEl = document.getElementById('position-profit-value');
+
+    function updatePositionProfitBadge(profit) {
+        if (!profitBadgeEl) return;
+
+        if (profit === null || profit === undefined) {
+            profitBadgeEl.classList.add('hidden');
+            return;
+        }
+
+        const positive = profit >= 0;
+        profitBadgeEl.classList.remove('hidden');
+        profitBadgeEl.classList.toggle('bg-emerald-500/10', positive);
+        profitBadgeEl.classList.toggle('text-emerald-400', positive);
+        profitBadgeEl.classList.toggle('border-emerald-500/20', positive);
+        profitBadgeEl.classList.toggle('bg-rose-500/10', !positive);
+        profitBadgeEl.classList.toggle('text-rose-400', !positive);
+        profitBadgeEl.classList.toggle('border-rose-500/20', !positive);
+        if (profitArrowEl) profitArrowEl.style.transform = positive ? '' : 'rotate(180deg)';
+        if (profitValueEl) {
+            profitValueEl.innerHTML = (positive ? '+' : '−') + formatDollar(Math.abs(profit)) + '&nbsp;%';
+        }
+    }
+
     // Transición sutil para denotar "cuenta viva" (Escenario 3)
     function pulseBalance() {
         amountEl.classList.add('scale-105', 'text-violet-300');
@@ -2645,6 +2692,12 @@
                 badge.textContent = 'Fuera de mercado';
             }
         });
+
+        // Fuera de mercado no hay inversión en curso: se oculta su rendimiento
+        // junto al Balance Total (el sondeo en vivo lo reactiva al reabrir).
+        if (position === 'CLOSE') {
+            updatePositionProfitBadge(null);
+        }
     }
 
     function updateBotUi(isActive) {
@@ -3121,6 +3174,8 @@
             if (data.current_position) {
                 updateBotPositionUi(data.current_position);
             }
+
+            updatePositionProfitBadge(data.signal_profit);
         } catch (err) {
             // Silencioso: la cabecera conserva el último valor mostrado.
         } finally {
@@ -3152,6 +3207,7 @@
                 if (event.current_position) {
                     updateBotPositionUi(event.current_position);
                 }
+                updatePositionProfitBadge(event.signal_profit);
                 refreshActivities();
             })
             .listen('.bot.status.updated', (event) => {

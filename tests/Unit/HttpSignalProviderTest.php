@@ -37,7 +37,8 @@ class HttpSignalProviderTest extends TestCase
             'https://trading.vibo-solutions.com/api/v1/signal*' => Http::response([
                 'position' => 'LONG',
                 'issued_at' => '2026-06-14T00:30:15+02:00',
-                'signal_id' => 'sig-bal-1718195415'
+                'signal_id' => 'sig-bal-1718195415',
+                'profit' => -1.0
             ], 200)
         ]);
 
@@ -46,6 +47,7 @@ class HttpSignalProviderTest extends TestCase
         $this->assertSame('LONG', $result['position']);
         $this->assertSame('2026-06-14T00:30:15+02:00', $result['issued_at']);
         $this->assertSame('sig-bal-1718195415', $result['signal_id']);
+        $this->assertSame(-1.0, $result['profit']);
 
         Http::assertSent(function ($request) {
             return $request->url() === 'https://trading.vibo-solutions.com/api/v1/signal?risk_level=balanceado'
@@ -95,6 +97,25 @@ class HttpSignalProviderTest extends TestCase
                 && $request->hasHeader('Authorization', 'Bearer mi_token_secreto')
                 && $request->method() === 'GET';
         });
+    }
+
+    /**
+     * Prueba que un profit ausente en la respuesta se normalice a 0.0
+     * (compatibilidad con versiones de la API sin el campo).
+     */
+    public function test_get_current_signal_defaults_profit_to_zero_when_missing(): void
+    {
+        Http::fake([
+            'https://trading.vibo-solutions.com/api/v1/signal*' => Http::response([
+                'position' => 'LONG',
+                'issued_at' => '2026-06-14T00:30:15+02:00',
+                'signal_id' => 'sig-bal-1718195415'
+            ], 200)
+        ]);
+
+        $result = $this->provider->getCurrentSignal('balanceado');
+
+        $this->assertSame(0.0, $result['profit']);
     }
 
     /**
