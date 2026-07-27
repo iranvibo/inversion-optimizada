@@ -144,4 +144,58 @@ class AdminUsersTest extends TestCase
         $response->assertStatus(422);
         $this->assertDatabaseHas('users', ['id' => $admin->id]);
     }
+
+    /**
+     * El administrador puede generar un código y URL de invitación para un nuevo correo.
+     */
+    public function test_admin_can_generate_invitation_code_url(): void
+    {
+        $admin = $this->createAdmin();
+        $email = 'nuevo.invitado@ejemplo.com';
+
+        $response = $this->actingAs($admin)->postJson(route('admin.invitations.store'), [
+            'email' => $email,
+            'expires_in_days' => 14,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('email', $email)
+            ->assertJsonStructure(['message', 'email', 'code', 'register_url', 'expires_at']);
+
+        $code = $response->json('code');
+        $registerUrl = $response->json('register_url');
+
+        $this->assertStringContainsString('/register?invitation='.$code, $registerUrl);
+        $this->assertDatabaseHas('invitation_codes', ['email' => $email]);
+    }
+
+    /**
+     * Un usuario no administrador no puede generar invitaciones.
+     */
+    public function test_non_admin_cannot_generate_invitation(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->postJson(route('admin.invitations.store'), [
+            'email' => 'otro@ejemplo.com',
+        ]);
+
+        $response->assertForbidden();
+    }
+
+    /**
+     * No se puede generar una invitación para un correo ya registrado en la plataforma.
+     */
+    public function test_cannot_generate_invitation_for_already_registered_email(): void
+    {
+        $admin = $this->createAdmin();
+        $existingUser = User::factory()->create(['email' => 'existente@ejemplo.com']);
+
+        $response = $this->actingAs($admin)->postJson(route('admin.invitations.store'), [
+            'email' => $existingUser->email,
+        ]);
+
+        $response->assertStatus(409)
+            ->assertJsonPath('message', 'Ya existe un usuario registrado con ese correo electrónico.');
+    }
 }

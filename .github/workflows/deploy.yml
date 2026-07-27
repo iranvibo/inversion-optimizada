@@ -2,7 +2,7 @@ name: Deploy to IONOS VPS
 
 on:
   push:
-    branches: [master, feature-entrega2-IVB, new-option-to-avoid-use-exchange]
+    branches: [master, finalproject-ivb]
   workflow_dispatch:
 
 jobs:

@@ -712,9 +712,17 @@
                     <h3 class="text-lg font-bold text-white">Usuarios Registrados</h3>
                     <p class="text-xs text-slate-400 mt-1">Administración de las cuentas de la plataforma. La eliminación es permanente y cierra antes las posiciones abiertas del usuario.</p>
                 </div>
-                <button type="button" id="admin-users-refresh-btn" class="shrink-0 text-xs font-bold py-2 px-4 rounded-xl transition duration-200 bg-slate-800/60 hover:bg-slate-700 text-slate-300 border border-slate-700/60 cursor-pointer">
-                    Actualizar
-                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="admin-users-invite-btn" class="shrink-0 text-xs font-bold py-2 px-4 rounded-xl transition duration-200 bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-600/20 flex items-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        Generar Enlace Invitado
+                    </button>
+                    <button type="button" id="admin-users-refresh-btn" class="shrink-0 text-xs font-bold py-2 px-4 rounded-xl transition duration-200 bg-slate-800/60 hover:bg-slate-700 text-slate-300 border border-slate-700/60 cursor-pointer">
+                        Actualizar
+                    </button>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
@@ -733,6 +741,103 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Modal para Generar URL de Invitación (Administración) -->
+        <div id="admin-invite-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden animate-fade-in">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 relative">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-400 flex items-center justify-center border border-violet-500/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Generar URL con Código de Invitado</h3>
+                            <p class="text-xs text-slate-400">Emite una invitación única válida para registrar un nuevo usuario.</p>
+                        </div>
+                    </div>
+                    <button type="button" id="admin-invite-modal-close" class="text-slate-400 hover:text-white transition p-1 cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Formulario de emisión -->
+                <form id="admin-invite-form" class="space-y-4">
+                    <div>
+                        <label for="admin-invite-email" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Correo Electrónico del Invitado</label>
+                        <input type="email" id="admin-invite-email" required placeholder="ejemplo@correo.com" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500 transition duration-200">
+                        <p class="text-[11px] text-slate-500 mt-1">El usuario sólo podrá registrarse si usa este correo concreto.</p>
+                    </div>
+
+                    <div>
+                        <label for="admin-invite-days" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Días de Validez</label>
+                        <select id="admin-invite-days" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500 transition duration-200">
+                            <option value="7" selected>7 días (Por defecto)</option>
+                            <option value="1">1 día</option>
+                            <option value="3">3 días</option>
+                            <option value="14">14 días</option>
+                            <option value="30">30 días</option>
+                        </select>
+                    </div>
+
+                    <p id="admin-invite-error" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl"></p>
+
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <button type="button" id="admin-invite-cancel-btn" class="text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="admin-invite-submit-btn" class="text-xs font-bold py-2.5 px-5 rounded-xl transition duration-200 bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-600/20 cursor-pointer">
+                            Generar Enlace
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Resultado tras la emisión -->
+                <div id="admin-invite-result" class="hidden space-y-4 pt-2">
+                    <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+                        <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>¡Invitación emitida con éxito para <strong id="admin-invite-result-email" class="text-white"></strong>!</span>
+                    </div>
+
+                    <div class="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800/80">
+                        <div>
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">URL de Registro Directa</span>
+                            <div class="flex items-center gap-2">
+                                <input type="text" id="admin-invite-result-url" readonly class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-violet-300 text-xs font-mono select-all focus:outline-none">
+                                <button type="button" id="admin-invite-copy-url-btn" class="shrink-0 text-xs font-bold py-2 px-3 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition flex items-center gap-1 cursor-pointer">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                    </svg>
+                                    Copiar URL
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 pt-1 border-t border-slate-800/60 text-xs">
+                            <div>
+                                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Código</span>
+                                <span id="admin-invite-result-code" class="font-mono font-bold text-white text-xs"></span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Caduca</span>
+                                <span id="admin-invite-result-expires" class="text-slate-300 text-xs"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button type="button" id="admin-invite-done-btn" class="text-xs font-bold py-2 px-4 rounded-xl transition duration-200 bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -3421,6 +3526,109 @@
                 showToast(err.message, true);
                 deleteBtn.disabled = false;
                 deleteBtn.classList.remove('opacity-50');
+            }
+        });
+    }
+
+    // Modal y emisión de invitaciones (Administración)
+    const adminInviteModal = document.getElementById('admin-invite-modal');
+    const adminInviteBtn = document.getElementById('admin-users-invite-btn');
+    const adminInviteCloseBtn = document.getElementById('admin-invite-modal-close');
+    const adminInviteCancelBtn = document.getElementById('admin-invite-cancel-btn');
+    const adminInviteForm = document.getElementById('admin-invite-form');
+    const adminInviteEmailInput = document.getElementById('admin-invite-email');
+    const adminInviteDaysSelect = document.getElementById('admin-invite-days');
+    const adminInviteSubmitBtn = document.getElementById('admin-invite-submit-btn');
+    const adminInviteError = document.getElementById('admin-invite-error');
+    const adminInviteResult = document.getElementById('admin-invite-result');
+    const adminInviteResultEmail = document.getElementById('admin-invite-result-email');
+    const adminInviteResultUrl = document.getElementById('admin-invite-result-url');
+    const adminInviteResultCode = document.getElementById('admin-invite-result-code');
+    const adminInviteResultExpires = document.getElementById('admin-invite-result-expires');
+    const adminInviteCopyUrlBtn = document.getElementById('admin-invite-copy-url-btn');
+    const adminInviteDoneBtn = document.getElementById('admin-invite-done-btn');
+
+    function openInviteModal() {
+        if (!adminInviteModal) return;
+        if (adminInviteForm) {
+            adminInviteForm.reset();
+            adminInviteForm.classList.remove('hidden');
+        }
+        if (adminInviteResult) adminInviteResult.classList.add('hidden');
+        if (adminInviteError) {
+            adminInviteError.classList.add('hidden');
+            adminInviteError.textContent = '';
+        }
+        adminInviteModal.classList.remove('hidden');
+        if (adminInviteEmailInput) adminInviteEmailInput.focus();
+    }
+
+    function closeInviteModal() {
+        if (!adminInviteModal) return;
+        adminInviteModal.classList.add('hidden');
+    }
+
+    if (adminInviteBtn) adminInviteBtn.addEventListener('click', openInviteModal);
+    if (adminInviteCloseBtn) adminInviteCloseBtn.addEventListener('click', closeInviteModal);
+    if (adminInviteCancelBtn) adminInviteCancelBtn.addEventListener('click', closeInviteModal);
+    if (adminInviteDoneBtn) adminInviteDoneBtn.addEventListener('click', closeInviteModal);
+
+    if (adminInviteForm) {
+        adminInviteForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (adminInviteError) adminInviteError.classList.add('hidden');
+            adminInviteSubmitBtn.disabled = true;
+            adminInviteSubmitBtn.classList.add('opacity-50');
+
+            try {
+                const response = await fetch("{{ route('admin.invitations.store') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: JSON.stringify({
+                        email: adminInviteEmailInput.value,
+                        expires_in_days: adminInviteDaysSelect.value,
+                    }),
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'No se pudo generar la invitación.');
+                }
+
+                adminInviteForm.classList.add('hidden');
+                if (adminInviteResultEmail) adminInviteResultEmail.textContent = data.email;
+                if (adminInviteResultUrl) adminInviteResultUrl.value = data.register_url;
+                if (adminInviteResultCode) adminInviteResultCode.textContent = data.code;
+                if (adminInviteResultExpires) adminInviteResultExpires.textContent = data.expires_at_formatted || data.expires_at;
+                if (adminInviteResult) adminInviteResult.classList.remove('hidden');
+                showToast(data.message || 'Invitación emitida con éxito.');
+            } catch (err) {
+                if (adminInviteError) {
+                    adminInviteError.textContent = err.message;
+                    adminInviteError.classList.remove('hidden');
+                }
+            } finally {
+                adminInviteSubmitBtn.disabled = false;
+                adminInviteSubmitBtn.classList.remove('opacity-50');
+            }
+        });
+    }
+
+    if (adminInviteCopyUrlBtn) {
+        adminInviteCopyUrlBtn.addEventListener('click', async () => {
+            if (!adminInviteResultUrl || !adminInviteResultUrl.value) return;
+            try {
+                await navigator.clipboard.writeText(adminInviteResultUrl.value);
+                showToast('URL de invitación copiada al portapapeles.');
+            } catch (err) {
+                adminInviteResultUrl.select();
+                document.execCommand('copy');
+                showToast('URL de invitación copiada al portapapeles.');
             }
         });
     }

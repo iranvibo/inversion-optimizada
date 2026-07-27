@@ -75,6 +75,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:admin')->group(function () {
         Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users.index');
         Route::delete('/admin/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
+        Route::post('/admin/invitations', [AdminUserController::class, 'storeInvitation'])->name('admin.invitations.store');
     });
 
     // Herramientas de simulación / QA. MUTAN datos y credenciales reales del
