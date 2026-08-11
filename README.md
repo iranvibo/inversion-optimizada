@@ -171,3 +171,8 @@ Para profundizar en el diseño conceptual, las historias de usuario y los detall
 *   [docs/prd.md](file:///Users/bdado/VSCode/inversion-optimizada/docs/prd.md): Documento de Requerimientos de Producto (PRD) detallando el alcance del MVP, métricas de éxito y seguridad.
 *   [docs/architecture.md](file:///Users/bdado/VSCode/inversion-optimizada/docs/architecture.md): Documento detallado de la arquitectura de software, diagramas Mermaid (topología de red, sondeo de señales por nivel de riesgo, cálculo del capital simulado) y decisiones técnicas.
 *   [docs/user-story.md](file:///Users/bdado/VSCode/inversion-optimizada/docs/user-story.md): User Stories priorizadas y redactadas con criterios INVEST y pruebas en formato BDD.
+
+Para usar cuenta demo en producción:
+* Ir a https://invest.vibo-solutions.com/
+* Usuario: lidr@lidr.com
+* Contraseña: liar
