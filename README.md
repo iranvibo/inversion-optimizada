@@ -175,4 +175,4 @@ Para profundizar en el diseño conceptual, las historias de usuario y los detall
 Para usar cuenta demo en producción:
 * Ir a https://invest.vibo-solutions.com/
 * Usuario: lidr@lidr.com
-* Contraseña: liar
+* Contraseña: lidr
